@@ -52,7 +52,7 @@ class SortMeRNA:
         return result
     
     def join_fr(self):
-        temp = self.working_dir + '/Preprocess/SortMeRNA/joined.fastq'
+        temp = self.working_dir + 'Preprocess/SortMeRNA/joined.fastq'
         bashCommand = 'bash MOSCA/merge-paired-reads.sh ' + self.reads[0] + ' ' + self.reads[1] + ' ' + temp
         self.reads = temp
         print(bashCommand)
@@ -60,7 +60,7 @@ class SortMeRNA:
         output, error = process.communicate()
     
     def divide_temp(self):
-        readf, readr = self.working_dir + '/Preprocess/SortMeRNA/forward_' + self.other.split('/')[-1], self.working_dir + '/Preprocess/SortMeRNA/reverse_' + self.other.split('/')[-1]
+        readf, readr = self.working_dir + 'Preprocess/SortMeRNA/forward_' + self.other.split('/')[-1], self.working_dir + '/Preprocess/SortMeRNA/reverse_' + self.other.split('/')[-1]
         bashCommand = 'bash MOSCA/unmerge-paired-reads.sh ' + self.other + '.fastq ' + readf + ' ' + readr
         print(bashCommand)
         process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
@@ -73,9 +73,10 @@ class SortMeRNA:
         return output, error
     
     def run(self):
-        if self.paired == "PE":
+        if self.paired == True:
             self.join_fr()
             self.run_tool()
             self.divide_temp()
         else:
             self.run_tool()
+ 

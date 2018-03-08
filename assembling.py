@@ -5,7 +5,7 @@ Created on Mon Jun  5 14:33:12 2017
 @author: Asus
 """
 
-import subprocess
+import subprocess, os
 
 class Assembling:
     
@@ -26,9 +26,9 @@ class Assembling:
         
     def metaspades_command(self):
         self.__dict__.pop('assembler')
-        result = 'metaspades.py'
-        result += ' -o ' + self.out_dir
-        self.__dict__.pop('out_dir')
+        result = 'python ../../../home/jsequeira/SPAdes-3.11.1-Linux/bin/metaspades.py'
+        result += ' -o ' + self.out_dir + 'Assembly'
+        out_dir = self.__dict__.pop('out_dir')
         # Input data
         if hasattr(self, 'interleaved'):
             result += ' --12 ' + self.interleaved
@@ -53,11 +53,10 @@ class Assembling:
                 self.__dict__.pop(attr)
         for arg in self.__dict__.keys():
             result += self.set_argument(arg)
-        
+        self.out_dir = out_dir
         return result
     
     def megahit_command(self):
-        
         self.__dict__.pop('assembler')
         result = '../../../home/jsequeira/megahit/megahit -f'
         if hasattr(self, 'forward_paired') and hasattr(self, 'reverse_paired'):
@@ -110,25 +109,27 @@ class Assembling:
         return old.split('%')[0]
     
     def metaquast(self, contigs, out_dir):
-        bashCommand = 'metaquast.py --threads 6 --output-dir ' + out_dir + ' ' + contigs
+        bashCommand = 'metaquast.py --threads 6 --output-dir ' + out_dir + 'Assembly ' + contigs
         self.run_tool(bashCommand)
      
     def quality_control(self):
         from shutil import copyfile
         terminations = {'megahit':'/final.contigs.fa', 'metaspades':'/contigs.fasta'}
-        contigs = self.out_dir + terminations[self.assembler]
-        temp = self.out_dir + '/quality_control'
-        sam = self.out_dir + '/quality_control/library.sam'
-        log = self.out_dir + '/quality_control/bowtie.log'
+        contigs = self.out_dir + 'Assembly' + terminations[self.assembler]
+        temp = self.out_dir + 'Assembly/quality_control'
+        sam = self.out_dir + 'Assembly/quality_control/library.sam'
+        log = self.out_dir + 'Assembly/quality_control/bowtie.log'
         percentage_of_reads = self.bowtie2([self.forward_paired,self.reverse_paired], contigs, temp, sam, log)
-        self.metaquast(contigs, self.out_dir + '/quality_control')
+        self.metaquast(contigs, self.out_dir + 'Assembly/quality_control')
         
-        if os.path.isdir(self.out_dir + '/quality_control/combined_reference/report.tsv'):
-            copyfile(self.out_dir + '/quality_control/combined_reference/report.tsv', self.out_dir + '/quality_control/report.tsv')
+        if os.path.isdir(self.out_dir + 'Assembly/quality_control/combined_reference/report.tsv'):
+            copyfile(self.out_dir + 'Assembly/quality_control/combined_reference/report.tsv', self.out_dir + '/quality_control/report.tsv')
         
-        handler = open(self.out_dir + '/quality_control/report.tsv', 'a')
+        handler = open(self.out_dir + 'Assembly/quality_control/report.tsv', 'a')
         handler.write('Reads aligned (%)\t' + percentage_of_reads)
         
     def run(self):
+        print('made it here')
         self.run_assembler()
+        print('and even here!')
         self.quality_control()

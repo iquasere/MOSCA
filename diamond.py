@@ -51,22 +51,3 @@ class DIAMOND:
         result = pd.read_csv(self.out, sep='\t')
         result.columns = ['qseqid', 'sseqid', 'pident', 'length', 'mismatch', 'gapopen', 'qstart', 'qend', 'sstart', 'send', 'evalue', 'bitscore']
         return result
-
-if __name__ == '__main__':
-    
-    print('running the right thing')
-
-    files = ['4478-DNA-S1611-MiSeqKapa','4478-DNA-S1613-MiSeqKapa']
-
-    for file in files:
-        for database in ['Databases/DIAMOND/UniProt/uniprot.dmnd']:
-            for assembler in ['MetaSPAdes']:
-                diamond = DIAMOND(threads = '6',
-                                  db = database,
-                                  out = file + '/Annotation/aligned.blast',
-                                  query = file + '/Annotation/FGS.faa',
-                                  unal = '1',
-                                  max_target_seqs = '1')
-                    
-                diamond.run()
-

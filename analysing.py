@@ -7,130 +7,201 @@ Created on Mon Oct  9 00:23:51 2017
 """
 
 import pandas as pd
-import numpy as np
-import subprocess
+import glob
+from mosca_tools import MoscaTools
+mt = MoscaTools()
 
 class Analysing:
     def __init__(self, **kwargs):
         self.__dict__ = kwargs
-        if hasattr(self, 'accession2taxid'):
-            self.hdf = self.accession2taxid + '.h5'
-    
-    def iter_read_csv(self, chunksize, **kwargs):
-        for chunk in pd.read_csv(self.accession2taxid, chunksize=chunksize, low_memory=True, **kwargs):
-            yield chunk
-    
-    def write_to_hdf_store(self, columns=None):
-        hdf = pd.HDFStore(self.hdf, complevel=3)
-        generator = self.iter_read_csv(self.chunksize, delimiter="\t")
-        first = next(generator)
-        original_cols = first.columns
-        if columns is not None:
-            first.columns = columns
-        hdf.put('all', first, format='table', append=True, chunksize=self.chunksize, data_columns=original_cols if columns is None else columns, index=False)
-        for chunk in generator:
-            if columns is not None:
-                chunk.columns = columns
-            hdf.append('all', chunk, format='table', append=True, chunksize=self.chunksize, data_columns=original_cols if columns is None else columns, index=False)
-        if columns is not None:
-            hdf.create_table_index('all', columns=columns)
-        else:
-            hdf.create_table_index('all', columns=original_cols)
-            
-    def ids(self, accession):
-        handler = pd.HDFStore(self.hdf, key='all', chunksize = self.chunksize)
-        return handler.select('all', 'accession_version=' + str(list(accession)), chunksize = self.chunksize)
-    
-    def lineages(self, taxids):
-        df = pd.read_csv(self.lineages)
-        df.index = df.tax_id
-        return pd.concat([taxids,df.loc[taxids.index,['superkingdom','phylum','class','order','family','genus','species']]], axis = 1)
-    
-    def pathways(self, gis):
-        df = pd.read_csv(self.systems, encoding = "ISO-8859-1", names = ['bsid','source','accession','name','type','taxonomic_scope','taxid','description'], sep = '\t')
-        df.index = df.gi
-        return pd.concat([gis,df.loc[gis, ['name','type']]])
 
-    def krona_plots(self, accession, out):
-        if self.contigs == True:
-            accession = accession[accession.values != '*']
-            prelation = self.ids(accession)
-        else:
-            accession = accession.groupby(accession.sseqid).size().reset_index(name='count')
-            prelation = self.ids(accession.sseqid)
-        print(len(accession))
-        for i in prelation:
-            relation = i
-        relation.index = relation.accession_version
-        #unique, counts = np.unique(relation, return_counts=True)
-        taxids, gis = relation.loc[accession,'taxid'], relation.loc[accession,'gi']
-        taxids, gis = taxids.groupby(taxids.values).size().reset_index(name='counting'), gis.groupby(gis.values).size().reset_index(name='counting')
-        taxids, gis = taxids[taxids.counting > (0.001 * sum(taxids.counting))], gis[gis.counting > (0.00005 * sum(gis.counting))]
-        #intvalues = gis.values.astype(int)
-        #ngis = pd.DataFrame(intvalues)
-        taxons = self.lineages(taxids)
-        taxons = taxons[taxons.index.notnull()]
-        #systems = self.pathways(ngis)
-        self.write_df(taxons, out + '/taxonomy.xlsx')
-        #self.write_df(systems, out + '/systems.xlsx')
         
-        print("'tis done!")
+    def uniprot_request(self, ids, output):
+        import requests, time
+         
+        BASE_URL = 'http://www.uniprot.org/uniprot/'
+         
+        def http_get(url, params=None, stream=False):
+            response = requests.get(url, params=params, stream=stream)
+            return validate_response(response, stream)
+         
+        def validate_response(response, raw=False):
+            if response.ok:
+                if raw:
+                    return response
+                else:
+                    return response.content
+            else:
+                response.raise_for_status()
+         
+        def http_post(url, params=None, json=None, headers=None, stream=False):
+            response = requests.post(url, data=params, json=json,
+                                     headers=headers, stream=stream)
+            return validate_response(response, stream)
         
-    def write_df(self, df, out):
-        print('creating excel')
-        writer = pd.ExcelWriter(out, engine='xlsxwriter')
-        df.to_excel(writer,'Sheet1')
-        writer.save()
-        print('finished csv')
+        print('tab')
+        try:
+            params = {
+                'from':'ACC+ID',
+                'format':'tab',
+                'query':'+OR+'.join(['accession:'+acc for acc in ids]),
+                'columns':'id,ec,pathway,protein names'
+            }
+            response = http_post(BASE_URL, params=params)
+            with open(output + '.tab', 'a') as f:
+                f.write(response.decode('utf-8'))
+            time.sleep(3)
+        except:
+            print(ids[0],'to',ids[-1],'tab failed')
+            time.sleep(120)
+            try:
+                params = {
+                    'from':'ACC+ID',
+                    'format':'tab',
+                    'query':'+OR+'.join(['accession:'+acc for acc in ids]),
+                    'columns':'id,ec,lineage(SUPERKINGDOM),lineage(PHYLUM),lineage(CLASS),lineage(ORDER),lineage(FAMILY),lineage(GENUS),lineage(SPECIES),pathway,protein names'
+                }
+                response = http_post(BASE_URL, params=params)
+                with open(output + '.tab', 'a') as f:
+                    f.write(response.decode('utf-8'))
+                time.sleep(3)
+            except:
+                with open(output + '.log','a') as f: f.write(ids[0] + ' to ' + ids[-1] + ' tab failed again\n')
         
-    def test_h5_tax(self):
-        self.write_to_hdf_store(['accession', 'accession_version', 'taxid', 'gi'])
-        self.krona_plots(self.ids)
-        
-    def index_contigs(self):
-        contigs = {'megahit':'/final.contigs.fa', 'metaspades':'/contigs.fasta'}
-        bashCommand = 'bowtie2-build ' + self.working_dir + '/Annotation' + contigs[self.assembler] + self.working_dir + '/Assembly/bowtie2/idx'
-        self.run(bashCommand)
-        
-    def de_matrix(self, blasts, out):
+        for task in ['fasta','gff']:
+            print(task)
+            try:
+                params = {
+                    'from':'ACC+ID',
+                    'format':task,
+                    'query':'+OR+'.join(['accession:'+acc for acc in ids]),
+                }
+                response = http_post(BASE_URL, params=params)
+                with open(output + '.' + task, 'a') as f:
+                    f.write(response.decode('utf-8'))
+                time.sleep(3)
+            except:
+                print(ids[0],'to',ids[-1],task,' failed')
+                time.sleep(120)
+                try:
+                    params = {
+                        'from':'ACC+ID',
+                        'format':task,
+                        'query':'+OR+'.join(['accession:'+acc for acc in ids]),
+                    }
+                    response = http_post(BASE_URL, params=params);print(response)
+                    with open(output + '.' + task, 'a') as f:
+                        f.write(response.decode('utf-8'))
+                    time.sleep(3)
+                except:
+                    with open(output + '.log','a') as f: f.write(ids[0] + ' to ' + ids[-1] + ' ' + task + ' failed again\n')
+
+    def get_uniprot_information(self, ids, output, chunk):
+        i = 0
+        j = 0
+        while j < len(ids):
+            if i + chunk > len(ids):
+                j = len(ids)
+            else:
+                j = i + chunk
+            self.uniprot_request(ids[i:j], output)
+            i = i + chunk
+            
+    def build_gff(self, blast, output):
         from diamond import DIAMOND
-        result = pd.DataFrame()
-        for blast in blasts:
-            data = DIAMOND(out = blast).parse_result()
-            df = pd.DataFrame()
-            df[blast.split('/')[0]] = data[data['length'] > 0].qseqid.apply(lambda x: x.split('_')[5]).astype(float)
-            print(df)
-            #convert to RPK
-            df[blast.split('/')[0]] = df[blast.split('/')[0]] / (data[data['length'] > 0]['length'] / 1000)
-            print(df)
-            #convert to TPM            
-            per_M = sum(df[blast.split('/')[0]]) / 1000000
-            print(per_M)
-            df[blast.split('/')[0]] = df[blast.split('/')[0]] / per_M
-            print(df)
-            df.index = data[data['length'] > 0].sseqid.apply(lambda x: x.split('|')[-1])            
-            sdf = df.groupby(df.index).sum()
-            result = pd.concat([result,sdf], axis = 1)
-        result.fillna(0, inplace=True)
-        result = result.fillna(0)
-        result.to_csv(out, sep = '\t')
-        
-    def de_script(self, blast):
-        pass
+        gff = pd.DataFrame()
+        diamond = DIAMOND(out = blast).parse_result()
+        parts = [qid.split('_') for qid in diamond.qseqid]
+        preid = [part[1] for part in parts]
+        node = 1
+        j = 1
+        ids = []
+        for i in preid:
+            if i == node:
+                ids.append('seq' + str(i) + '_' + str(j))
+                j += 1
+            else:
+                node = i
+                ids.append('seq' + str(i) + '_' + str(j))
+                j = 1
+        gff["seqid"] = ['NODE_' + part[1] + '_' + part[2] + '_' + part[3] + '_' + part[4] + '_' + part[5] for part in parts]
+        size = gff.size
+        gff["source"] = ['UniProtKB' for i in range(size)]
+        gff["type"] = ['exon' for i in range(size)]
+        gff["start"] = [part[6] for part in parts]
+        gff["end"] = [part[7] for part in parts]
+        gff["score"] = diamond.evalue
+        gff["strand"] = [part[8] for part in parts]
+        gff["phase"] = ['.' for i in range(size)]
+        gff["ID"] = [ide.split('|')[2] if ide != '*' else ide for ide in diamond.sseqid]
+        gff["Name"] = diamond.qseqid
+        gff["attributes"] = ['gene_id=' + i.Name + ';Name=' + i.ID for i in gff.itertuples()]
+        del gff['ID']; del gff['Name']
+        gff.to_csv(output + '/gff.gff', sep = '\t', index=False, header=False)
     
-    def differential_expression(self):
-        #http://software.broadinstitute.org/software/igv/download#binary
-        #https://github.com/deweylab/RSEM
-        #sudo apt-get install perl-doc for rsem-plot-transcript-wiggles
-        contigs = {'metaspades':'contigs.fasta', 'megahit':'final.contigs.fa'}
-        if self.paired == 'PE':
-            commands = (['bwa index ' + self.project + '/Assembly/MetaSPAdes/' + contigs.fasta + '-p Assembly/idx'] +
-            ['bwa aln ' + self.project + '/Assembly/idx ' + self.project + '/Preprocess/SortMeRNA/' + fr + '_rejected > Assembly/' + fr + '_rejected.sai' for fr in ['forward','reverse']] +
-            ['bwa sampe ' + self.project + '/Assembly/idx ' + self.project + '/Assembly/forward_rejected.sai ' + self.project + '/Assembly/reverse_rejected.sai ' + self.project + '/Preprocess/SortMeRNA/forward_rejected ' + self.project + '/Preprocess/SortMeRNA/reverse_rejected | sam view -> ' + self.project + '.sam'])
-        script = self.de_script()
+    #by experiment
+    def run_bowtie2(self, forward_reads, reverse_reads, reference, output, number = '', fasta = ''):   #fasta = '' or ' -f' 
+        mt.run_command('bowtie2 -a' + fasta + ' -x ' + output + '/idx -1 ' + forward_reads + ' -2 ' + reverse_reads + ' -S ' + output + '/mt' + str(number) + '.sam')
+
+    #for all experiments
+    def run_htseq_count(self, sam, gff, output, number = ''):
+        mt.run_command('htseq-count -i Name ' + sam + ' ' + gff, file = output + '/readcounts' + str(number) + '.readcounts')
         
-    def run(self, bashCommand):
-        print(bashCommand)
-        process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
-        output, error = process.communicate()
-        return output, error
+    #perform alignment and measure expression
+    def run_alignment(self, files, reference, output):   #files = [[forward_reads, reverse_reads], ...]
+        number = 1
+        mt.run_command('bowtie2-build ' + reference + ' ' + output + '/idx')
+        for group in files:
+            print('Aligning ' + group[0] + ' and ' + group[1] + ' to ' + reference + ' as number ' + str(number))
+            #self.run_bowtie2(group[0], group[1], reference, output, number = number, fasta = ' -f')
+            self.run_htseq_count(output + '/mt' + str(number) + '.sam', output + '/gff.gff', output, number = number)
+            number += 1
+        
+    def run_R(self, readcounts_dir, output, conditions):
+        import os
+        #join readcounts files
+        if os.path.isfile(output + '/temp.readcounts'):
+            os.remove(output + '/temp.readcounts')
+        if os.path.isfile(output + '/total.tab'):
+            os.remove(output + '/total.tab') 
+        readcounts_files = glob.glob(readcounts_dir + '/*.readcounts')
+        mt.run_command('paste ' + ' '.join(readcounts_files),  output + '/temp.readcounts', 'w')
+        mt.run_command('cut ' + output + '/temp.readcounts -f1,2,4,6', output + '/total.tab', 'w')
+        df = pd.read_csv(output + '/total.tab', sep = '\s', index_col = 0, header = None)
+        df.columns = conditions
+        df = df[:-5]
+        df.to_csv(output + '/total.tab', sep = '\t', header = True, index = True)
+        if os.path.isfile(output + '/temp.readcounts'):
+            os.remove(output + '/temp.readcounts')
+        #differential analysis
+        conditions = str(conditions)[1:-1].replace("'",'"')
+        print('conditions:',conditions)
+        commands = ['library(DESeq2)','library(pheatmap)','total = read.table("' + output + '/total.tab", h=T, row.names=1)',
+                    'condition <- factor(c(' + conditions + '))','total <- total[ rowSums(total) > 1, ]','cd=data.frame(c(' + conditions + '))',
+                    'colnames(cd)[1]="condition"','rownames(cd)=colnames(total)',
+                    'dds <- DESeqDataSetFromMatrix(countData = total,colData = cd, design = ~ condition)','dds <- DESeq(dds)',
+                    'res <- results(dds)','resOrdered <- res[order(res$padj),]','jpeg("' + output + '/ma.jpeg")',
+                    'plotMA(res, main="DESeq2", ylim=c(-2,2))','dev.off()','jpeg("' + output + '/counts.jpeg")', 
+                    'plotCounts(dds, gene=which.min(res$padj), intgroup="condition")','dev.off()',
+                    'write.csv(as.data.frame(resOrdered), file="' + output + '/condition_treated_results.csv")',
+                    'vsd <- varianceStabilizingTransformation(dds, blind=FALSE)','select=rownames(head(resOrdered,20))',
+                    'vsd.counts = assay(vsd)[select,]','df <- as.data.frame(colData(dds)[,c("condition")])',
+                    'jpeg("' + output + '/gene_expression.jpeg")','pheatmap(vsd.counts)','dev.off()','sampleDists <- dist(t(assay(vsd)))',
+                    'sampleDistMatrix <- as.matrix(sampleDists)','rownames(sampleDistMatrix) <- dds$condition',
+                    'colnames(sampleDistMatrix) <- NULL','library(RColorBrewer)','colors <- colorRampPalette( rev(brewer.pal(9, "Blues")) )(255)',
+                    'jpeg("' + output + '/sample_distances.jpeg")',
+                    'pheatmap(sampleDistMatrix, clustering_distance_rows=sampleDists, clustering_distance_cols=sampleDists, col=colors)',
+                    'dev.off()','jpeg("' + output + '/pca.jpeg")','plotPCA(vsd, intgroup=c("condition"))','dev.off()']
+        open(output + '/de_analysis.R', 'w').write('\n'.join(commands))
+        mt.run_command('Rscript ' + output + '/de_analysis.R')
+            
+    #for multi sample
+    def differential_analysis(self):
+        self.build_gff(self.out_dir + '/Annotation/aligned.blast', self.out_dir + '/Analysis')
+        self.run_alignment(self.mt, self.out_dir + '/Assembly/contigs.fasta', self.out_dir + '/Analysis')
+        self.run_R(self.out_dir + '/Analysis', self.out_dir + '/Analysis', ['MT1','MT2','MT3'])
+
+    def full_analysis(self):
+        self.get_uniprot_information(self.ids, output = self.out_dir, chunk = 100)
+        if self.de == True:
+            self.differential_analysis()
