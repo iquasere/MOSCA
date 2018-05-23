@@ -22,14 +22,14 @@ class Trimmomatic:
         output, error = process.communicate()
 
     def remove_adapters(self):
-        input_files = [file.split('/')[-1].rstrip('.fastq') for file in self.input_files]
+        input_files = [file.split('/')[-1].split('.fastq')[0] for file in self.input_files]
         #Check presence of adapters in input file(s)
         adapters = ['adapters/' + f for f in os.listdir('adapters') if os.path.isfile(os.path.join('adapters', f))]    
         print('available adapter files:', adapters)
         adapter_contaminated = list()
         
         for file in input_files:
-            data = self.parse_fastqc_result(self.working_dir + 'Preprocess/FastQC/' + file + '_fastqc/fastqc_data.txt')
+            data = self.parse_fastqc_result(self.working_dir + '/Preprocess/FastQC/' + file + '_fastqc/fastqc_data.txt')
             if not data['Overrepresented sequences'][0] == 'pass':
                 no_adapters = True
                 i = 0
@@ -48,19 +48,19 @@ class Trimmomatic:
                 #trim according to each adapter file
                 if self.paired in adapter:
                     self.illuminaclip = [adapter,'2','30','10']
-                    self.output = self.working_dir + 'Preprocess/Trimmomatic/after_adapter_removal_' +  input_files[0].split('_R')[0] + '_' + adapter.split('/')[1].rstrip('.fa')
-                    self.run()
+                    self.output = self.working_dir + '/Preprocess/Trimmomatic/after_adapter_removal_' + self.name + '_' + adapter.split('/')[1].rstrip('.fa')
+                    #self.run()
                     #generate fastqc report
-                    files = [self.working_dir + 'Preprocess/Trimmomatic/after_adapter_removal_' + input_files[0].split('_R')[0] + '_' + adapter.split('/')[1].rstrip('.fa') + '_' + fr + '_paired.fq'
+                    files = [self.working_dir + '/Preprocess/Trimmomatic/after_adapter_removal_' + adapter.split('/')[1].rstrip('.fa') + '_' + fr + '_paired.fq'
                                             for fr in ['forward','reverse']]
-                    fastqc = FastQC(outdir = self.working_dir + 'Preprocess/FastQC',
+                    fastqc = FastQC(outdir = self.working_dir + '/Preprocess/FastQC',
                                     extract = True,
                                     files = files)
                     fastqc.run()
                     
                     #check presence of adapters in fastqc report
                     for file in adapter_contaminated:
-                        data = self.parse_fastqc_result(self.working_dir + 'Preprocess/FastQC/after_adapter_removal_' + input_files[0].split('_R')[0] + '_' + adapter.split('/')[1].rstrip('.fa') + '_forward_paired_fastqc/fastqc_data.txt')
+                        data = self.parse_fastqc_result(self.working_dir + '/Preprocess/FastQC/after_adapter_removal_' + adapter.split('/')[1].rstrip('.fa') + '_forward_paired_fastqc/fastqc_data.txt')
                         if data['Overrepresented sequences'][0] == 'pass':
                             if data['Overrepresented sequences'][0] == 'pass':
                                 possible_adapters.append(adapter)
@@ -181,12 +181,10 @@ class Trimmomatic:
         for i in range(2):
             if adapter == '':
                 name = self.input_files[i].split('/')[-1].replace('.fastq','_fastqc/fastqc_data.txt')
+                data = self.parse_fastqc_result(self.working_dir + '/Preprocess/FastQC/' + name)
             else: 
-                name = self.input_files[i].split('/')[-1].split('_' + frs[i] + '_paired.fq')[0]
-            if adapter == '':
-                data = self.parse_fastqc_result(self.working_dir + 'Preprocess/FastQC/' + name)
-            else:
-                data = self.parse_fastqc_result(self.working_dir + 'Preprocess/FastQC/after_adapter_removal_' + name + '_' + frs[i] + '_paired_fastqc/fastqc_data.txt')
+                name = self.input_files[i].split('/')[-1].split('_' + frs[i] + '_paired.fq')[0].rstrip('.fa')
+                data = self.parse_fastqc_result(self.working_dir + '/Preprocess/FastQC/after_adapter_removal_' + name + '_' + frs[i] + '_paired_fastqc/fastqc_data.txt')
             for key in ['Per base sequence quality', 'Per base sequence content']:
                 if data[key][0] in ['warn', 'fail']:
                     self.add_fastqc_argument(data,key)
@@ -198,8 +196,7 @@ class Trimmomatic:
             
         
     def bash_command(self):
-        paired = 'PE' if self.paired else 'SE'
-        result = self.directory + 'trimmomatic ' + paired
+        result = self.directory + 'trimmomatic ' + self.paired
         if 'quality_score' in self.__dict__.keys():
             result += " -" + self.quality_score
             self.__dict__.pop('quality_score')
@@ -207,16 +204,16 @@ class Trimmomatic:
             result += ' ' + f
         input_files1 = self.input_files
         self.__dict__.pop('input_files')
-        if paired == 'PE':
+        if self.paired == 'PE':
             result += ' ' + self.output + '_forward_paired.fq ' + self.output + '_forward_unpaired.fq ' + self.output + '_reverse_paired.fq ' + self.output + '_reverse_unpaired.fq'
-        elif paired == 'SE':
+        elif self.paired == 'SE':
              result += ' ' + self.output + '.fq'
-        data = self.data; working_dir = self.working_dir; directory = self.directory; paired = self.paired; output = self.output
-        for key in ['paired', 'output', 'working_dir', 'directory', 'data']:
+        name = self.name; data = self.data; working_dir = self.working_dir; directory = self.directory; paired = self.paired; output = self.output
+        for key in ['paired', 'output', 'working_dir', 'directory', 'data', 'name']:
             self.__dict__.pop(key)
         for arg in self.__dict__.keys():
             result += self.set_argument(arg)
-        self.data = data; self.working_dir = working_dir; self.directory = directory; self.paired = paired; self.input_files = input_files1; self.output = output
+        self.name = name; self.data = data; self.working_dir = working_dir; self.directory = directory; self.paired = paired; self.input_files = input_files1; self.output = output
         return result
 
     def run(self):
@@ -225,4 +222,3 @@ class Trimmomatic:
         process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
         output, error = process.communicate()
         return output, error
-    

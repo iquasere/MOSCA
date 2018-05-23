@@ -23,7 +23,7 @@ class Preprocessing:
     #FASTQC - quality check
     def first_check(self):
         print('Beggining first quality check')
-        fastqc = FastQC(outdir = self.working_dir + 'Preprocess/FastQC',
+        fastqc = FastQC(outdir = self.working_dir + '/Preprocess/FastQC',
                         extract = True,
                         files = self.files)
         fastqc.run()
@@ -37,7 +37,9 @@ class Preprocessing:
                                   paired = self.paired,
                                   minlen = '100',
                                   working_dir = self.working_dir,
-                                  output = self.working_dir + 'Preprocess/Trimmomatic/after_adapter_removal_' + self.name)
+                                  output = self.working_dir + '/Preprocess/Trimmomatic/after_adapter_removal_' + self.name,
+                                  data = self.data,
+                                  name = self.name)
         adapters = trimmomatic.remove_adapters()
         return adapters
         print('Adapter removal done')
@@ -48,21 +50,23 @@ class Preprocessing:
         if len(adapters) > 0:
             for adapter in adapters:
                 trimmomatic = Trimmomatic(directory = '../../../home/jsequeira/anaconda3/bin/',
-                                          input_files = [self.working_dir + 'Preprocess/Trimmomatic/' + self.name+ '_' + adapter + '_' + fr + '_paired.fq' for fr in ['forward', 'reverse']],
+                                          input_files = [self.working_dir + '/Preprocess/Trimmomatic/' + adapter.split('/')[-1].rstrip('.fa') + '_' + fr + '_paired.fq' for fr in ['forward', 'reverse']],
                                           paired = self.paired,
                                           working_dir = self.working_dir,
-                                          output = self.working_dir + 'Preprocess/quality_trimmed_' + self.name.rstrip('/'),
+                                          output = self.working_dir + '/Preprocess/quality_trimmed_' + self.name.rstrip('/'),
                                           avgqual = '20',
-                                          data = self.data)
+                                          data = self.data,
+                                          name = self.name)
                 trimmomatic.define_by_report(adapter)
         else:
             trimmomatic = Trimmomatic(directory = '../../../home/jsequeira/anaconda3/bin/',
                                       input_files = self.files,
                                       paired = self.paired,
                                       working_dir = self.working_dir,
-                                      output = self.working_dir + 'Preprocess/quality_trimmed_' + self.name.rstrip('.fastq'),
+                                      output = self.working_dir + '/Preprocess/quality_trimmed_' + self.name.rstrip('.fastq'),
                                       avgqual = '20',
-                                      data = self.data)
+                                      data = self.data,
+                                      name = self.name)
             trimmomatic.define_by_report()
         print('Quality trimming done') 
         
@@ -74,7 +78,7 @@ class Preprocessing:
                             files = 'real_datasets/mgm4440026.3.050.upload.fna',
                             output = 'bmtagger_output',
                             fasta = True,
-                            paired = False)
+                            paired = 'PE')
         bmtagger.run()
         print('Host sequences removal done')
     
@@ -85,28 +89,29 @@ class Preprocessing:
                     ['silva-arc-16s-id95', 'silva-arc-23s-id98', 'silva-bac-16s-id90', 
                      'silva-bac-23s-id98', 'silva-euk-18s-id95', 'silva-euk-28s-id98']])
         sortmerna = SortMeRNA(ref = ref,
-                              reads = [self.working_dir + 'Preprocess/quality_trimmed_' + self.name.rstrip('.fastq') + '_' + fr + '_paired.fq' for fr in ['forward', 'reverse']],
-                              aligned = self.working_dir + 'Preprocess/SortMeRNA/accepted',
+                              reads = [self.working_dir + '/Preprocess/quality_trimmed_' + self.name + '_' + fr + '_paired.fq' for fr in ['forward', 'reverse']],
+                              aligned = self.working_dir + '/Preprocess/SortMeRNA/accepted',
                               output_format = ['fastx'],
-                              other = self.working_dir + 'Preprocess/SortMeRNA/rejected',
-                              paired = self.paired,
+                              other = self.working_dir + '/Preprocess/SortMeRNA/rejected',
+                              paired = True if self.paired == 'PE' else False,
                               working_dir = self.working_dir)
         sortmerna.run()
         print('rRNA sequences removal done')
     
     def final_quality_check(self):
         print('Beggining third quality check')
-        fastqc = FastQC(outdir = self.working_dir + 'Preprocess/FastQC',
+        fastqc = FastQC(outdir = self.working_dir + '/Preprocess/FastQC',
                         extract = True,
-                        files = [self.working_dir + 'Preprocess/SortMeRNA/rejected_' + self.name + '_' + fr + '_paired.fq' for fr in ['forward', 'reverse']])
+                        files = [self.working_dir + '/Preprocess/SortMeRNA/rejected_' + self.name + '_' + fr + '_paired.fq' for fr in ['forward', 'reverse']])
         fastqc.run()
         print('Third quality check done')
         
     def run(self):
-        self.first_check()
-        adapters = self.trim_adapters()
+        print(self.name)
+        #self.first_check()
+        #adapters = self.trim_adapters()
+        adapters = ['adapters/TruSeq2-PE.fa','adapters/TruSeq3-PE-2.fa']
         print(adapters)
-        self.quality_trimming(adapters)
+        #self.quality_trimming(adapters)
         self.rrna_removal()
         #self.host_sequences_removal()
-

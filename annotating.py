@@ -5,7 +5,8 @@ Created on Mon Jun  5 18:33:52 2017
 @author: Asus
 """
 
-import subprocess
+from mosca_tools import MoscaTools
+mt = MoscaTools()
 
 class Annotating:
     
@@ -13,32 +14,19 @@ class Annotating:
         self.__dict__ = kwargs
         
     def gene_calling(self):
-        bashCommand = 'perl ../../../home/jsequeira/FGS/run_FragGeneScan.pl -genome=' 
-        fgs_dict = {'megahit':'final.contigs.fa','metaspades':'contigs.fasta'}
-        bashCommand += self.out_dir + '/Assembly/' + fgs_dict[self.assembler]
-        bashCommand += ' -out=' + self.out_dir + 'Annotation/FGS -complete=1 -train=./complete'
-        print(bashCommand)
-        process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
-        output, error = process.communicate()
-        return output, error
-    '''
-    def annotation(self):
-        bashCommand = '../../../home/jsequeira/diamond blastp --db ' + self.db + ' --query ' + self.out_dir + 'Annotation/FGS.faa --out ' + self.out_dir + 'Annotation/aligned.blast'
-        print(bashCommand)
-        process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
-        output, error = process.communicate()
-        return output, error
-    '''
-    
-    def gene_call(self, reads, out):
-        bashCommand = "paste - - - - < " + reads + " | cut -f 1,2 | sed 's/^@/>/' | tr \"\t" "\n\" > " + reads.rstrip('fastq') + ".fa"
-        process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
-        output, error = process.communicate()
-        bashCommand = 'perl ../../../home/jsequeira/FGS/run_FragGeneScan.pl -genome=' + reads.rstrip('fastq') + '.fa -out=' + out + ' -complete=0 -train=~/FGS/train/illumina_10'
-        print(bashCommand)
-        process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
-        output, error = process.communicate()
-        return output, error
+        bashCommand = 'perl ../../../home/jsequeira/FGS/run_FragGeneScan.pl -genome='
+        if self.assembled == True:
+            fgs_dict = {'megahit':'final.contigs.fa','metaspades':'contigs.fasta'}
+            bashCommand += self.out_dir + '/Assembly/' + fgs_dict[self.assembler]
+            bashCommand += ' -out=' + self.out_dir + '/Annotation/FGS -complete=1 -train=./complete'
+        else:
+            fastq2fasta_command = ("paste - - - - < " + self.out_dir + "/Preprocess/SortMeRNA/rejected.fastq.fastq"
+                                   + "| cut -f 1,2 | sed 's/^@/>/' | tr \"\t" "\n\" > " + self.out_dir + 
+                                   "/Preprocess/SortMeRNA/rejected.fasta")
+            mt.run_command(fastq2fasta_command)
+            bashCommand += (self.out_dir + '/Preprocess/SortMeRNA/rejected.fasta -out=' + self.out_dir + 
+            '/Annotation/FGS -complete=0 -train=./' + self.error_model)
+        mt.run_command(bashCommand)
         
     def depth_of_coverage(self):
         #BEDtools
@@ -49,9 +37,9 @@ class Annotating:
         
         diamond = DIAMOND(threads = '6',
                           db = self.db,
-                          out = self.out_dir + '/Annotation',
-                          query = self.out_dir + 'Annotation/FGS.faa',
-                          un = self.out_dir + 'Annotation/Unaligned',
+                          out = self.out_dir + '/Annotation/aligned.blast',
+                          query = self.out_dir + '/Annotation/FGS.faa',
+                          un = self.out_dir + '/Annotation/Unaligned',
                           unal = '1',
                           max_target_seqs = '1')
         
@@ -60,9 +48,9 @@ class Annotating:
             diamond.set_database(self.db, self.out_dir + '../Databases/DIAMOND')
             
         diamond.run()
-        #print(diamond.validate_annotation())
         print('lets parse')
         ids = diamond.parse_result()['sseqid']
+        
         return ids
     
     def binning(self):
@@ -72,3 +60,13 @@ class Annotating:
     def run(self):
         self.gene_calling()
         return self.annotation()
+    
+def merge_fastas(file1, file2, output):
+    f1 = open(file1).readlines()
+    f2 = open(file2).readlines()
+    out = open(output,'w')
+    for i in range(0,len(f1),2):
+        out.write(f1[i])
+        out.write(f1[i+1])
+        out.write(f2[i])
+        out.write(f2[i+1])

@@ -41,10 +41,8 @@ parser.add_argument("-mgfq", "--mg-fastq", default = '0', choices = ["0","1"], a
                     help='If metagenomic data is either in fastq (0) or fasta (1) format')
 parser.add_argument("-mtfq","--mt-fastq",default='0',choices=["0","1"],action='store',type=str,
                     help='If metatranscriptomic data is either in fastq (0) or fasta (1) format')
-                    
+             
 args = parser.parse_args()
-
-print(args)
 
 nice_arguments = True
 if args.metagenomic is None:
@@ -71,7 +69,7 @@ for directory in directories:
     
 mg = args.metagenomic[0].split(',')
 if args.metatranscriptomic is not None:
-    mt = [data.split(',') for data in args.metatranscriptomic]
+    mt = args.metatranscriptomic[0].split(',')
 else:
     mt = list()
 
@@ -86,38 +84,41 @@ if not args.no_preprocessing:
         
     print('Preprocessing of metagenomic reads has began')
     preprocesser = Preprocessing(files = mg,
-                                 paired = True,
+                                 paired = 'PE',
                                  working_dir = args.output_dir,
                                  trimmomatic_dir = '~/anaconda3/jar/',
                                  data = 'dna')
     #preprocesser.run()
-    
+
     if len(mt) > 0:
-        print('Preprocessing of metatranscriptomic reads has began')
-        preprocesser = Preprocessing(files = mt,
-                                     paired = True,
-                                     working_dir = args.output_dir,
-                                     trimmomatic_dir = '~/anaconda3/jar/',
-                                     data = 'mrna')
-        #preprocesser.run()
+        if args.mt_fastq:
+            print('Preprocessing of metatranscriptomic reads has began')
+            preprocesser = Preprocessing(files = mt,
+                                         paired = 'PE',
+                                         working_dir = args.output_dir,
+                                         trimmomatic_dir = '~/anaconda3/jar/',
+                                         data = 'mrna')
+            #preprocesser.run()
 
 #Assembly
 if not args.no_assembly:
     print('Assembly has began')
-    assembler = Assembling(out_dir = args.output_dir,
+    assemble = Assembling(out_dir = args.output_dir,
                            assembler = args.assembler,
                            forward_paired = args.output_dir + '/Preprocess/SortMeRNA/forward_rejected.fastq',
                            reverse_paired = args.output_dir + '/Preprocess/SortMeRNA/reverse_rejected.fastq')
-    #assembler.run()
+    assemble.run()
 
 #Annotation
 if not args.no_annotation:
+    assembled = False if args.no_assembly else True
     print('Annotation has began')
     annotate = Annotating(out_dir = args.output_dir,
                           assembler = args.assembler,
-                          db = args.annotation_database)
-    #ids = annotate.run()
-    ids = DIAMOND(out = args.output_dir + '/Annotation/aligned.blast').parse_result()
+                          db = args.annotation_database,
+                          assembled = assembled,
+                          error_model = 'illumina_10')
+    ids = annotate.run()
     
 #Data Analysis
 if not args.no_differential_expression:

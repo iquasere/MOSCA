@@ -4,8 +4,16 @@ Created on Mon Jun  5 17:17:58 2017
 
 @author: Asus
 """
-
+'''
+# ssh -X bridge_root@193.137.11.212
+sudo apt-get install screen
+'''
 import subprocess
+from progressbar import ProgressBar
+from io import StringIO
+import pandas as pd
+import glob
+import re
 
 class MoscaTools:
     
@@ -192,10 +200,10 @@ class MoscaTools:
             i = i + chunk
     
     def parse_fasta(self, file):
+        print('Parsing', file)
         lines = [line.rstrip('\n') for line in open(file)]
         i = 0
         sequences = dict()
-        print(len(lines))
         while i < len(lines):
             if lines[i].startswith('>'):
                 name = lines[i][1:]
@@ -222,32 +230,173 @@ class MoscaTools:
             for double in final:
                 f.write('>' + double[0] + '\n' + double[1] + '\n')
                 
-    def uniprot_mapping(self, ids, max_retry = 3):
-        import requests, time
+def compare_result_with_reality(result, reality):       #result is uniprot tab, reality is tsv taxonomy1\ttaxonomy2\t...\tpercentage
+    import pandas as pd    
+    print('tis a mistery')
+    resultdf = pd.read_csv(result, sep = '\t', header = None)
+    resultdf.columns = ['id','ec','lineage(SUPERKINGDOM)','lineage(PHYLUM)','lineage(CLASS)','lineage(ORDER)','lineage(FAMILY)','lineage(GENUS)','lineage(SPECIES)','pathway','protein names']
+    resultdf = resultdf.groupby(resultdf.columns[2:9].tolist()).size().reset_index().rename(columns={0:'abundance'})
+    realitydf = pd.read_csv(reality, sep = '\t', header = None)
+    realitydf.columns = ['lineage(SUPERKINGDOM)','lineage(PHYLUM)','lineage(CLASS)','lineage(ORDER)',
+                'lineage(FAMILY)','lineage(GENUS)','lineage(SPECIES)','abundance']
+    realitydf['lineage(SPECIES)'] = realitydf['lineage(GENUS)'] + ' ' + realitydf['lineage(SPECIES)']
+    total = float(resultdf['abundance'].sum())
+    print('Total is ' + str(total))
+    resultdf['abundance'] /= (total/100)      #set as percentage
+    totalreal = float(realitydf['abundance'].sum())
+    realitydf['abundance'] /= (totalreal/100)
+    #ammendments on the result because of some uniprot facts
+    resultdf.loc[resultdf['lineage(FAMILY)'].str.contains('Chloroflexaceae'),'lineage(FAMILY)'] = 'Chloroflexaceae'
+    resultdf.loc[resultdf['lineage(SPECIES)'].str.contains('Methanosarcina mazei'),'lineage(SPECIES)'] = 'Methanosarcina mazei'
+    realitydf.loc[realitydf['lineage(GENUS)'].str.contains('Methanosaeta'),'lineage(GENUS)'] = 'Methanothrix'
+    
+    for value in realitydf['lineage(SPECIES)'].get_values():
+        print(value)
+        previous_columns = ['lineage(SUPERKINGDOM)','lineage(PHYLUM)','lineage(CLASS)','lineage(ORDER)',
+                            'lineage(FAMILY)','lineage(GENUS)']
+        print(resultdf[resultdf['lineage(SPECIES)'] == value and resultdf[previous_columns] != realitydf[previous_columns]])
+    '''
+    for level in ['lineage(SUPERKINGDOM)','lineage(PHYLUM)','lineage(CLASS)','lineage(ORDER)',
+                'lineage(FAMILY)','lineage(GENUS)','lineage(SPECIES)']:
+        print('Level: ' + level)
+        factors = list(realitydf[level].unique())
+        value = 0
+        others = 100
+        for factor in factors:
+            print('Percentage of ' + factor + ': ' + str(float(resultdf[resultdf[level] == factor]['abundance'].sum())) + '%')
+            others -= float(resultdf[resultdf[level] == factor]['abundance'].sum())
+            value += (float(resultdf[resultdf[level] == factor]['abundance'].sum()) - abs(float(resultdf[resultdf[level] == factor]['abundance'].sum()) - realitydf.loc[realitydf[level] == factor]['abundance'].sum()))
+        if level == 'lineage(SUPERKINGDOM)':
+            for factor in ['Eukaryota','Viruses']:
+                print('Percentage of ' + factor + ': ' + str(float(resultdf[resultdf[level] == factor]['abundance'].sum())) + '%')
+                others -= float(resultdf[resultdf[level] == factor]['abundance'].sum())
+        print('Others:' + str(others) + '%')
+        print('Correctness: ' + str(value) + '%')
+    '''
+
+def compare_result_with_reality_coverage_tax(result, reality):       #result is uniprot tab, reality is tsv taxonomy1\ttaxonomy2\t...\tpercentage
+    import pandas as pd    
+    resultdf = pd.read_csv(result, sep = '\t')
+    resultdf.columns = ['id','ec','lineage(SUPERKINGDOM)','lineage(PHYLUM)','lineage(CLASS)','lineage(ORDER)','lineage(FAMILY)','lineage(GENUS)','lineage(SPECIES)','pathway','protein names','coverage']
+    resultdf = resultdf[['lineage(SUPERKINGDOM)','lineage(PHYLUM)','lineage(CLASS)','lineage(ORDER)','lineage(FAMILY)','lineage(GENUS)','lineage(SPECIES)','coverage']]
+    resultdf = resultdf.groupby(resultdf.columns.tolist()[:-1])['coverage'].sum().reset_index()
+    realitydf = pd.read_csv(reality, sep = '\t', header = None)
+    realitydf.columns = ['lineage(SUPERKINGDOM)','lineage(PHYLUM)','lineage(CLASS)','lineage(ORDER)',
+                'lineage(FAMILY)','lineage(GENUS)','lineage(SPECIES)','abundance']
+    realitydf['lineage(SPECIES)'] = realitydf['lineage(GENUS)'] + ' ' + realitydf['lineage(SPECIES)']
+    total = float(resultdf['coverage'].sum())
+    print('Total is ' + str(total))
+    resultdf['coverage'] /= (total/100)      #set as percentage
+    totalreal = float(realitydf['abundance'].sum())
+    realitydf['abundance'] /= (totalreal/100)
+    #ammendments on the result because of some uniprot facts
+    resultdf.loc[resultdf['lineage(FAMILY)'].str.contains('Chloroflexaceae'),'lineage(FAMILY)'] = 'Chloroflexaceae'
+    resultdf.loc[resultdf['lineage(SPECIES)'].str.contains('Methanosarcina mazei'),'lineage(SPECIES)'] = 'Methanosarcina mazei'
+    resultdf.loc[resultdf['lineage(GENUS)'].str.contains('Methanothrix'),'lineage(GENUS)'] = 'Methanosaeta'
+    for level in ['lineage(SUPERKINGDOM)','lineage(PHYLUM)','lineage(CLASS)','lineage(ORDER)',
+                'lineage(FAMILY)','lineage(GENUS)','lineage(SPECIES)']:
+        print('Level: ' + level)
+        factors = list(realitydf[level].unique())
+        value = 0
+        others = 100
+        for factor in factors:
+            print('Percentage of ' + factor + ': ' + str(float(resultdf[resultdf[level] == factor]['coverage'].sum())) + '%')
+            others -= float(resultdf[resultdf[level] == factor]['coverage'].sum())
+            value += (float(resultdf[resultdf[level] == factor]['coverage'].sum()) - abs(float(resultdf[resultdf[level] == factor]['coverage'].sum()) - realitydf.loc[realitydf[level] == factor]['abundance'].sum()))
+        if level == 'lineage(SUPERKINGDOM)':
+            for factor in ['Eukaryota','Viruses']:
+                print('Percentage of ' + factor + ': ' + str(float(resultdf[resultdf[level] == factor]['coverage'].sum())) + '%')
+                others -= float(resultdf[resultdf[level] == factor]['coverage'].sum())
+        print('Others:' + str(others) + '%')
+        print('Correctness: ' + str(value) + '%')
         
-        BASE_URL = 'http://www.uniprot.org/uniprot/'
+for value in simulateddf1.index.get_values():
+    print(value)
+    found = False
+    partdf = metaspadestaxdf1[metaspadestaxdf1.index.str.contains(value)]
+    print(partdf.head())
+    for i in range(len(metaspadestaxdf1)):
+        print(metaspadestaxdf1[~(metaspadestaxdf1==simulateddf1).all(axis=1)])
         
-        params = {
-            'from':'ACC+ID',
-            'to':'ACC+ID',
-            'format':'tab',
-            'query':'+OR+'.join(['accession:'+acc for acc in ids]),
-            'columns':'id,ec,lineage(SUPERKINGDOM),lineage(PHYLUM),lineage(CLASS),lineage(ORDER),lineage(FAMILY),lineage(GENUS),lineage(SPECIES),pathway,protein names'
-            }
-        response = requests.post(BASE_URL, params=params)
-        cnt=0
-        max_retry = max_retry
-        while cnt < max_retry and response.status_code != requests.codes.ok:
-            cnt += 1
-            time.sleep(60)
-            response = requests.post(BASE_URL, params=params)
-        return [match.split('\t') for match in response.content.decode('utf-8').split('\n')[1:-1]]
+    df[~(df==df1).all(axis=1)]    
+    
+def taxonomy_of_others(result, reality, output):
+    import pandas as pd    
+    resultdf = pd.read_csv(result, sep = '\t')
+    taxcolumns = ['Taxonomic lineage (SUPERKINGDOM)','Taxonomic lineage (PHYLUM)','Taxonomic lineage (CLASS)','Taxonomic lineage (ORDER)','Taxonomic lineage (FAMILY)','Taxonomic lineage (GENUS)','Taxonomic lineage (SPECIES)','coverage']
+    resultdf = resultdf[taxcolumns]
+    resultdf = resultdf.groupby(resultdf.columns.tolist()[:-1])['coverage'].sum().reset_index()
+    realitydf = pd.read_csv(reality, sep = '\t', header = None)
+    realitydf.columns = ['Taxonomic lineage (SUPERKINGDOM)','Taxonomic lineage (PHYLUM)','Taxonomic lineage (CLASS)',
+                         'Taxonomic lineage (ORDER)','Taxonomic lineage (FAMILY)','Taxonomic lineage (GENUS)',
+                         'Taxonomic lineage (SPECIES)','abundance']
+    realitydf['Taxonomic lineage (SPECIES)'] = realitydf['Taxonomic lineage (GENUS)'] + ' ' + realitydf['Taxonomic lineage (SPECIES)']
+    #ammendments on the result because of some uniprot facts
+    resultdf.loc[resultdf['Taxonomic lineage (FAMILY)'].str.contains('Chloroflexaceae'),'Taxonomic lineage (FAMILY)'] = 'Chloroflexaceae'
+    resultdf.loc[resultdf['Taxonomic lineage (SPECIES)'].str.contains('Methanosarcina mazei'),'Taxonomic lineage (SPECIES)'] = 'Methanosarcina mazei'
+    resultdf.loc[resultdf['Taxonomic lineage (GENUS)'].str.contains('Methanothrix'),'Taxonomic lineage (GENUS)'] = 'Methanosaeta'
+    simulatedspecies = realitydf['Taxonomic lineage (SPECIES)'].tolist()
+    othersdf = resultdf[~resultdf['Taxonomic lineage (SPECIES)'].isin(simulatedspecies)]
+    othersdf.to_excel(output)
         
-    def chunky(self, ids, step = 100, max_retry = 3):
-        result = list()
-        for i in range(0, len(ids), step):
-            query = ids[i: i + step]
-            maped = self.uniprot_mapping(query, max_retry)
-            result += self.uniprot_mapping(query, max_retry)
-        return pd.DataFrame([row for row in result], index = [row[0] for row in result], columns = ['id','ec','lineage(SUPERKINGDOM)','lineage(PHYLUM)','lineage(CLASS)','lineage(ORDER)','lineage(FAMILY)','lineage(GENUS)','lineage(SPECIES)','pathway','protein names'])
+def split(pathway):
+    pathway = pathway.split('. ')
+    return [path for path in pathway if path != '']
+
+def using_repeat(df):
+    import numpy as np
+    import pandas as pd
+    lens = [len(item) for item in df['pathway']]
+    dictionary = dict()
+    for column in df.columns:
+        dictionary[column] = np.repeat(df[column].values,lens)
+    dictionary["pathway"] = np.concatenate(df['pathway'].values)
+    return pd.DataFrame(dictionary)
+
+def partition_pathway(pathway):
+    return [(path[0].split('; ') + [np.nan] * (3 - len(path[0].split('; ')))) for path in pathway]
+            
+def organize_pathway(result, name):
+    import pandas as pd    
+    import numpy as np
+    resultdf = pd.read_csv(result, sep = '\t', header = None)
+    resultdf.columns = ['id','ec','lineage(SUPERKINGDOM)','lineage(PHYLUM)','lineage(CLASS)','lineage(ORDER)',
+                        'lineage(FAMILY)','lineage(GENUS)','lineage(SPECIES)','pathway','protein names']
+    resultdf = resultdf[resultdf.pathway.notnull()]
+    resultdf.pathway = resultdf.pathway.apply(split)
+    resultdf = using_repeat(resultdf)
+    pathways = pd.DataFrame([(path.split('; ') + [np.nan] * (3 - len(path.split('; ')))) for path in 
+                             resultdf.pathway], index = resultdf.index)
+    resultdf = resultdf[['protein names','id','ec','lineage(GENUS)']]
+    pathways.columns = ['superpathway','pathway','subpathway']
+    resultdf = pd.concat([pathways, resultdf], axis = 1)
+    resultdf = resultdf.groupby(resultdf.columns.tolist()).size().reset_index().rename(columns={0:name})
+    return resultdf.set_index(resultdf.columns.tolist()[:-1])
+
+def make_contigs_gff(file, output):
+    pbar = ProgressBar()
+    print('Building gff file from Megahit contigs at',file,'to',output)
+    mt = MoscaTools()
+    contigs = mt.parse_fasta(file)
+    gff = list()
+    for name in pbar(contigs.keys()):
+        gff.append([name, 'Megahit', 'exon', '1', str(len(contigs[name])), '.', '.', '.', 'Name=' + name])
+    print(gff)
+    gff = pd.DataFrame(gff)
+    gff.to_csv(output + '/gff.gff', sep = '\t', index=False, header=False)
+    
+def get_ids_from_ncbi_gff(gff):
+    'RefSeq:'
+    lines = [line.rstrip('\n') for line in open(gff).readlines() if 'CDS' in line]
+    df = pd.read_csv(StringIO('\n'.join(lines)), sep = '\t', header=None)
+    df.columns = ["seqid","source","type","start","end","score","strand","phase","attributes"]
+    ids = list()
+    for attribute in df.attributes:
+        if 'RefSeq:' in attribute:
+            ids.append(re.split(';|,', attribute.split('RefSeq:')[-1])[0])
+        elif 'Genbank:' in attribute:
+            ids.append(re.split(';|,', attribute.split('Genbank:')[-1])[0])
+        else:
+            ids.append(re.split(';|,', attribute.split('Dbxref=Genbank:')[-1])[0])
+    return ids
     

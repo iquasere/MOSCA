@@ -110,3 +110,54 @@ class RNASeqSim:
         '-qual_levels 30 10 -output_dir ' + output + '/' + str(factor) + ' -read_dist 251 -insert_dist 2500 -mutation_dist ' + 
         'poly4 3e-3 3.3e-8')
         self.run(command)
+    
+if __name__ == '__main__':
+    import glob, pathlib, sys
+    
+    archaea_co2 = {'One-carbon metabolism; methanogenesis from CO(2)':1, 
+                   'Cofactor biosynthesis':1, 'ATP synthase':1}
+    archaea_acetate = {'One-carbon metabolism; methanogenesis from acetate':1, 
+                       'Cofactor biosynthesis':1, 'ATP synthase':1}
+    bacteria = {'lipid metabolism': 1, 'Cofactor biosynthesis':1,
+                'Metabolic intermediate biosynthesis': 1, 'ATP synthase':1}
+    
+    abundances = {'GCA_000275865.1_ASM27586v1': (6.4076277, archaea_co2),
+                  'GCA_000013405.1_ASM1340v1': (2.3, bacteria), 
+                  'GCA_000235565.1_ASM23556v1': (13.0963961, archaea_acetate), 
+                  'GCA_000007985.2_ASM798v2': (0.9, bacteria), 
+                  'GCA_000022125.1_ASM2212v1': (4.5, bacteria), 
+                  'GCA_000970205.1_ASM97020v1': (19.6681987, archaea_acetate), 
+                  'GCA_000012885.1_ASM1288v1': (2.2, bacteria), 
+                  'GCA_000762265.1_ASM76226v1': (2.7, archaea_co2), 
+                  'GCA_000016165.1_ASM1616v1': (4, bacteria), 
+                  'GCA_000014965.1_ASM1496v1': (0.6473058, bacteria), 
+                  'GCA_000014725.1_ASM1472v1': (3.0004899, bacteria), 
+                  'GCA_000013445.1_ASM1344v1': (4.1752974, archaea_co2)}
+
+    #genomes = glob.glob('../PostThesis/piptest/*.fna')
+    rnaseqsim = RNASeqSim()
+    for name in abundances.keys():
+        genome = '../PostThesis/piptest/' + name + '_genomic.fna'
+        output = '../PostThesis/piptest/new' + name
+        print('to output:', output)
+        path = pathlib.Path(output)
+        path.mkdir(parents=True, exist_ok=True)
+        info = rnaseqsim.join_information(genome, output)
+        for factor in [1,3,1/6]:
+            rnaseqsim.define_abundance(abundances[name], info, output, factor = factor)
+            rnaseqsim.use_grinder(output, abundances[name][0], factor = factor)
+            
+#samtools view -bS test1848/Assembly/mt1.sam | samtools sort - test1848/Assembly/mt1sorted
+
+perl ../../../home/jsequeira/FGS/run_FragGeneScan.pl -genome=../PostThesis/piptest/GCA_000275865.1_ASM27586v1_genomic.fna -out=../PostThesis/piptest/newGCA_000275865.1_ASM27586v1/fgs -complete=1 -train=./complete
+python MOSCA/rnaseqsim.py
+bowtie2 -f -x test1848/Assembly/contigs -1 polyester/sample_01_1.fasta -2 polyester/sample_01_2.fasta -S test1848/Analysis/sam1.sam
+bowtie2 -f -x test1848/Assembly/contigs -1 polyester/sample_02_1.fasta -2 polyester/sample_02_2.fasta -S test1848/Analysis/sam2.sam
+bowtie2 -f -x test1848/Assembly/contigs -1 polyester/sample_03_1.fasta -2 polyester/sample_03_2.fasta -S test1848/Analysis/sam3.sam
+
+htseq-count test1848/Analysis/sam1.sam test1848/Annotation/gff.gff.gff > sample1.readcounts
+htseq-count test1848/Analysis/sam2.sam test1848/Annotation/gff.gff.gff > sample2.readcounts
+htseq-count test1848/Analysis/sam3.sam test1848/Annotation/gff.gff.gff > sample3.readcounts
+
+
+#/home/jsequeira/biogrinder/script/grinder -reference_file fgs.ffn -abundance_file abundance1.config -total_reads 1000000 -mate_orientation FR -random_seed 13 -fastq_output 1 -qual_levels 30 10 -output_dir 1 -read_dist 251 -insert_dist 2500 -mutation_dist poly4 3e-3 3.3e-8

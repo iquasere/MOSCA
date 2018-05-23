@@ -7,7 +7,10 @@ By João Sequeira
 7th March 2017
 '''
 
-import subprocess
+from mosca_tools import MoscaTools
+from progressbar import ProgressBar
+
+mtools = MoscaTools()
 
 class SortMeRNA:
     
@@ -20,10 +23,7 @@ class SortMeRNA:
         return result
     
     def generate_index(self, database):
-        result = 'indexdb_rna --ref ' + database + '.fasta,' + database + '.idx'
-        bashCommand = result
-        process = subprocess.Popen(bashCommand.split())
-        output, error = process.communicate()
+        mtools.run_command('indexdb_rna --ref ' + database + '.fasta,' + database + '.idx')
 
     def bash_command(self):
         import os.path
@@ -52,31 +52,50 @@ class SortMeRNA:
         return result
     
     def join_fr(self):
-        temp = self.working_dir + 'Preprocess/SortMeRNA/joined.fastq'
-        bashCommand = 'bash MOSCA/merge-paired-reads.sh ' + self.reads[0] + ' ' + self.reads[1] + ' ' + temp
-        self.reads = temp
-        print(bashCommand)
-        process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
-        output, error = process.communicate()
+        pbar = ProgressBar()
+        handler1 = open(self.reads[0]).readlines()
+        handler2 = open(self.reads[1]).readlines()
+        other = self.working_dir + 'Preprocess/SortMeRNA/joined.fastq'
+        temp = open(other, 'w')
+        print('Merging forward ' +  self.reads[0] + ' and reverse ' + self.reads[1] + ' to interleaved ' + other)
+        for i in pbar(range(0, len(handler1), 4)):
+            for j in range(4):
+                temp.write(handler1[i + j])
+            for j in range(4):
+                temp.write(handler2[i + j])
+        handler1.close(); handler2.close()
     
     def divide_temp(self):
-        readf, readr = self.working_dir + 'Preprocess/SortMeRNA/forward_' + self.other.split('/')[-1], self.working_dir + '/Preprocess/SortMeRNA/reverse_' + self.other.split('/')[-1]
+        pbar = ProgressBar()
+        readf = self.working_dir + 'Preprocess/SortMeRNA/forward_' + self.other.split('/')[-1] + 'fastq'
+        readr = readf.replace('forward_','reverse')
+        f1 = open(readf, 'w'); f2 = open(readr, 'w')
+        other = open(self.other)
+        print('Splitting interleaved ' + self.other + ' to forward ' + readf + ' and reverse ' + readr)
+        for i in pbar(range(0, len(self.other), 8)):
+            for j in range(4):
+                f1.write(other[i+j])
+            for j in range(4, 8):
+                f2.write(other[i+j])
+            
         bashCommand = 'bash MOSCA/unmerge-paired-reads.sh ' + self.other + '.fastq ' + readf + ' ' + readr
-        print(bashCommand)
-        process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
-        output, error = process.communicate() 
+        mtools.run_command(bashCommand)
         
     def run_tool(self):
-        bashCommand = self.bash_command()
-        process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
-        output, error = process.communicate()
-        return output, error
+        mtools.run_command(self.bash_command())
+    
+    #correct number of reads per file - if unequal number of reads from forward to reverse file, it will be corrected by separation name/1,2
+    def correct_files(self):
+        bashCommand = ('cat ' + self.working_dir + '/Preprocess/SortMeRNA/forward_rejected.fastq ' + 
+                       self.working_dir + "/Preprocess/SortMeRNA/reverse_rejected.fastq | paste - - - - | sort | tr '\t' '\n' | seqtk dropse >" + self.working_dir + 
+                       '/Preprocess/reads.fastq')
+        mtools.run_command(bashCommand)
     
     def run(self):
         if self.paired == True:
             self.join_fr()
             self.run_tool()
             self.divide_temp()
+            self.correct_files()
         else:
             self.run_tool()
- 

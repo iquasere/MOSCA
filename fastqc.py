@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 '''
-FastQC python API
+Trimmomatic python API
 
 By João Sequeira
 
