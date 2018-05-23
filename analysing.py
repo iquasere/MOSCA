@@ -6,7 +6,6 @@ Created on Mon Oct  9 00:23:51 2017
 @author: sequeira
 """
 
-import pandas as pd
 import glob
 from mosca_tools import MoscaTools
 mt = MoscaTools()
