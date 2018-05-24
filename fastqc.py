@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 '''
-Trimmomatic python API
+FastQC wrapper
 
 By João Sequeira
 
-7th March 2017
+March 2017
 '''
 
 class FastQC:

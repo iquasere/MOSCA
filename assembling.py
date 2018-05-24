@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-Created on Mon Jun  5 14:33:12 2017
+MOSCA's Assembly package for performing Assembly with MetaSPAdes
+and Megahit and Quality Control analysis of the resulting contigs
 
-@author: Asus
+By João Sequeira
+
+Jun 2017
 """
 
 import subprocess, os

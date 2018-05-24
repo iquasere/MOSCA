@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 '''
-DIAMOND python API
+DIAMOND wrapper
 
 By João Sequeira
 
-21st July 2017
+July 2017
 '''
 
 import numpy as np

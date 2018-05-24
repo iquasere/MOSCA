@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
 '''
-MOSCA preprocessing
+MOSCA Preprocessing package for quality check and removal of
+undesired reads by quality, detection of artificial origin
+or detection as rRNA
 
 By João Sequeira
 
-7th March 2017
+March 2017
 '''
 
 from fastqc import FastQC

@@ -1,9 +1,11 @@
-#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Mon Oct  9 00:23:51 2017
+MOSCA's Analysis package for retrieval of UniProt 
+information and Differential Expression analysis
 
-@author: sequeira
+By João Sequeira
+
+Sep 2017
 """
 
 import pandas as pd
@@ -16,7 +18,7 @@ from diamond import DIAMOND
 
 mtools = MoscaTools()
 
-class Analysing:
+class Analysis:
     def __init__(self, **kwargs):
         self.__dict__ = kwargs
 

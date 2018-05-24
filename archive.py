@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-Created on Wed Jan 31 17:02:36 2018
+MOSCA's Archive for storage of some code 
+that might be useful in the future
 
-@author: Asus
+By João Sequeira
+
+Jan 2018
 """
 
 class Archive

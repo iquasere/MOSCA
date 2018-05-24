@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Mon Jun  5 17:17:58 2017
+'''
+General tools for support of MOSCA's functionalities
 
-@author: Asus
-"""
+By João Sequeira
+
+Jun 2017
+'''
 
 import subprocess
 from progressbar import ProgressBar

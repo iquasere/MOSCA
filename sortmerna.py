@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 '''
-SortMeRNA python API
+SortMeRNA wrapper
 
 By João Sequeira
 
-7th March 2017
+March 2017
 '''
 
 from mosca_tools import MoscaTools

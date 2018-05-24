@@ -4,7 +4,7 @@ MOSCA main class
 
 By João Sequeira
 
-23rd Sep 2017
+Sep 2017
 """
 
 from preprocessing import Preprocessing

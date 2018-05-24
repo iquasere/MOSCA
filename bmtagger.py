@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
-'''
-BMTagger python API
+"""
+MOSCA's BMTagger wrapper for future use 
+in the removal of hosts sequences
 
 By João Sequeira
 
-7th March 2017
-'''
+Mar 2017
+"""
 
 #../../../../../../../../../home/sequeira/miniconda3/bin/bmtagger.sh
 #human genome database extracted from http://www.ensembl.org/biomart/martview/6f3498f80caaf0f4ca4f16dd0ea0ab38

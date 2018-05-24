@@ -1,14 +1,17 @@
 # -*- coding: utf-8 -*-
 """
-Created on Mon Jun  5 18:33:52 2017
+MOSCA's Annotation package for Gene Calling and 
+Alignment of identified ORFs to UniProt database
 
-@author: Asus
+By João Sequeira
+
+Jun 2017
 """
 
 from mosca_tools import MoscaTools
 mt = MoscaTools()
 
-class Annotating:
+class Annotation:
     
     def __init__ (self, **kwargs):
         self.__dict__ = kwargs

@@ -1,14 +1,10 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Thu Jul 13 20:22:48 2017
-
-@author: Asus
-"""
-
 '''
-combined_reference is total
-not_aligned is what suggests
-summary shows for aligned organisms
+MetaQUAST wrapper
+
+By João Sequeira
+
+Jul 2017
 '''
 
 class MetaQUAST:
