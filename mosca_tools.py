@@ -4,10 +4,7 @@ Created on Mon Jun  5 17:17:58 2017
 
 @author: Asus
 """
-'''
-# ssh -X bridge_root@193.137.11.212
-sudo apt-get install screen
-'''
+
 import subprocess
 from progressbar import ProgressBar
 from io import StringIO
