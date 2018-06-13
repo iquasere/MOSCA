@@ -384,20 +384,3 @@ def get_ids_from_ncbi_gff(gff):
         else:
             ids.append(re.split(';|,', attribute.split('Dbxref=Genbank:')[-1])[0])
     return ids
-
-
-if __name__ == '__main__':
-    
-    compare_result_with_reality_coverage_tax('simulatedMegahit/Analysis/uniprot_info_coverage.tab', 'Against_reality/reality.tsv')
-    
-    
-resultdf = result[result.Pathway.notnull()]
-resultdf.pathway = resultdf.Pathway.apply(split)
-resultdf = using_repeat(resultdf)
-pathways = pd.DataFrame([(path.split('; ') + [np.nan] * (3 - len(path.split('; ')))) for path in resultdf.pathway], index = resultdf.index)
-resultdf = resultdf[['protein names','id','ec','lineage(GENUS)']]
-pathways = pd.DataFrame([(path.split('; ') + [np.nan] * (3 - len(path.split('; ')))) for path in mt1func.Pathway], index = mt1func.index)
-pathways.columns = ['superpathway','pathway','subpathway']
-resultdf = pd.concat([pathways, resultdf], axis = 1)
-resultdf = resultdf.groupby(resultdf.columns.tolist())['coverage'].sum().reset_index()
-resultdf.set_index(resultdf.columns.tolist()[:-1])
