@@ -110,10 +110,10 @@ class Preprocessing:
         
     def run(self):
         print(self.name)
-        #self.first_check()
-        #adapters = self.trim_adapters()
+        self.first_check()
+        adapters = self.trim_adapters()
         adapters = ['adapters/TruSeq2-PE.fa','adapters/TruSeq3-PE-2.fa']
         print(adapters)
-        #self.quality_trimming(adapters)
+        self.quality_trimming(adapters)
         self.rrna_removal()
         #self.host_sequences_removal()

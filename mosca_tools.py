@@ -245,8 +245,8 @@ def compare_result_with_reality(result, reality):       #result is uniprot tab, 
     totalreal = float(realitydf['abundance'].sum())
     realitydf['abundance'] /= (totalreal/100)
     #ammendments on the result because of some uniprot facts
-    resultdf.loc[resultdf['lineage(FAMILY)'].str.contains('Chloroflexaceae'),'lineage(FAMILY)'] = 'Chloroflexaceae'
-    resultdf.loc[resultdf['lineage(SPECIES)'].str.contains('Methanosarcina mazei'),'lineage(SPECIES)'] = 'Methanosarcina mazei'
+    resultdf.loc[resultdf['Taxonomic lineage (FAMILY)'].str.contains('Chloroflexaceae'),'Taxonomic lineage (FAMILY)'] = 'Chloroflexaceae'
+    resultdf.loc[resultdf['Taxonomic lineage (SPECIES)'].str.contains('Methanosarcina mazei'),'Taxonomic lineage (SPECIES)'] = 'Methanosarcina mazei'
     realitydf.loc[realitydf['lineage(GENUS)'].str.contains('Methanosaeta'),'lineage(GENUS)'] = 'Methanothrix'
     
     for value in realitydf['lineage(SPECIES)'].get_values():
@@ -276,24 +276,26 @@ def compare_result_with_reality(result, reality):       #result is uniprot tab, 
 def compare_result_with_reality_coverage_tax(result, reality):       #result is uniprot tab, reality is tsv taxonomy1\ttaxonomy2\t...\tpercentage
     import pandas as pd    
     resultdf = pd.read_csv(result, sep = '\t')
-    resultdf.columns = ['id','ec','lineage(SUPERKINGDOM)','lineage(PHYLUM)','lineage(CLASS)','lineage(ORDER)','lineage(FAMILY)','lineage(GENUS)','lineage(SPECIES)','pathway','protein names','coverage']
-    resultdf = resultdf[['lineage(SUPERKINGDOM)','lineage(PHYLUM)','lineage(CLASS)','lineage(ORDER)','lineage(FAMILY)','lineage(GENUS)','lineage(SPECIES)','coverage']]
+    resultdf = resultdf[['Taxonomic lineage (SUPERKINGDOM)','Taxonomic lineage (PHYLUM)',
+                         'Taxonomic lineage (CLASS)','Taxonomic lineage (ORDER)',
+                         'Taxonomic lineage (FAMILY)','Taxonomic lineage (GENUS)',
+                         'Taxonomic lineage (SPECIES)','coverage']]
     resultdf = resultdf.groupby(resultdf.columns.tolist()[:-1])['coverage'].sum().reset_index()
     realitydf = pd.read_csv(reality, sep = '\t', header = None)
-    realitydf.columns = ['lineage(SUPERKINGDOM)','lineage(PHYLUM)','lineage(CLASS)','lineage(ORDER)',
-                'lineage(FAMILY)','lineage(GENUS)','lineage(SPECIES)','abundance']
-    realitydf['lineage(SPECIES)'] = realitydf['lineage(GENUS)'] + ' ' + realitydf['lineage(SPECIES)']
+    realitydf.columns = ['Taxonomic lineage (SUPERKINGDOM)','Taxonomic lineage (PHYLUM)',
+                         'Taxonomic lineage (CLASS)','Taxonomic lineage (ORDER)',
+                         'Taxonomic lineage (FAMILY)','Taxonomic lineage (GENUS)',
+                         'Taxonomic lineage (SPECIES)','abundance']
     total = float(resultdf['coverage'].sum())
     print('Total is ' + str(total))
     resultdf['coverage'] /= (total/100)      #set as percentage
     totalreal = float(realitydf['abundance'].sum())
     realitydf['abundance'] /= (totalreal/100)
     #ammendments on the result because of some uniprot facts
-    resultdf.loc[resultdf['lineage(FAMILY)'].str.contains('Chloroflexaceae'),'lineage(FAMILY)'] = 'Chloroflexaceae'
-    resultdf.loc[resultdf['lineage(SPECIES)'].str.contains('Methanosarcina mazei'),'lineage(SPECIES)'] = 'Methanosarcina mazei'
-    resultdf.loc[resultdf['lineage(GENUS)'].str.contains('Methanothrix'),'lineage(GENUS)'] = 'Methanosaeta'
-    for level in ['lineage(SUPERKINGDOM)','lineage(PHYLUM)','lineage(CLASS)','lineage(ORDER)',
-                'lineage(FAMILY)','lineage(GENUS)','lineage(SPECIES)']:
+    resultdf.loc[resultdf['Taxonomic lineage (FAMILY)'].str.contains('Chloroflexaceae'),'Taxonomic lineage (FAMILY)'] = 'Chloroflexaceae'
+    resultdf.loc[resultdf['Taxonomic lineage (SPECIES)'].str.contains('Methanosarcina mazei'),'Taxonomic lineage (SPECIES)'] = 'Methanosarcina mazei'
+    for level in ['Taxonomic lineage (SUPERKINGDOM)','Taxonomic lineage (PHYLUM)','Taxonomic lineage (CLASS)','Taxonomic lineage (ORDER)',
+                'Taxonomic lineage (FAMILY)','Taxonomic lineage (GENUS)','Taxonomic lineage (SPECIES)']:
         print('Level: ' + level)
         factors = list(realitydf[level].unique())
         value = 0
@@ -302,23 +304,13 @@ def compare_result_with_reality_coverage_tax(result, reality):       #result is 
             print('Percentage of ' + factor + ': ' + str(float(resultdf[resultdf[level] == factor]['coverage'].sum())) + '%')
             others -= float(resultdf[resultdf[level] == factor]['coverage'].sum())
             value += (float(resultdf[resultdf[level] == factor]['coverage'].sum()) - abs(float(resultdf[resultdf[level] == factor]['coverage'].sum()) - realitydf.loc[realitydf[level] == factor]['abundance'].sum()))
-        if level == 'lineage(SUPERKINGDOM)':
+        if level == 'Taxonomic lineage (SUPERKINGDOM)':
             for factor in ['Eukaryota','Viruses']:
                 print('Percentage of ' + factor + ': ' + str(float(resultdf[resultdf[level] == factor]['coverage'].sum())) + '%')
                 others -= float(resultdf[resultdf[level] == factor]['coverage'].sum())
         print('Others:' + str(others) + '%')
         print('Correctness: ' + str(value) + '%')
         
-for value in simulateddf1.index.get_values():
-    print(value)
-    found = False
-    partdf = metaspadestaxdf1[metaspadestaxdf1.index.str.contains(value)]
-    print(partdf.head())
-    for i in range(len(metaspadestaxdf1)):
-        print(metaspadestaxdf1[~(metaspadestaxdf1==simulateddf1).all(axis=1)])
-        
-    df[~(df==df1).all(axis=1)]    
-    
 def taxonomy_of_others(result, reality, output):
     import pandas as pd    
     resultdf = pd.read_csv(result, sep = '\t')
@@ -345,32 +337,26 @@ def split(pathway):
 def using_repeat(df):
     import numpy as np
     import pandas as pd
-    lens = [len(item) for item in df['pathway']]
+    lens = [len(item) for item in df['Pathway']]
     dictionary = dict()
     for column in df.columns:
         dictionary[column] = np.repeat(df[column].values,lens)
-    dictionary["pathway"] = np.concatenate(df['pathway'].values)
+    dictionary["Pathway"] = np.concatenate(df['Pathway'].values)
     return pd.DataFrame(dictionary)
 
-def partition_pathway(pathway):
-    return [(path[0].split('; ') + [np.nan] * (3 - len(path[0].split('; ')))) for path in pathway]
-            
-def organize_pathway(result, name):
+def organize_pathway(result):
     import pandas as pd    
     import numpy as np
-    resultdf = pd.read_csv(result, sep = '\t', header = None)
-    resultdf.columns = ['id','ec','lineage(SUPERKINGDOM)','lineage(PHYLUM)','lineage(CLASS)','lineage(ORDER)',
-                        'lineage(FAMILY)','lineage(GENUS)','lineage(SPECIES)','pathway','protein names']
-    resultdf = resultdf[resultdf.pathway.notnull()]
-    resultdf.pathway = resultdf.pathway.apply(split)
+    #resultdf = pd.read_csv(result, sep = '\t')
+    resultdf = result[result.Pathway.notnull()]
+    resultdf.Pathway = resultdf.Pathway.apply(split)
     resultdf = using_repeat(resultdf)
-    pathways = pd.DataFrame([(path.split('; ') + [np.nan] * (3 - len(path.split('; ')))) for path in 
-                             resultdf.pathway], index = resultdf.index)
-    resultdf = resultdf[['protein names','id','ec','lineage(GENUS)']]
+    pathways = pd.DataFrame([(path.split('; ') + [np.nan] * (3 - len(path.split('; ')))) for path in resultdf.Pathway], index = resultdf.index)
+    resultdf = resultdf[['coverage']]
     pathways.columns = ['superpathway','pathway','subpathway']
     resultdf = pd.concat([pathways, resultdf], axis = 1)
-    resultdf = resultdf.groupby(resultdf.columns.tolist()).size().reset_index().rename(columns={0:name})
-    return resultdf.set_index(resultdf.columns.tolist()[:-1])
+    resultdf = resultdf.groupby(resultdf.columns.tolist()[:-1])['coverage'].sum().reset_index()
+    return resultdf     #.set_index(resultdf.columns.tolist()[:-1])
 
 def make_contigs_gff(file, output):
     pbar = ProgressBar()
@@ -398,4 +384,20 @@ def get_ids_from_ncbi_gff(gff):
         else:
             ids.append(re.split(';|,', attribute.split('Dbxref=Genbank:')[-1])[0])
     return ids
+
+
+if __name__ == '__main__':
     
+    compare_result_with_reality_coverage_tax('simulatedMegahit/Analysis/uniprot_info_coverage.tab', 'Against_reality/reality.tsv')
+    
+    
+resultdf = result[result.Pathway.notnull()]
+resultdf.pathway = resultdf.Pathway.apply(split)
+resultdf = using_repeat(resultdf)
+pathways = pd.DataFrame([(path.split('; ') + [np.nan] * (3 - len(path.split('; ')))) for path in resultdf.pathway], index = resultdf.index)
+resultdf = resultdf[['protein names','id','ec','lineage(GENUS)']]
+pathways = pd.DataFrame([(path.split('; ') + [np.nan] * (3 - len(path.split('; ')))) for path in mt1func.Pathway], index = mt1func.index)
+pathways.columns = ['superpathway','pathway','subpathway']
+resultdf = pd.concat([pathways, resultdf], axis = 1)
+resultdf = resultdf.groupby(resultdf.columns.tolist())['coverage'].sum().reset_index()
+resultdf.set_index(resultdf.columns.tolist()[:-1])

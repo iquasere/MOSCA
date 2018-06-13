@@ -104,15 +104,47 @@ class RNASeqSim:
         result = info[['abundance']]
         result.to_csv(output + '/abundance' + str(factor) + '.config', sep = '\t', header = False)
         
-    def use_grinder(self, output, relative_abundance, factor = 1):
-        command = ('/home/jsequeira/biogrinder/script/grinder -reference_file ' + output + '/fgs.ffn -abundance_file ' + 
-        output + '/abundance' + str(factor) + '.config -total_reads ' + str(round(relative_abundance*100000)) + ' -mate_orientation FR -random_seed 13 -fastq_output 1 ' + 
-        '-qual_levels 30 10 -output_dir ' + output + '/' + str(factor) + ' -read_dist 251 -insert_dist 2500 -mutation_dist ' + 
-        'poly4 3e-3 3.3e-8')
+    def use_grinder(self, output, relative_abundance, name, factor = 1):
+        command = ('/home/jsequeira/biogrinder/script/grinder -reference_file ../PostThesis/piptest/grinder/MT/' + name + '.fasta -abundance_file ../PostThesis/piptest/grinder/MT/abundance.config ' + 
+                   '-total_reads ' + str(round(relative_abundance*100)) + ' -mate_orientation FR -random_seed 13 -fastq_output 1 ' + 
+        '-qual_levels 30 10 -output_dir ' + output + ' -read_dist 251 -insert_dist 2500 -mutation_dist poly4 3e-3 3.3e-8')
+        #'-qual_levels 30 10 -output_dir ' + output + '/' + str(factor) + ' -read_dist 251 -insert_dist 2500 -mutation_dist ' + 
         self.run(command)
     
 if __name__ == '__main__':
-    import glob, pathlib, sys
+    import glob, pathlib, os
+    from progressbar import ProgressBar
+
+    for number in ['3', '0.16666666666666666']:
+        abundancedf = pd.read_csv('../PostThesis/piptest/abundance' + number + '.config', sep = '\t', header = None, index_col = 0)
+        simulator = RNASeqSim()
+        
+        pbar = ProgressBar()
+        already_done = next(os.walk('../PostThesis/piptest/grinder/MT'))[1]
+        files1 = glob.glob('../PostThesis/piptest/grinder/MT/*.fasta')
+        files = [file for file in pbar(files1) if file.split('/')[-1].rstrip('.fasta') not in already_done]
+        print(str(len(files1)) + ' ' + str(len(files)))
+        
+        for file in files:
+            name = file.rstrip('.fasta').split('/')[-1]        
+            with open('../PostThesis/piptest/grinder/MT/abundance.config','w') as f:
+                f.write(name + '\t1')
+            directory = '../PostThesis/piptest/grinder/MT/' + name
+            path = pathlib.Path(directory)
+            path.mkdir(parents=True, exist_ok=True)
+            simulator.use_grinder(directory, float(abundancedf.loc[name]), name, factor = 1)
+    '''    
+    
+    pbar = ProgressBar()
+    
+    from mosca_tools import MoscaTools
+    
+    mt = MoscaTools()
+    file = mt.parse_fasta('transcripts.fasta')
+    
+    for k in pbar(file.keys()):
+        handler = open('../PostThesis/piptest/grinder/MT/' + k + '.fasta', 'w')
+        handler.write('>' + k + '\n' + file[k] + '\n')
     
     archaea_co2 = {'One-carbon metabolism; methanogenesis from CO(2)':1, 
                    'Cofactor biosynthesis':1, 'ATP synthase':1}
@@ -147,17 +179,20 @@ if __name__ == '__main__':
             rnaseqsim.define_abundance(abundances[name], info, output, factor = factor)
             rnaseqsim.use_grinder(output, abundances[name][0], factor = factor)
             
-#samtools view -bS test1848/Assembly/mt1.sam | samtools sort - test1848/Assembly/mt1sorted
-
-perl ../../../home/jsequeira/FGS/run_FragGeneScan.pl -genome=../PostThesis/piptest/GCA_000275865.1_ASM27586v1_genomic.fna -out=../PostThesis/piptest/newGCA_000275865.1_ASM27586v1/fgs -complete=1 -train=./complete
-python MOSCA/rnaseqsim.py
-bowtie2 -f -x test1848/Assembly/contigs -1 polyester/sample_01_1.fasta -2 polyester/sample_01_2.fasta -S test1848/Analysis/sam1.sam
-bowtie2 -f -x test1848/Assembly/contigs -1 polyester/sample_02_1.fasta -2 polyester/sample_02_2.fasta -S test1848/Analysis/sam2.sam
-bowtie2 -f -x test1848/Assembly/contigs -1 polyester/sample_03_1.fasta -2 polyester/sample_03_2.fasta -S test1848/Analysis/sam3.sam
-
-htseq-count test1848/Analysis/sam1.sam test1848/Annotation/gff.gff.gff > sample1.readcounts
-htseq-count test1848/Analysis/sam2.sam test1848/Annotation/gff.gff.gff > sample2.readcounts
-htseq-count test1848/Analysis/sam3.sam test1848/Annotation/gff.gff.gff > sample3.readcounts
-
-
-#/home/jsequeira/biogrinder/script/grinder -reference_file fgs.ffn -abundance_file abundance1.config -total_reads 1000000 -mate_orientation FR -random_seed 13 -fastq_output 1 -qual_levels 30 10 -output_dir 1 -read_dist 251 -insert_dist 2500 -mutation_dist poly4 3e-3 3.3e-8
+    #samtools view -bS test1848/Assembly/mt1.sam | samtools sort - test1848/Assembly/mt1sorted
+    
+    perl ../../../home/jsequeira/FGS/run_FragGeneScan.pl -genome=../PostThesis/piptest/GCA_000275865.1_ASM27586v1_genomic.fna -out=../PostThesis/piptest/newGCA_000275865.1_ASM27586v1/fgs -complete=1 -train=./complete
+    python MOSCA/rnaseqsim.py
+    bowtie2 -f -x test1848/Assembly/contigs -1 polyester/sample_01_1.fasta -2 polyester/sample_01_2.fasta -S test1848/Analysis/sam1.sam
+    bowtie2 -f -x test1848/Assembly/contigs -1 polyester/sample_02_1.fasta -2 polyester/sample_02_2.fasta -S test1848/Analysis/sam2.sam
+    bowtie2 -f -x test1848/Assembly/contigs -1 polyester/sample_03_1.fasta -2 polyester/sample_03_2.fasta -S test1848/Analysis/sam3.sam
+    
+    htseq-count test1848/Analysis/sam1.sam test1848/Annotation/gff.gff.gff > sample1.readcounts
+    htseq-count test1848/Analysis/sam2.sam test1848/Annotation/gff.gff.gff > sample2.readcounts
+    htseq-count test1848/Analysis/sam3.sam test1848/Annotation/gff.gff.gff > sample3.readcounts
+    
+    
+    #/home/jsequeira/biogrinder/script/grinder -reference_file fgs.ffn -abundance_file abundance1.config -total_reads 1000000 -mate_orientation FR -random_seed 13 -fastq_output 1 -qual_levels 30 10 -output_dir 1 -read_dist 251 -insert_dist 2500 -mutation_dist poly4 3e-3 3.3e-8
+    
+    '''
+    

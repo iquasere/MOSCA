@@ -16,8 +16,7 @@ export PATH=~/anaconda3/bin:$PATH
 
 #-----------SortMeRNA-----------
 conda install -c biocore sortmerna
-wget ./merge-paired-reads.sh ./unmerge-paired-reads.sh !!!!
-sed -i 's/\r$//' ./merge-paired-reads.sh
+sudo apt-get install seqtk
 
 #-----------Trimmomatic-----------
 conda install -c faircloth-lab trimmomatic
@@ -30,6 +29,7 @@ wget http://spades.bioinf.spbau.ru/release3.9.0/SPAdes-3.9.0.tar.gz
 tar -xzf SPAdes-3.9.0.tar.gz
 cd SPAdes-3.9.0
 export PATH=/home/jsequeira/SPAdes-3.9.0:$PATH ???
+cd ..
 
 #-----------MEGAHIT-----------
 sudo apt install aptitude
@@ -38,17 +38,20 @@ sudo apt-get install zlib1g-dev
 git clone https://github.com/voutcn/megahit.git
 cd megahit
 make
+cd ..
 
 #-----------MetaQUAST-----------
 wget https://downloads.sourceforge.net/project/quast/quast-4.5.tar.gz
 tar -xzf quast-4.5.tar.gz
 cd quast-4.5
 ./setup.py install_full
+cd ..
 
 #-----------FragGeneScan-----------
 git clone https://github.com/wltrimbl/FGS.git
 cd FGS
 make
+cd ..
 
 #-----------DIAMOND-----------
 wget http://github.com/bbuchfink/diamond/releases/download/v0.9.9/diamond-linux64.tar.gz

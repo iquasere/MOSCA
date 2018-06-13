@@ -24,7 +24,7 @@ class Analysis:
 
         
     def uniprot_request(self, ids, original_database = 'ACC+ID', database_destination = ''):
-        import requests, time
+        import requests
          
         BASE_URL = 'http://www.uniprot.org/uniprot/'
          
@@ -70,19 +70,19 @@ class Analysis:
                 time.sleep(3)
                 return response.decode('utf-8')
             except:
-                print(ids[0] + ' to ' + ids[-1] + ' tab failed\n')
+                print(ids[0] + ' to ' + ids[-1] + ' tab failed')
             
-    def get_uniprot_information(self, ids, original_database, database_destination, chunk = 100):
+    def get_uniprot_information(self, ids, original_database = 'ACC+ID', database_destination = '', chunk = 100):
         pbar = ProgressBar()
         result = pd.DataFrame()
         #print('Writing Uniprot information to ' + output)
         for i in pbar(range(0, len(ids), chunk)):
             if i + chunk < len(ids):
-                data = StringIO(self.uniprot_request(ids[i:i+chunk]), original_database)
+                data = StringIO(self.uniprot_request(ids[i:i+chunk], original_database, database_destination))
                 uniprot_info = pd.read_csv(data, sep = '\t')
                 result = pd.concat([result, uniprot_info])
             else:
-                data = StringIO(self.uniprot_request(ids[i:len(ids)]), original_database)
+                data = StringIO(self.uniprot_request(ids[i:len(ids)], original_database, database_destination))
                 uniprot_info = pd.read_csv(data, sep = '\t')
                 return pd.concat([result, uniprot_info])
             
