@@ -77,9 +77,7 @@ class SortMeRNA:
                 f1.write(other[i+j])
             for j in range(4, 8):
                 f2.write(other[i+j])
-            
-        bashCommand = 'bash MOSCA/unmerge-paired-reads.sh ' + self.other + '.fastq ' + readf + ' ' + readr
-        mtools.run_command(bashCommand)
+        f1.close()
         
     def run_tool(self):
         mtools.run_command(self.bash_command())
