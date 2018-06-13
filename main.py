@@ -7,10 +7,10 @@ By João Sequeira
 Sep 2017
 """
 
-from preprocessing import Preprocessing
-from assembling import Assembling
-from annotating import Annotating
-from analysing import Analysing
+from preprocess import Preprocesser
+from assembly import Assembler
+from annotation import Annotater
+from analysis import Analyser
 from mosca_tools import MoscaTools
 from diamond import DIAMOND
 
@@ -18,7 +18,7 @@ import argparse, pathlib
 
 parser = argparse.ArgumentParser(description="Multi Omics Software for Community Analysis",
                                  epilog="A tool for performing metagenomics and metatranscriptomics analysis.")
-parser.add_argument("-mg","--metagenomic", type=str, help="Input files for metagenomic analysis", nargs = '*',
+parser.add_argument("-f","--files", type=str, help="Input files for analysis (mg1R1,mg1R2:mt1R1,mt1R2;)", nargs = '*',
                     metavar = "Metagenomic files")
 parser.add_argument("-mt","--metatranscriptomic", type=str, help="Input files for metatranscriptomic analysis", nargs = '*',
                     metavar = "Metatranscriptomic files")
@@ -37,17 +37,13 @@ parser.add_argument("-node","--no-differential-expression",action = "store_true"
 parser.add_argument("-of","--output-files",default='min',choices=["min","med","max"],action='store',type=str,
                     help=("""Level of file output from MOSCA, min outputs only the analysis results, med removes intermediate files, max outputs 
                     all intermediate and final data"""))
-parser.add_argument("-mgfq", "--mg-fastq", default = '0', choices = ["0","1"], action = 'store', type = str,
-                    help='If metagenomic data is either in fastq (0) or fasta (1) format')
-parser.add_argument("-mtfq","--mt-fastq",default='0',choices=["0","1"],action='store',type=str,
-                    help='If metatranscriptomic data is either in fastq (0) or fasta (1) format')
              
 args = parser.parse_args()
 
 nice_arguments = True
-if args.metagenomic is None:
+if args.files is None:
     print()
-    print('Must specify which metagenomic files to use!')
+    print('Must specify which files to use!')
     nice_arguments = False
 if args.output_dir is None:
     print()
@@ -67,7 +63,10 @@ for directory in directories:
     path = pathlib.Path(directory)
     path.mkdir(parents=True, exist_ok=True)
     
-mg = args.metagenomic[0].split(',')
+files = args.files[0].split(';')
+for file in files:
+    print(file)
+exit()
 if args.metatranscriptomic is not None:
     mt = args.metatranscriptomic[0].split(',')
 else:
