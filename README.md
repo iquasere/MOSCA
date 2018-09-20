@@ -63,7 +63,7 @@ python main.py --files path/to/mg_file1_of_experiment1,path/to/mg_file2_of_exper
 
 ## Aditional parameters
 
-MOSCA includes the option to chose between MetaSPAdes (default) and Megahit as the tool for assembly. Also, while many functions are developed only for UniProt, another database can be chosen. Since not all steps are always wanted, MOSCA allows to chose wheter or not to perform every step of its analysis.
+MOSCA includes the option to chose between MetaSPAdes (default) and Megahit as the tool for assembly. Also, while many functions are developed only for UniProt, another database can be chosen. Since not all steps are always wanted, MOSCA allows to chose whether or not to perform every step of its analysis.
 
 ```
 usage: main.py [-h] [-f [Metagenomic files [Metagenomic files ...]]]
