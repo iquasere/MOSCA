@@ -67,6 +67,3 @@ cd ..
 
 #-----------Python packages-----------
 pip install progressbar33
-
-import numpy as np
-import subprocess
