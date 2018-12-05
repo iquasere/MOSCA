@@ -9,6 +9,7 @@ July 2017
 
 import numpy as np
 import subprocess
+import os
 
 class DIAMOND:
     
@@ -16,7 +17,7 @@ class DIAMOND:
         self.__dict__ = kwargs
         
     def set_database(self, db, output):
-        bashCommand = '../../../home/jsequeira/diamond makedb --in ' + db + ' -d ' + output
+        bashCommand = os.path.expanduser('~/diamond') + ' makedb --in ' + db + ' -d ' + output
         print(bashCommand)
         process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
         output, error = process.communicate()
@@ -28,7 +29,7 @@ class DIAMOND:
         return ' --' + arg.replace('_','-')
     
     def bashCommand(self):
-        result = '../../../home/jsequeira/diamond blastp '
+        result = os.path.expanduser('~/diamond') + ' blastp '
         #write code for checking if .dmnd exists!!!
         for arg in self.__dict__.keys():
             result += self.set_argument(arg)

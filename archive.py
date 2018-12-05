@@ -8,7 +8,7 @@ By João Sequeira
 Jan 2018
 """
 
-class Archive
+class Archive:
     def iter_read_csv(self, chunksize, **kwargs):
         for chunk in pd.read_csv(self.accession2taxid, chunksize=chunksize, low_memory=True, **kwargs):
             yield chunk
@@ -140,3 +140,43 @@ class Archive
     def parse_uniprot_tab(self, file):
         df = pd.DataFrame.from_csv(file, sep = '\t')
         tax_columns = ['Taxonomic lineage (' + tax + ')' for tax in ['SUPERKINGDOM', 'PHYLUM', 'CLASS', 'ORDER', 'FAMILY', 'GENUS', 'SPECIES']]
+        
+    # annotation
+    def gather_this_taxa(self, dna1tax,dna2tax,dna3tax, taxa):
+        taxa_name = 'Taxonomic lineage (' + taxa.upper() + ')'
+        result = pd.DataFrame()
+        for df in [dna1tax,dna2tax,dna3tax]:
+            df = df[[taxa_name, df.columns.tolist()[-1]]].groupby(taxa_name)[df.columns.tolist()[-1]].sum().reset_index()
+            df.index = df[taxa_name]
+            result = pd.concat([result,df['coverage']],axis=1)
+        result.columns = ['DNA1','DNA2','DNA3']
+        result.index.name = taxa
+        result = result.fillna(value=0)
+        for column in ['DNA1','DNA2','DNA3']:
+            result[column] = result[column].astype(int)
+        result.to_csv(taxa + '.readcounts',sep=' ')
+        
+    # metaproteomics_analyser
+    def database_generation(self, faa, output, crap, protease = 'trypsin'):
+        print('Generating new database to ' + output)
+        handler = open(output, 'w')
+        faa = mtools.parse_fasta(faa)
+        blast = DIAMOND(out = blast).parse_result()
+        faa = pd.DataFrame.from_dict(faa, orient = 'index')
+        faa.columns = ['sequence']
+        database = pd.merge(blast, faa, left_on = 'qseqid', right_index = True)
+        database = database[['sseqid', 'sequence']]
+        pbar = ProgressBar()
+        for ide in pbar(database.index):
+            handler.write(database.loc[ide]['sseqid'] + '\n' + database.loc[ide]['sequence'] + '\n')
+        crap = mtools.parse_fasta(crap)
+        for name,sequence in crap.items():
+            handler.write(name + '\n' + sequence + '\n')
+        if protease == 'trypsin':                                                                   #pig trypsin is not the only protease used
+            if not os.path.isfile(output + '/P00761.fasta'):
+                print('Trypsin file not found. Will be downloaded from UniProt.')
+                mtools.run_command('wget https://www.uniprot.org/uniprot/P00761.fasta ' + output)
+            protease = mtools.parse_fasta(output + '/P00761.fasta')
+        for name,sequence in protease.items():
+            handler.write(name + '\n' + sequence + '\n')
+        handler.close()        

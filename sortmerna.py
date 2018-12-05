@@ -9,6 +9,8 @@ March 2017
 
 from mosca_tools import MoscaTools
 from progressbar import ProgressBar
+from Bio import SeqIO
+import os
 
 mtools = MoscaTools()
 
@@ -16,7 +18,13 @@ class SortMeRNA:
     
     def __init__ (self, **kwargs):
         self.__dict__ = kwargs
-        
+        self.paired_out = self.paired
+        for i in range(len(self.reads)):
+            if '.gz' in self.reads[i]:
+                print(self.reads[i] + ' seems to be compressed. Going to be uncrompressed.')
+                mtools.run_command('gunzip ' + self.reads[i])
+                self.reads[i] = self.reads[i].rstrip('.gz')
+                
     def set_optional_argument(self,arg,result):
         if hasattr(self,arg):
             result += ' --' + arg + ' ' + self.arg
@@ -47,53 +55,48 @@ class SortMeRNA:
                 result += ' --paired_in'
         if hasattr(self,'paired_out'):
             if self.paired_out == True:
-                result += ' --paired_out' 
+                result += ' --paired_out'
         print('bash command:',result)
         return result
     
-    def join_fr(self):
-        pbar = ProgressBar()
-        handler1 = open(self.reads[0]).readlines()
-        handler2 = open(self.reads[1]).readlines()
-        other = self.working_dir + 'Preprocess/SortMeRNA/joined.fastq'
-        temp = open(other, 'w')
-        print('Merging forward ' +  self.reads[0] + ' and reverse ' + self.reads[1] + ' to interleaved ' + other)
-        for i in pbar(range(0, len(handler1), 4)):
-            for j in range(4):
-                temp.write(handler1[i + j])
-            for j in range(4):
-                temp.write(handler2[i + j])
-        handler1.close(); handler2.close()
+    def merge_pe(self, forward, reverse, interleaved):
+        mtools.run_command('bash MOSCA/merge-paired-reads.sh ' + forward + ' ' + reverse + ' ' + interleaved)
+        
+    def unmerge_pe(self, interleaved, forward, reverse):
+        mtools.run_command('bash MOSCA/unmerge-paired-reads.sh ' + interleaved + ' ' + forward + ' ' + reverse)
     
-    def divide_temp(self):
-        pbar = ProgressBar()
-        readf = self.working_dir + 'Preprocess/SortMeRNA/forward_' + self.other.split('/')[-1] + 'fastq'
-        readr = readf.replace('forward_','reverse')
-        f1 = open(readf, 'w'); f2 = open(readr, 'w')
-        other = open(self.other)
-        print('Splitting interleaved ' + self.other + ' to forward ' + readf + ' and reverse ' + readr)
-        for i in pbar(range(0, len(self.other), 8)):
-            for j in range(4):
-                f1.write(other[i+j])
-            for j in range(4, 8):
-                f2.write(other[i+j])
-        f1.close()
+    def merge_fastq(fastq_path1, fastq_path2, outpath):
+        outfile = open(outpath,"w")
+        fastq_iter1 = SeqIO.parse(open(fastq_path1),"fastq")
+        fastq_iter2 = SeqIO.parse(open(fastq_path2),"fastq")
+        for rec1, rec2 in zip(fastq_iter1, fastq_iter2):
+            SeqIO.write([rec1,rec2], outfile, "fastq")
+        outfile.close()
         
     def run_tool(self):
         mtools.run_command(self.bash_command())
     
     #correct number of reads per file - if unequal number of reads from forward to reverse file, it will be corrected by separation name/1,2
-    def correct_files(self):
-        bashCommand = ('cat ' + self.working_dir + '/Preprocess/SortMeRNA/forward_rejected.fastq ' + 
-                       self.working_dir + "/Preprocess/SortMeRNA/reverse_rejected.fastq | paste - - - - | sort | tr '\t' '\n' | seqtk dropse >" + self.working_dir + 
-                       '/Preprocess/reads.fastq')
-        mtools.run_command(bashCommand)
+    def correct_files(self, forward, reverse):
+        commands = ["awk '{printf substr($0,1,length-2);getline;printf \"\\t\"$0;getline;getline;print \"\\t\"$0}' " + forward + " | sort -S 8G -T. > " + self.working_dir + "/Preprocess/SortMeRNA/read1.txt",
+                    "awk '{printf substr($0,1,length-2);getline;printf \"\\t\"$0;getline;getline;print \"\\t\"$0}' " + reverse + " | sort -S 8G -T. > " + self.working_dir + "/Preprocess/SortMeRNA/read2.txt",
+                    "join " + ' '.join([self.working_dir + "/Preprocess/SortMeRNA/" + fr for fr in ['read1.txt','read2.txt']]) + " | awk '{print $1\"\\n\"$2\"\\n+\\n\"$3 > \"" + forward + "\";print $1\"\\n\"$4\"\\n+\\n\"$5 > \"" + reverse + "\"}'"]
+        for bashCommand in commands:
+            print(bashCommand)
+        '''
+        to_delete = [self.working_dir + "/Preprocess/SortMeRNA/read" + number + ".txt" for number in ['1','2']]
+        for file in to_delete:
+            os.remove(file)
+        '''
+    
     
     def run(self):
         if self.paired == True:
-            self.join_fr()
+            interleaved = self.working_dir + '/Preprocess/SortMeRNA/' + self.name + '_interleaved.fastq'
+            self.merge_pe(self.reads[0], self.reads[1], interleaved)
+            self.reads = interleaved
             self.run_tool()
-            self.divide_temp()
-            self.correct_files()
+            self.unmerge_pe(interleaved, self.working_dir + '/Preprocess/SortMeRNA/' + self.name + '_forward.fastq', self.working_dir + '/Preprocess/SortMeRNA/' + self.name + '_reverse.fastq')
+            self.correct_files(self.working_dir + '/Preprocess/SortMeRNA/' + self.name + '_forward.fastq', self.working_dir + '/Preprocess/SortMeRNA/' + self.name + '_reverse.fastq')
         else:
             self.run_tool()

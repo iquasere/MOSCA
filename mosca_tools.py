@@ -7,22 +7,25 @@ By João Sequeira
 Jun 2017
 '''
 
-import subprocess
 from progressbar import ProgressBar
 from io import StringIO
 import pandas as pd
-import glob
-import re
+import subprocess, glob, re, os
 
 class MoscaTools:
+    
+    def remove_files(self, files):
+        for file in files:
+            print('Deleting file', file)
+            os.remove(file)
     
     def run_command(self, bashCommand, file = '', mode = 'w'):
         print(bashCommand)
         if file == '':
             process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
         else:
-            handler = open(file, mode)
-            process = subprocess.Popen(bashCommand.split(), stdout=handler)
+            with output_file as open(file, mode):
+            process = subprocess.Popen(bashCommand.split(), stdout=output_file)
         output, error = process.communicate()
     
     def build_gff(self, aligned, output):
@@ -212,22 +215,60 @@ class MoscaTools:
                     sequences[name] += lines[i]
                     i += 1
         return sequences
-            
-    def set_to_uniprotID(self, fasta, aligned, output):
-        handler = DIAMOND(out = aligned)
-        result = handler.parse_result(aligned)
-        sequences = self.parse_fasta(fasta)
-        keys = list(sequences.keys())
-        final = list()
-        for name in keys:
-            try:
-                newname = str(result[result.qseqid == name]['sseqid'].item())
-                final.append((newname, sequences[name]))
-            except:
-                print(result[result.qseqid == name]['sseqid'])
-        with open(output,'w') as f:
-            for double in final:
-                f.write('>' + double[0] + '\n' + double[1] + '\n')
+
+    def validate_arguments(self, parser):
+        args = parser.parse_args()
+        nice_arguments = True
+        if args.files is None:
+            print('Must specify which files to use!')
+            nice_arguments = False
+        if args.output_dir is None:
+            print('Must specify which output directory to use!')
+            nice_arguments = False
+        if nice_arguments == False:
+            parser.print_help()
+            exit()
+        else:
+            return args
+
+    def print_arguments(self, args):
+        import pprint
+        pp = pprint.PrettyPrinter(indent=4)
+        pp.pprint(vars(args))
+        print()
+        dict_args = vars(args)
+        print(dict_args)
+        for key in dict_args.keys():
+            key_name = key[0].upper() + key[1:].replace('_',' ')
+            if key is not 'files':
+                print(key_name + ': ' + str(dict_args[key]))
+            else:
+                print(key_name)
+                i = 0
+                experiments = [experiment.split(':') for experiment in dict_args[key]]
+                for experiment in experiments:
+                    i += 1
+                    print('Experiment' + str(i))
+                    print('MG files: ' + experiment[0])
+                    if len(experiment) > 1:
+                        print('MT files: ' + experiment[1])
+        
+    '''
+    input: a FASTA file of proteins identified by FGS, which might have some bases called as *
+        a filename (temp) where to store the resulting file before moving it to the original file place
+    output: a FASTA file where no protein sequence contains *
+    '''
+    def correct_fasta_file(self, fasta, temp = 'temp.fasta'):
+        file = self.parse_fasta(fasta)
+        handler = open(temp, 'w')
+        for key,value in file.items():
+            if value[0] == '*':             #FGS assigns * for the first position in a very small number of proteins
+                value = value[1:]
+            if '*' not in value:
+                handler.write('>' + key + '\n' + value + '\n')
+        os.rename(temp, fasta)
+        
+                    
                 
 def compare_result_with_reality(result, reality):       #result is uniprot tab, reality is tsv taxonomy1\ttaxonomy2\t...\tpercentage
     import pandas as pd    

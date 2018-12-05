@@ -5,23 +5,19 @@ RNA-Seq simulator for differential expression
 Created on Sun Jan 14 19:14:01 2018
 """
 
-import analysing
-import annotating
+from annotation import Annotater
 from diamond import DIAMOND
-import subprocess
 import pandas as pd
+from mosca_tools import MoscaTools
+
+annotater = Annotater()
+mtools = MoscaTools()
 
 class RNASeqSim:
     
     def __init__(self, **kwargs):
         self.__dict__ = kwargs
         
-    def run(self, bashCommand):
-        print(bashCommand)
-        process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
-        output, error = process.communicate()
-        return output, error
-    
     def use_fgs(self, genome, output):
         command = ('perl ../../../home/jsequeira/FGS/run_FragGeneScan.pl -genome='
                    + genome + ' -out=' + output + ' -complete=1 -train=./complete')
@@ -81,11 +77,11 @@ class RNASeqSim:
         return result
         
     def join_information(self, genome, output):
-        #self.use_fgs(genome, output + '/fgs')
-        #self.use_diamond(output + '/fgs.faa', output + '/aligned.blast')
+        annotater.use_fgs(genome, output + '/fgs')
+        annotater.use_diamond(output + '/fgs.faa', output + '/aligned.blast')
         blast = DIAMOND(out = output + '/aligned.blast').parse_result()
         blast = blast.drop_duplicates(subset = 'sseqid')
-        ids = [ide.split('|')[1] if ide != '*' else ide for ide in blast['sseqid']]
+        ids = list(set([ide.split('|')[1] if ide != '*' else ide for ide in blast['sseqid']]))
         pathinfo = self.chunky(ids)
         blast.index = [ide.split('|')[1] if ide != '*' else ide for ide in blast['sseqid']]
         result = pd.concat([blast, pathinfo], axis=1, join='inner')
@@ -107,15 +103,32 @@ class RNASeqSim:
     def use_grinder(self, output, relative_abundance, name, factor = 1):
         command = ('/home/jsequeira/biogrinder/script/grinder -reference_file ../PostThesis/piptest/grinder/MT/' + name + '.fasta -abundance_file ../PostThesis/piptest/grinder/MT/abundance.config ' + 
                    '-total_reads ' + str(round(relative_abundance*100)) + ' -mate_orientation FR -random_seed 13 -fastq_output 1 ' + 
-        '-qual_levels 30 10 -output_dir ' + output + ' -read_dist 251 -insert_dist 2500 -mutation_dist poly4 3e-3 3.3e-8')
-        #'-qual_levels 30 10 -output_dir ' + output + '/' + str(factor) + ' -read_dist 251 -insert_dist 2500 -mutation_dist ' + 
+                   '-qual_levels 30 10 -output_dir ' + output + ' -read_dist 251 -insert_dist 2500 -mutation_dist poly4 3e-3 3.3e-8')
         self.run(command)
     
 if __name__ == '__main__':
-    import glob, pathlib, os
-    from progressbar import ProgressBar
-
-    for number in ['3', '0.16666666666666666']:
+    
+    simulated = pd.read_excel('SimulatedMGMT/Genomes/simulated_taxa.xlsx', index = False, header = None)
+    simulated = simulated[simulated[8].str.contains('ftp')]
+    simulated = simulated.reset_index()
+    
+    abundance_handler = open('SimulatedMGMT/Genomes/abundance.config','w')
+    all_genomes_handler = open('SimulatedMGMT/Genomes/genomes.fasta','w')
+    '''
+    for i in range(len(simulated)):
+        file = 'SimulatedMGMT/Genomes/' + simulated.loc[i][6].replace(' ','_') + '.fasta'
+        fasta = mtools.parse_fasta(file)
+        for k,v in fasta.items():
+            abundance_handler.write(simulated.loc[i][6] + '\t' + str(simulated.loc[i][7]) + '\n')
+            all_genomes_handler.write('>' + simulated.loc[i][6] + '\n' + v + '\n')
+    '''
+    command = ('/home/jsequeira/biogrinder/script/grinder -reference_file SimulatedMGMT/Genomes/genomes.fasta -abundance_file SimulatedMGMT/Genomes/abundance.config ' + 
+                   '-total_reads 12834676 -mate_orientation FR -random_seed 13 -fastq_output 1 ' + 
+                   '-qual_levels 30 10 -output_dir SimulatedMGMT/Genomes/MG_reads -read_dist 151 -insert_dist 2500 -mutation_dist poly4 3e-3 3.3e-8')
+    mtools.run_command(command)
+            
+    '''
+    for number in ['1']:
         abundancedf = pd.read_csv('../PostThesis/piptest/abundance' + number + '.config', sep = '\t', header = None, index_col = 0)
         simulator = RNASeqSim()
         
@@ -133,8 +146,9 @@ if __name__ == '__main__':
             path = pathlib.Path(directory)
             path.mkdir(parents=True, exist_ok=True)
             simulator.use_grinder(directory, float(abundancedf.loc[name]), name, factor = 1)
+    '''
     '''    
-    
+    1223280
     pbar = ProgressBar()
     
     from mosca_tools import MoscaTools
@@ -195,4 +209,3 @@ if __name__ == '__main__':
     #/home/jsequeira/biogrinder/script/grinder -reference_file fgs.ffn -abundance_file abundance1.config -total_reads 1000000 -mate_orientation FR -random_seed 13 -fastq_output 1 -qual_levels 30 10 -output_dir 1 -read_dist 251 -insert_dist 2500 -mutation_dist poly4 3e-3 3.3e-8
     
     '''
-    

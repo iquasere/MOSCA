@@ -20,7 +20,7 @@ sudo apt-get install seqtk
 
 #-----------Trimmomatic-----------
 conda install -c faircloth-lab trimmomatic
-PATH=$PATH:/home/sequeira/anaconda3/jar
+PATH=$PATH:~/anaconda3/jar
 
 sudo apt-get install subversion ----> for downloading trimmomatic adapter files
 
@@ -67,3 +67,11 @@ cd ..
 
 #-----------Python packages-----------
 pip install progressbar33
+conda install -c conda-forge biopython
+
+import numpy as np
+import subprocess
+
+#--------MetaProteomeAnalyser--------
+conda install mpa-portable -c bioconda
+

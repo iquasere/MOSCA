@@ -11,7 +11,7 @@ Jun 2017
 import subprocess, os
 from mosca_tools import MoscaTools
 
-mt = MoscaTools()
+mtools = MoscaTools()
 
 class Assembler:
     
@@ -32,19 +32,22 @@ class Assembler:
         
     def metaspades_command(self):
         assembler = self.__dict__.pop('assembler')
-        result = 'python ../../../home/jsequeira/SPAdes-3.11.1-Linux/bin/metaspades.py'
-        result += ' -o ' + self.out_dir + '/Assembly'
+        result = 'python ' + os.path.expanduser('~/SPAdes-3.11.1-Linux/bin/metaspades.py')
+        result += ' -o ' + self.out_dir + '/Assembly/' + self.name
         out_dir = self.__dict__.pop('out_dir')
+        forward, reverse = self.forward, self.reverse
+        name = self.__dict__.pop('name')
         # Input data
         if hasattr(self, 'interleaved'):
             result += ' --12 ' + self.interleaved
-        if hasattr(self, 'forward_paired'):
-            result += ' -1 ' + self.forward_paired
-        if hasattr(self, 'reverse_paired'):
-            result += ' -2 ' + self.reverse_paired
+        if hasattr(self, 'forward'):
+            result += ' -1 ' + self.forward
+        if hasattr(self, 'reverse'):
+            result += ' -2 ' + self.reverse
         if hasattr(self, 'unpaired'):
             result += ' -s ' + self.unpaired
-        data_types = {'files_paired':'-12','forward_paired':'-1','reverse_paired':'-2','unpaired':'-s','orientation':'-'}
+        data_types = {'files_paired':'-12','forward':'-1','reverse':'-2',
+                      'unpaired':'-s','orientation':'-'}
         if hasattr(self, 'pe_libraries'):
             for library, data in self.pe_libraries.items():
                 result += ' --pe' + library + data_types[data[0]]
@@ -54,21 +57,23 @@ class Assembler:
         if hasattr(self, 'se_libraries'):
             for library, data in self.se_libraries.items():
                 result += ' --s' + library + ' ' + data[1]
-        for attr in ['interleaved', 'forward_paired', 'reverse_paired', 'unpaired']:
+        for attr in ['interleaved', 'forward', 'reverse', 'unpaired']:
             if hasattr(self, attr):
                 self.__dict__.pop(attr)
         for arg in self.__dict__.keys():
             result += self.set_argument(arg)
         self.out_dir = out_dir
         self.assembler = assembler
+        self.forward, self.reverse = forward, reverse
+        self.name = name
         return result
     
     def megahit_command(self):
         assembler = self.__dict__.pop('assembler')
-        result = '../../../home/jsequeira/megahit/megahit -f'
-        if hasattr(self, 'forward_paired') and hasattr(self, 'reverse_paired'):
-            result += ' -1 ' + self.forward_paired + ' -2 ' + self.reverse_paired
-            self.__dict__.pop('forward_paired'); self.__dict__.pop('reverse_paired')
+        result = os.path.expanduser('~/megahit/megahit -f')
+        if hasattr(self, 'forward') and hasattr(self, 'reverse'):
+            result += ' -1 ' + self.forward + ' -2 ' + self.reverse
+            self.__dict__.pop('forward'); self.__dict__.pop('reverse')
         if hasattr(self, 'interleaved'):
             result += ' --12 '
             for file in self.files_paired:
@@ -86,62 +91,59 @@ class Assembler:
             bashCommand = self.metaspades_command()
         elif self.assembler == 'megahit':
             bashCommand = self.megahit_command()
-        print('bash_command:', bashCommand)
-        process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
-        output, error = process.communicate()
-        return output, error
-    
-    def run_tool(self, bashCommand):
-        print(bashCommand)
-        process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
-        output, error = process.communicate()
+        mtools.run_command(bashCommand)
     
     def bowtie2(self, reads, contigs, temp, sam, log):
         bashCommand = 'bowtie2-build ' + contigs + ' ' + temp
-        #self.run_tool(bashCommand)
+        mtools.run_command(bashCommand)
         bashCommand = 'bowtie2 -a -x ' + temp + ' -q -1 ' + reads[0] + ' -2 ' + reads[1]
-        bashCommand = bashCommand.rstrip(',') + ' --very-sensitive -a --reorder -p 6 1> ' + sam + ' 2> ' + log
-        self.run_tool(bashCommand)
+        bashCommand = bashCommand.rstrip(',') + ' -p 6 1> ' + sam + ' 2> ' + log
+        mtools.run_command(bashCommand)
         return self.parse_bowtie2(log)
         
     def parse_bowtie2(self, file):
         handler = open(file)
-        line = handler.readline()
-        while line:
-            old = line
-            line = handler.readline()
-        handler.close()
-        return old.split('%')[0]
+        lines = handler.readlines()
+        return lines[-1].split('%')[0]
     
     def metaquast(self, contigs, out_dir):
-        bashCommand = 'metaquast.py --threads 6 --output-dir ' + out_dir + '/Assembly ' + contigs
-        self.run_tool(bashCommand)
+        bashCommand = 'metaquast.py --threads 6 --output-dir ' + out_dir + ' ' + contigs
+        mtools.run_command(bashCommand)
      
     def quality_control(self):
-        from shutil import copyfile
-        assembler = 'metaspades'
         terminations = {'megahit':'/final.contigs.fa', 'metaspades':'/contigs.fasta'}
-        contigs = self.out_dir + '/Assembly' + terminations[self.assembler]
-        temp = self.out_dir + '/Assembly/quality_control'
-        sam = self.out_dir + '/Assembly/quality_control/library.sam'
-        log = self.out_dir + '/Assembly/quality_control/bowtie.log'
-        #self.metaquast(contigs, self.out_dir + '/Assembly/quality_control')
-        percentage_of_reads = self.bowtie2([self.forward_paired,self.reverse_paired], contigs, temp, sam, log)
+        out_dir = self.out_dir + '/Assembly/' + self.name
+        contigs = out_dir + terminations[self.assembler]
+        self.metaquast(contigs, out_dir + '/quality_control')
+        percentage_of_reads = self.bowtie2([self.forward,self.reverse], contigs, 
+                                           out_dir + '/quality_control', 
+                                           out_dir + '/quality_control/library.sam', 
+                                           out_dir + '/quality_control/bowtie.log')
         
+        if os.path.isfile(out_dir + '/quality_control/combined_reference/report.tsv'):
+            os.rename(out_dir + '/quality_control/combined_reference/report.tsv', 
+                      out_dir + '/quality_control/report.tsv')
         
-        if os.path.isdir(self.out_dir + '/Assembly/quality_control/combined_reference/report.tsv'):
-            copyfile(self.out_dir + '/Assembly/quality_control/combined_reference/report.tsv', self.out_dir + '/quality_control/report.tsv')
-        
-        handler = open(self.out_dir + '/Assembly/quality_control/report.tsv', 'a')
-        handler.write('Reads aligned (%)\t' + percentage_of_reads)
-        
-    def get_coverage_megahit(self, contigs, reads1, reads2):
-        command = 'simulatedMegahit/Assembly/quality_control/library.sam'
-        mt.run_command()
+        handler = open(out_dir + '/quality_control/report.tsv', 'a')
+        handler.write('Reads aligned (%)\t' + percentage_of_reads + '\n')
         
     def make_contigs_gff(self, file):
         pass
         
     def run(self):
-        #self.run_assembler()
+        self.run_assembler()
         self.quality_control()
+
+if __name__ == '__main__':
+    
+    for name in ['EST6_S1_L001','OLDES6_S4_L001']:
+    
+        assembler = Assembler(out_dir = 'MGMP',
+                              assembler = 'metaspades',
+                              forward = 'MGMP/Preprocess/Trimmomatic/quality_trimmed_' + name + '_forward_paired.fq',
+                              reverse = 'MGMP/Preprocess/Trimmomatic/quality_trimmed_' + name + '_reverse_paired.fq',
+                              name = name)
+        
+        assembler.run()
+    
+    
