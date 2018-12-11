@@ -68,10 +68,7 @@ cd ..
 #-----------Python packages-----------
 pip install progressbar33
 conda install -c conda-forge biopython
+conda install numpy
 
-import numpy as np
-import subprocess
 
-#--------MetaProteomeAnalyser--------
-conda install mpa-portable -c bioconda
 
