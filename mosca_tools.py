@@ -24,42 +24,43 @@ class MoscaTools:
         if file == '':
             process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
         else:
-            with output_file as open(file, mode):
-            process = subprocess.Popen(bashCommand.split(), stdout=output_file)
+            with open(file, mode) as output_file:
+                process = subprocess.Popen(bashCommand.split(), stdout=output_file)
         output, error = process.communicate()
     
-    def build_gff(self, aligned, output):
-        import pandas as pd
+    def build_gff(self, blast, output):
         gff = pd.DataFrame()
-        diamond = DIAMOND(out = aligned).parse_result()
+        diamond = DIAMOND(out = blast).parse_result()
         parts = [qid.split('_') for qid in diamond.qseqid]
         preid = [part[1] for part in parts]
         node = 1
         j = 1
-        ids = []
+        ids = list()
         for i in preid:
             if i == node:
                 ids.append('seq' + str(i) + '_' + str(j))
                 j += 1
             else:
                 node = i
-                ids.append('seq' + str(i) + '_' + str(j))
                 j = 1
-        gff["seqid"] = ['NODE_' + part[1] + '_' + part[2] + '_' + part[3] + '_' + part[4] + '_' + part[5] for part in parts]
+        if self.assembler == 'metaspades':
+            gff["seqid"] = ['_'.join(part[:-3]) for part in parts]
+        elif self.assembler == 'megahit':
+            constant = parts[0][0]
+            gff["seqid"] = [constant + '_' + part[1] for part in parts[:-3]]
         size = gff.size
         gff["source"] = ['UniProtKB' for i in range(size)]
         gff["type"] = ['exon' for i in range(size)]
-        gff["start"] = [part[6] for part in parts]
-        gff["end"] = [part[7] for part in parts]
+        gff["start"] = [part[-3] for part in parts]
+        gff["end"] = [part[-2] for part in parts]
         gff["score"] = diamond.evalue
-        gff["strand"] = [part[8] for part in parts]
+        gff["strand"] = [part[-1] for part in parts]
         gff["phase"] = ['.' for i in range(size)]
         gff["ID"] = [ide.split('|')[2] if ide != '*' else ide for ide in diamond.sseqid]
         gff["Name"] = diamond.qseqid
         gff["attributes"] = ['gene_id=' + i.Name + ';Name=' + i.ID for i in gff.itertuples()]
         del gff['ID']; del gff['Name']
-        gff.to_csv(output + '.gff', sep = '\t', index=False, header=False)
-        return gff
+        gff.to_csv(output, sep = '\t', index=False, header=False)
     
     def count_reads(self, file):
         lines = 0
@@ -108,7 +109,7 @@ class MoscaTools:
         self.run_command('bash MOSCA/merge-paired-reads.sh ' + file1 + ' ' + file2 + ' ' + output)
     
     def divide_fq(self, file, output1, output2):
-        self.run_command('bash MOSCA/unmerge-paired-reads.sh ' + file + '.fastq ' + output1 + ' ' + output2)
+        self.run_command('bash MOSCA/unmerge-paired-reads.sh ' + file + ' ' + output1 + ' ' + output2)
         
     def uniprot_request(self, ids, output):
         import requests, time
@@ -222,9 +223,10 @@ class MoscaTools:
         if args.files is None:
             print('Must specify which files to use!')
             nice_arguments = False
-        if args.output_dir is None:
+        if args.output is None:
             print('Must specify which output directory to use!')
             nice_arguments = False
+        args.output = args.output.rstrip('/')                                   # remove the automatic ending
         if nice_arguments == False:
             parser.print_help()
             exit()
@@ -268,8 +270,6 @@ class MoscaTools:
                 handler.write('>' + key + '\n' + value + '\n')
         os.rename(temp, fasta)
         
-                    
-                
 def compare_result_with_reality(result, reality):       #result is uniprot tab, reality is tsv taxonomy1\ttaxonomy2\t...\tpercentage
     import pandas as pd    
     print('tis a mistery')
@@ -399,18 +399,6 @@ def organize_pathway(result):
     resultdf = resultdf.groupby(resultdf.columns.tolist()[:-1])['coverage'].sum().reset_index()
     return resultdf     #.set_index(resultdf.columns.tolist()[:-1])
 
-def make_contigs_gff(file, output):
-    pbar = ProgressBar()
-    print('Building gff file from Megahit contigs at',file,'to',output)
-    mt = MoscaTools()
-    contigs = mt.parse_fasta(file)
-    gff = list()
-    for name in pbar(contigs.keys()):
-        gff.append([name, 'Megahit', 'exon', '1', str(len(contigs[name])), '.', '.', '.', 'Name=' + name])
-    print(gff)
-    gff = pd.DataFrame(gff)
-    gff.to_csv(output + '/gff.gff', sep = '\t', index=False, header=False)
-    
 def get_ids_from_ncbi_gff(gff):
     'RefSeq:'
     lines = [line.rstrip('\n') for line in open(gff).readlines() if 'CDS' in line]

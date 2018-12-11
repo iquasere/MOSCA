@@ -75,7 +75,9 @@ class Annotater:
             'from':original_database,
             'format':'tab',
             'query':'+OR+'.join(['accession:'+acc for acc in ids]),
-            'columns':'entry_name,id,ec,lineage(SUPERKINGDOM),lineage(PHYLUM),lineage(CLASS),lineage(ORDER),lineage(FAMILY),lineage(GENUS),lineage(SPECIES),pathway,protein names,database(KEGG)'
+            'columns':('id,ec,lineage(SUPERKINGDOM),lineage(PHYLUM),lineage(CLASS),'+
+            'lineage(ORDER),lineage(FAMILY),lineage(GENUS),lineage(SPECIES),pathway,'+
+            'protein names,database(KEGG)')
         }
         if database_destination != '':
             params['to'] = database_destination
@@ -102,34 +104,35 @@ class Annotater:
     
     def recursive_uniprot_information(self, blast, output, max_iter = 5):
         if os.path.isfile(output):
-            result = pd.read_csv(output, sep = '\t')
+            result = pd.read_csv(output, sep = '\t', index_col = 0).drop_duplicates()
+            ids_done = set(list(result['Entry']))
         else:
-            result = pd.DataFrame()
-        ids_done = set(list(result['Entry']))
-        all_ids = set([ide.split('|')[1] for ide in DIAMOND(out = blast).parse_result()['sseqid']])
+            print(output + ' not found.')
+            ids_done = list()
+        all_ids = set([ide.split('|')[1] for ide in DIAMOND(out = blast).parse_result()['sseqid'] if ide != '*'])
         i = 0
-        ids_missing_output = '/'.join(output.split('/'))[:-1]
+        ids_unmapped_output = '/'.join(output.split('/'))[:-1] + '/ids_unmapped.txt'
         print('Checking which IDs are missing information.')
         pbar = ProgressBar()
-        ids = [ide for ide in pbar(all_ids) if ide not in ids_done]
+        ids_missing = list(set([ide for ide in pbar(all_ids) if ide not in ids_done]))
         while len(ids_done) < len(all_ids) and i < max_iter:
             print('Information already gathered for ' + str(len(ids_done)) + 
-                  ' ids. Still missing for ' + str(len(all_ids) - len(ids_done)) + '.')
-            uniprotinfo = self.get_uniprot_information(ids)
+                  ' ids. Still missing for ' + str(len(ids_missing)) + '.')
+            uniprotinfo = self.get_uniprot_information(ids_missing)
             result = pd.concat([result, uniprotinfo])
-            ids_done = set(list(result['Entry name']))
+            ids_done = set(list(result['Entry']))
             print('Checking which IDs are missing information.')
             pbar = ProgressBar()
-            ids = list(set([ide for ide in pbar(all_ids) if ide not in ids_done]))
+            ids_missing = list(set([ide for ide in pbar(all_ids) if ide not in ids_done]))
             i += 1
         if i < max_iter:
             print('Results for all IDs are available at ' + output)
         else:
-            handler = open(ids_missing_output, 'w')
-            handler.write('\n'.join(ids))
-            print('Maximum iterations were made. Results related to ' + str(len(ids)) + 
+            handler = open(ids_unmapped_output, 'w')
+            handler.write('\n'.join(ids_missing))
+            print('Maximum iterations were made. Results related to ' + str(len(ids_missing)) + 
                   ' IDs were not obtained. IDs with missing information are available' +
-                  ' at ' + ids_missing_output + ' and information obtained is available' +
+                  ' at ' + ids_unmapped_output + ' and information obtained is available' +
                   ' at ' + output)
         result.to_csv(output, sep = '\t')
     
@@ -467,7 +470,7 @@ class Annotater:
 if __name__ == '__main__':
     
     annotater = Annotater()
-    
+    '''
     blast = DIAMOND(out = 'MOSCAfinal/Annotation/aligned.blast').parse_result()
     
     ids = list(set([ide.split('|')[1] for ide in blast.sseqid if ide != '*']))
@@ -475,11 +478,7 @@ if __name__ == '__main__':
     uniprotinfo = annotater.get_uniprot_information(ids)
     
     uniprotinfo.to_csv('MOSCAfinal/Annotation/uniprot.info', sep = '\t')
-    
-    import shutil
-    shutil.copy('MOSCAfinal/Annotation/uniprot.info', 'MOSCAfinal/Annotation/uniprot.info1')
-    
-    
+    '''
     annotater.recursive_uniprot_information('MOSCAfinal/Annotation/aligned.blast', 'MOSCAfinal/Annotation/uniprot.info')
     '''       
     report = annotater.join_reports('MOSCAfinal/Annotation/aligned.blast',

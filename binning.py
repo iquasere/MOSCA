@@ -17,7 +17,7 @@ import pandas as pd
 
 mtools = MoscaTools()
 
-class Binning:
+class Binner:
     
     def __init__ (self, **kwargs):
          self.__dict__ = kwargs
@@ -295,7 +295,7 @@ class Binning:
         
 if __name__ == '__main__':
     
-    binner = Binning(contigs = 'Binning/all_info_contigs.fasta', 
+    binner = Binner(contigs = 'Binning/all_info_contigs.fasta', 
                      output = 'Binning/VizBin/all_info',
                      blast = 'Binning/all_info_aligned.blast',
                      uniprotinfo = 'MOSCAfinal/Annotation/uniprot.info')
