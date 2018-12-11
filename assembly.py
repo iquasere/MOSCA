@@ -8,7 +8,7 @@ By João Sequeira
 Jun 2017
 """
 
-import subprocess, os
+import os
 from mosca_tools import MoscaTools
 
 mtools = MoscaTools()
@@ -92,7 +92,7 @@ class Assembler:
         elif self.assembler == 'megahit':
             bashCommand = self.megahit_command()
         mtools.run_command(bashCommand)
-    
+        
     def bowtie2(self, reads, contigs, temp, sam, log):
         bashCommand = 'bowtie2-build ' + contigs + ' ' + temp
         mtools.run_command(bashCommand)
@@ -133,6 +133,14 @@ class Assembler:
     def run(self):
         self.run_assembler()
         self.quality_control()
+        if self.assembler == 'metaghit':
+            os.rename(self.out_dir + '/Assembly/' + self.name + '/final.contigs.fa',
+                      self.out_dir + '/Assembly/' + self.name + '/contigs.fasta')
+            self.make_contigs_gff(self.out_dir + '/Assembly/' + self.name + '/contigs.fasta',
+                                  self.out_dir + '/Assembly/' + self.name + '/contigs.gff')
+            mtools.run_command('htseq-count ' + self.out_dir + '/Assembly/' + self.name + 
+                               '/quality_control/library.sam ' + ,
+                               self.out_dir + '/Assembly/' + self.name + '/contigs.readcounts')
 
 if __name__ == '__main__':
     

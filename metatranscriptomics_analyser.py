@@ -9,7 +9,6 @@ Sep 2017
 """
 
 from mosca_tools import MoscaTools
-from diamond import DIAMOND
 import pandas as pd
 import numpy as np
 import glob
@@ -22,40 +21,6 @@ class MetaTranscriptomicsAnalyser:
     def __init__(self, **kwargs):
         self.__dict__ = kwargs
             
-    def build_gff(self, blast, output):
-        gff = pd.DataFrame()
-        diamond = DIAMOND(out = blast).parse_result()
-        parts = [qid.split('_') for qid in diamond.qseqid]
-        preid = [part[1] for part in parts]
-        node = 1
-        j = 1
-        ids = list()
-        for i in preid:
-            if i == node:
-                ids.append('seq' + str(i) + '_' + str(j))
-                j += 1
-            else:
-                node = i
-                j = 1
-        if self.assembler == 'metaspades':
-            gff["seqid"] = ['_'.join(part[:-3]) for part in parts]
-        elif self.assembler == 'megahit':    #must first run this command: sed -i 's/\s.*$//' contigs.fa
-            constant = parts[0][0]
-            gff["seqid"] = [constant + '_' + part[1] for part in parts[:-3]]
-        size = gff.size
-        gff["source"] = ['UniProtKB' for i in range(size)]
-        gff["type"] = ['exon' for i in range(size)]
-        gff["start"] = [part[-3] for part in parts]
-        gff["end"] = [part[-2] for part in parts]
-        gff["score"] = diamond.evalue
-        gff["strand"] = [part[-1] for part in parts]
-        gff["phase"] = ['.' for i in range(size)]
-        gff["ID"] = [ide.split('|')[2] if ide != '*' else ide for ide in diamond.sseqid]
-        gff["Name"] = diamond.qseqid
-        gff["attributes"] = ['gene_id=' + i.Name + ';Name=' + i.ID for i in gff.itertuples()]
-        del gff['ID']; del gff['Name']
-        gff.to_csv(output, sep = '\t', index=False, header=False)
-    
     def generate_mg_index(self, reference, index_prefix):
         mtools.run_command('bowtie2-build ' + reference + ' ' + index_prefix)
     
@@ -70,25 +35,30 @@ class MetaTranscriptomicsAnalyser:
     '''
     def readcounts_file(self):
         self.generate_mg_index(self.contigs, self.out_dir + '/Analysis/' + self.mt + '_index')
-        self.build_gff(self.out_dir + '/Annotation/' + self.mg + '/aligned.blast', self.out_dir + '/Analysis/' + self.mt + '.gff')
+        mtools.build_gff(self.out_dir + '/Annotation/' + self.mg + '/aligned.blast', self.out_dir + '/Analysis/' + self.mt + '.gff')
         self.run_alignment([self.out_dir + '/Preprocess/SortMeRNA/' + self.mt + '_' + fr + '.fastq' for fr in ['forward','reverse']],
                            self.out_dir + '/Analysis/' + self.mt + '_index', self.out_dir + '/Analysis/' + self.mt + '.sam')
         self.run_htseq_count(self.out_dir + '/Analysis/' + self.mt + '.sam', self.out_dir + '/Analysis/' + self.mt + '.gff',
                              self.out_dir + '/Analysis/' + self.mt + '.readcounts')
         
     '''
-    input: directory that contains the .readcounts files from htseq-count (readcounts_dir)
+    input: 
+        directory that contains the .readcounts files from htseq-count (readcounts_dir)
         names of columns of final file / names of samples (header)
-    output: merged expression matrix name (output)
+    output: 
+        merged expression matrix name (output)
     '''
     def merge_readcounts(self, readcounts_dir, header, output):
         files = glob.glob(readcounts_dir + '/*.readcounts')
         expression_matrix = pd.DataFrame()
         for file in files:
             df = pd.read_csv(file, sep='\t', index_col = 0, header = None)
-            expression_matrix = pd.concat([expression_matrix, df], axis = 1)
+            df.columns = [file.split('/')[-1].rstrip('.readcounts')]
+            expression_matrix = pd.merge(expression_matrix, df, how = 'outer', 
+                                         left_index = True, right_index = True)
         expression_matrix = expression_matrix[1:-5]                             #remove non identified proteins and the metrics at the end
         expression_matrix = expression_matrix.fillna(value=0).astype(int)       #set not identified proteins expression to 0, and convert floats, since DeSEQ2 only accepts integers
+        expression_matrix.index.name = 'geneid'
         expression_matrix.columns = header
         expression_matrix.to_csv(output, sep = ' ')
     
@@ -98,10 +68,7 @@ class MetaTranscriptomicsAnalyser:
     output: name of readcounts file to output with just COG names
     '''
     def readcounts2justcog(self, readcounts, cog_blast, output, header = None):
-        result = pd.read_csv(readcounts, sep = '\t', header = header, index_col = 0)
-        annotater = Annotater()
-        cog_blast = Annotater.parse_cogblast(cog_blast)
-        result = pd.merge()
+        pass
         
     '''
     input: readcounts file name to change index to just COGs
@@ -153,18 +120,10 @@ class MetaTranscriptomicsAnalyser:
         funcdf.to_excel(output + '_functional_krona.xlsx', index = False)
         
     def differential_analysis(self, expression_matrix, output, conditions):
-        result = pd.read_csv(files[0], header = None, sep = '\t', index_col = 0)
-        for file in files[1:]:
-            result = pd.concat([result, pd.read_csv(file, header = None, sep = '\t', 
-                                                    index_col = 0)], axis = 1)
-        del result.index.name
-        result.columns = conditions
-        result.to_csv(output + '/total.tab', sep = '\t')
-        #differential analysis
         conditions = str(conditions)[1:-1].replace("'",'"')
         print('conditions:',conditions)
         commands = ['library(DESeq2)','library(pheatmap)',
-                    'total = read.table("' + output + '/total.tab", h=T, row.names=1)',
+                    'total = read.table("' + output + '/all_experiments.readcounts", h=T, row.names=1)',
                     'condition <- factor(c(' + conditions + '))','total <- total[ rowSums(total) > 1, ]',
                     'cd=data.frame(c(' + conditions + '))',
                     'colnames(cd)[1]="condition"','rownames(cd)=colnames(total)',
@@ -190,7 +149,7 @@ class MetaTranscriptomicsAnalyser:
                     'dev.off()','jpeg("' + output + '/pca.jpeg")',
                     'plotPCA(vsd, intgroup=c("condition"))','dev.off()']
         open(output + '/de_analysis.R', 'w').write('\n'.join(commands))
-        mtools.run_command('Rscript ' + output + '/de_analysis.R')
+        mtools.run_command('Rscript ' + output + '/de_analysis.r')
         
 if __name__ == '__main__':
     relation = {'4478-R1-1-MiSeqKapa':'4478-DNA-S1613-MiSeqKapa','4478-R2-1-MiSeqKapa':'4478-DNA-S1613-MiSeqKapa',

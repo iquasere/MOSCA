@@ -11,6 +11,7 @@ from progressbar import ProgressBar
 from mosca_tools import MoscaTools
 from diamond import DIAMOND
 import pandas as pd
+import xml.etree.ElementTree as ET
 import os, pathlib, shlex, subprocess
 
 mtools = MoscaTools()
@@ -20,7 +21,6 @@ class MetaProteomicsAnalyser:
     def __init__ (self, **kwargs):
         self.__dict__ = kwargs
         
-    
     '''   
     input: 
         faa: fasta file from FragGeneScan
@@ -184,7 +184,7 @@ class MetaProteomicsAnalyser:
         report = report.groupby('sseqid')['#Peptides'].sum().reset_index()
         report.to_csv(output, sep = '\t', index = False, header = None)
         
-    def standard_run(self):
+    def run(self):
         self.verify_crap_db(self.crap_folder)
         self.database_generation(self.faa, self.output, self.crap_folder + '/crap.fasta', self.protease)
         self.create_decoy_database(self.output + '/database.fasta')
@@ -201,8 +201,61 @@ class MetaProteomicsAnalyser:
                               '_Default_Protein_Report.txt'), self.blast,
                               self.output + '/Spectra_counting.tsv')
         
+    '''
+    MetaProteomics with MaxQuant
+    '''
+    
+    '''
+    input:
+        output: name of standard parameters file to create
+    output:
+        a standard parameters file for MaxQuant named "output" will be created
+    '''
+    def create_mqpar(self, output):
+        mtools.run_command('mono ' + os.path.expanduser('~/MaxQuant/bin/MaxQuantCmd.exe ' +
+                                                        output + ' --create'))
+        
+    '''
+    input:
+        file: name of the mqpar.xml file to have its values changed
+        fasta_database: name of the FASTA database for metaproteomics
+        spectra_folder: name of the folder with RAW spectra files
+        mg_name: name of the experiment
+    output:
+        the "file" file will be updated with the new parameters
+    '''
+    def edit_maxquant_mqpar(self, mqpar, fasta_database, spectra_folder, mg_name):
+        tree = ET.parse(mqpar)
+        root = tree.getroot()
+        root.find("fastaFiles/FastaFileInfo/fastaFilePath").text = fasta_database
+        root.find("filePaths/string").text = spectra_folder
+        root.find("experiments/string").text = mg_name
+        tree.write(mqpar)
+        
+    '''
+    input:
+        mqpar: name of MaxQuant parameters file
+    output:
+        
+    '''
+    def run_maxquant(self, mqpar):
+        mtools.run_command('mono ' + os.path.expanduser('~/MaxQuant/bin/MaxQuantCmd.exe ' + 
+                                                        mqpar))
+        
 if __name__ == '__main__':
     correspondence = {'EST6_S1_L001':'DNA4','OL6_S3_L001':'DNA5','OLDES6_S4_L001':'DNA6','PAL6_S2_L001':'DNA7'}  #already done 'EST6_S1_L001':'DNA4','OLDES6_S4_L001':'DNA6','PAL6_S2_L001':'DNA7'
+    
+    mper = MetaProteomicsAnalyser()
+    
+    for experiment in correspondence.keys():
+        path = pathlib.Path('MGMP/MetaProteomics/' + experiment).mkdir(parents=True, exist_ok=True)
+        mper.create_mqpar('/HDDStorage/jsequeira/Thesis/MGMP/MetaProteomics/' + experiment + '/mqpar.xml')
+        mper.edit_maxquant_mqpar('/HDDStorage/jsequeira/Thesis/MGMP/MetaProteomics/' + experiment + '/mqpar.xml',
+                                 '/HDDStorage/jsequeira/Thesis/MGMP/MetaProteomics/' + experiment + '/database.fasta',
+                                 '/HDDStorage/jsequeira/Thesis/Datasets/Proteic/' + correspondence[experiment],
+                                 experiment)
+        mper.run_maxquant('/HDDStorage/jsequeira/Thesis/MGMP/MetaProteomics/' + experiment + '/mqpar.xml')
+    
     '''
     for sample in correspondence.keys():
         
@@ -218,7 +271,8 @@ if __name__ == '__main__':
                                           sample_name = sample,
                                           replicate_number = '1')
         
-        analyser.standard_run()
+        analyser.run()
+    '''
     '''
     import glob
     
@@ -237,3 +291,4 @@ if __name__ == '__main__':
     readspectra = readspectra.fillna(value = 0)
     readspectra.index.name = 'geneid'
     readspectra.to_csv('MGMP/Analysis/Spectra_counting.tsv',sep='\t')
+    '''
