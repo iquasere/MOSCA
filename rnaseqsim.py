@@ -21,14 +21,14 @@ class RNASeqSim:
     def use_fgs(self, genome, output):
         command = ('perl ../../../home/jsequeira/FGS/run_FragGeneScan.pl -genome='
                    + genome + ' -out=' + output + ' -complete=1 -train=./complete')
-        self.run(command)
+        mtools.run_command(command)
         
     def use_diamond(self, orfs, output):
         diamond = DIAMOND(threads = '6',
                           out = output,
                           query = orfs,
                           max_target_seqs = '1',
-                          db = 'Databases/DIAMOND/UniProt/uniprot.dmnd')
+                          db = 'Databases/Annotation/uniprot.dmnd')
         diamond.run()
         
     def uniprot_mapping(self, ids, max_retry = 3):
@@ -107,26 +107,45 @@ class RNASeqSim:
         self.run(command)
     
 if __name__ == '__main__':
+    import glob, pathlib, os
     
+    files = glob.glob('SimulatedMGMT/Genomes/*.fasta')
+    
+    rnaseqsimer = RNASeqSim()
+    
+    annotater = Annotater()
+    
+    for file in files:
+        if not os.path.isfile(file.replace('.fasta','.blast')):
+            name = file.split('/')[-1].split('.fasta')[0]
+            rnaseqsimer.use_fgs('SimulatedMGMT/Genomes/' + name + '.fasta', 
+                                'SimulatedMGMT/Genomes/' + name)
+            rnaseqsimer.use_diamond('SimulatedMGMT/Genomes/' + name + '.faa', 
+                                    'SimulatedMGMT/Genomes/' + name + '.blast')
+            annotater.recursive_uniprot_information('SimulatedMGMT/Genomes/' + name + '.blast',
+                                                    'SimulatedMGMT/Genomes/' + name + '_uniprot.info')
+        
+    
+    '''
     simulated = pd.read_excel('SimulatedMGMT/Genomes/simulated_taxa.xlsx', index = False, header = None)
     simulated = simulated[simulated[8].str.contains('ftp')]
     simulated = simulated.reset_index()
     
     abundance_handler = open('SimulatedMGMT/Genomes/abundance.config','w')
     all_genomes_handler = open('SimulatedMGMT/Genomes/genomes.fasta','w')
-    '''
+    
     for i in range(len(simulated)):
         file = 'SimulatedMGMT/Genomes/' + simulated.loc[i][6].replace(' ','_') + '.fasta'
         fasta = mtools.parse_fasta(file)
         for k,v in fasta.items():
             abundance_handler.write(simulated.loc[i][6] + '\t' + str(simulated.loc[i][7]) + '\n')
             all_genomes_handler.write('>' + simulated.loc[i][6] + '\n' + v + '\n')
-    '''
+    
     command = ('/home/jsequeira/biogrinder/script/grinder -reference_file SimulatedMGMT/Genomes/genomes.fasta -abundance_file SimulatedMGMT/Genomes/abundance.config ' + 
                    '-total_reads 12834676 -mate_orientation FR -random_seed 13 -fastq_output 1 ' + 
                    '-qual_levels 30 10 -output_dir SimulatedMGMT/Genomes/MG_reads -read_dist 151 -insert_dist 2500 -mutation_dist poly4 3e-3 3.3e-8')
     mtools.run_command(command)
-            
+    '''
     '''
     for number in ['1']:
         abundancedf = pd.read_csv('../PostThesis/piptest/abundance' + number + '.config', sep = '\t', header = None, index_col = 0)

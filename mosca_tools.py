@@ -10,9 +10,13 @@ Jun 2017
 from progressbar import ProgressBar
 from io import StringIO
 import pandas as pd
-import subprocess, glob, re, os
+import subprocess, glob, re, os, sys
 
 class MoscaTools:
+    
+    def sort_alphanumeric(self, alphanumeric_list):
+        return sorted(alphanumeric_list, key=lambda item: (int(item.partition(' ')[0])
+                if item[0].isdigit() else float('inf'), item))
     
     def remove_files(self, files):
         for file in files:
@@ -22,7 +26,7 @@ class MoscaTools:
     def run_command(self, bashCommand, file = '', mode = 'w'):
         print(bashCommand)
         if file == '':
-            process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
+                process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
         else:
             with open(file, mode) as output_file:
                 process = subprocess.Popen(bashCommand.split(), stdout=output_file)

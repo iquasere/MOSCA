@@ -117,8 +117,8 @@ class Binner:
 
     '''
     Input: 
+        contigs: output of mtools.parse_fasta on the contigs file
         coords: name of a coords file containing the coordinates of VizBin binning
-        output: name of points file to generate
         eps: the threshold of distance under which the two points will be considered
         in the same cluster
         min_samples: the minPts heuristic, with default to 4 following the estimation
@@ -127,14 +127,16 @@ class Binner:
         returns a pandas.DataFrame with columns [contig, cluster]
     '''
     def cluster_coords(self, contigs, coords, eps = 0.3, min_samples = 4):
-        contigs = [k for k in mtools.parse_fasta(contigs).keys()]
         contigs = pd.DataFrame(contigs)
         coords = pd.read_csv(coords, header = None)
-        coords = coords.as_matrix()
+        coords = coords.values
         db = DBSCAN(eps, min_samples).fit(coords)
         clusters = pd.DataFrame(db.labels_.tolist())
         result = pd.concat([contigs, clusters], axis = 1)
         result.columns = ['contig','cluster']
+        result = result[result.cluster.notnull()]
+        result.cluster = result.cluster.astype(int)
+        print('Clustering finished successfully!')
         return result
     
     '''
@@ -156,17 +158,17 @@ class Binner:
     def estimate_mistake(self, contigs_clusters, blast, uniprotinfo, by = 'cluster'):
         blast = DIAMOND(out = blast).parse_result()
         blast['contig'] = ['_'.join(ide.split('_')[:6]) for ide in blast['qseqid']]
-        blast['Query'] = [ide.split('|')[-1] for ide in blast.sseqid]
+        blast['Entry'] = [ide.split('|')[1] if ide != '*' else ide for ide in blast.sseqid]
         contigs_clusters = pd.merge(contigs_clusters, blast, on='contig')
         uniprotinfo = pd.read_csv(uniprotinfo, sep = '\t')
         uniprotinfo = uniprotinfo.drop_duplicates()
-        contigs_clusters = pd.merge(contigs_clusters, uniprotinfo, on='Query')
+        contigs_clusters = pd.merge(contigs_clusters, uniprotinfo, on='Entry')
         contigs_clusters['count'] = [float(ide.split('_')[5]) for ide in contigs_clusters.qseqid]
         tax_columns = ['Taxonomic lineage (SUPERKINGDOM)','Taxonomic lineage (PHYLUM)',
                        'Taxonomic lineage (CLASS)','Taxonomic lineage (ORDER)',
                        'Taxonomic lineage (FAMILY)','Taxonomic lineage (GENUS)',
                        'Taxonomic lineage (SPECIES)']
-        altered_tax_col = [str(i+1) + '.' + tax_columns[i] for i in range(len(tax_columns))]
+        altered_tax_col = [str(i+1) + '.' + tax_columns[i] for i in range(len(tax_columns))]                #tax columns are altered for sorting in final output
         major_taxon_abundances = dict()
         print('Retrieving relative abundances of major taxa detected in the contigs of each cluster.')
         if by == 'cluster':
@@ -175,9 +177,9 @@ class Binner:
                 for i in range(len(tax_columns)):
                     df = contigs_clusters[contigs_clusters.cluster == cluster][[tax_columns[i], 'count']]
                     df = df.groupby(tax_columns[i])['count'].sum().reset_index()
-                    major_taxon = df[df['count'] == df['count'].max()][tax_columns[i]].tolist()            #if there is more than one taxon with maximum abundance, major_taxon will be list of them all
-                    major_taxon_abundances[(cluster, altered_tax_col[i])] = [', '.join(major_taxon),             #produces a dictionary that for each contig, for each taxon level, has the value of [taxa, relative abundance of that taxa]
-                                          df['count'].max() / df['count'].sum()]
+                    major_taxon = df[df['count'] == df['count'].max()][tax_columns[i]].tolist()             #if there is more than one taxon with maximum abundance, major_taxon will be list of them all
+                    major_taxon_abundances[(cluster, altered_tax_col[i])] = [', '.join(major_taxon),        #produces a dictionary that for each contig, for each taxon level, has the value of [taxa, relative abundance of that taxa]
+                                          df['count'].max() / df['count'].sum() / len(major_taxon)]         #in the case of several most abundant taxon, it will return the relative abundance of each taxon
             # TODO - check if this is worth it, to do by contig
         elif by == 'contig':
             for cluster in set(contigs_clusters.cluster):
@@ -193,7 +195,6 @@ class Binner:
                                               df['count'].max() / df['count'].sum()]
             else:
                 print("'by' must be either 'cluster' (default) or 'contig'.")
-            
         return pd.DataFrame(major_taxon_abundances).transpose()
 
     '''
@@ -209,14 +210,16 @@ class Binner:
         n_clusters = round(len(major_taxon_abundances) / 7)
         major_taxa_abundance_metrics = dict()
         for tax_level in set(major_taxon_abundances.index.get_level_values(1)):
-            mean_major_taxa_abundance = major_taxon_abundances.xs(tax_level, level = 1)[1].mean()
-            std_major_taxa_abundance = major_taxon_abundances.xs(tax_level, level = 1)[1].std()
-            fragmentation = 1 - (len(set(major_taxon_abundances.xs(tax_level, level = 1)[0])) /
-                            len(major_taxon_abundances.xs(tax_level, level = 1)[0]))            # fragmentation will be 0 if the number of different taxa equals the number of contigs
+            mta = major_taxon_abundances                                            # TODO - try to restrict to where the taxa is not null [major_taxon_abundances[tax_level].notnull()]
+            mean_major_taxa_abundance = mta.xs(tax_level, level = 1)[1].mean()
+            std_major_taxa_abundance = mta.xs(tax_level, level = 1)[1].std()
+            fragmentation = 1 - (len(set(mta.xs(tax_level, level = 1)[0])) /
+                            len(mta.xs(tax_level, level = 1)[0]))            # fragmentation will be 0 if the number of different taxa equals the number of contigs
+            score = mean_major_taxa_abundance / fragmentation
             major_taxa_abundance_metrics[(eps, tax_level)] = [mean_major_taxa_abundance, 
-                                                std_major_taxa_abundance, fragmentation]
+                                         std_major_taxa_abundance, fragmentation, score]
         metrics_df = pd.DataFrame.from_dict(major_taxa_abundance_metrics).transpose()
-        metrics_df.columns = ['Mean', 'Std dev', 'Fragmentation']
+        metrics_df.columns = ['Mean', 'Std dev', 'Fragmentation', 'Score']
         return n_clusters, metrics_df
     
     '''
@@ -231,16 +234,17 @@ class Binner:
         safety_multiplier: python's range doesn't allow floats, so this is used
         as a workaround. Only have to change it if using very low eps values!
     Output:
-        This function will iterate over each eps from 'start' to 'end' 'step' by 'step'
+        This function will iterate over each eps from 'start' to 'end', 'step' by 'step'
         and for each it will bin the contigs based on the coordinates given, using the
         DBSCAN algorithm. Then it will calculate the success of the binning based on 
-        the average percentage of taxa in each cluster, thus trying to minimize contamination.
+        the average percentage of taxa in each cluster, the fragmentation of the clusters
+        and the number of contigs clustered, for a minimum of 50% contigs clustered.
         It will output an Excel file with several metrics, in several sheets:
             -the major taxa and its relative abundance for each cluster for the
             eps that was considered the best (sheet "Abundances for eps *best eps*)
             -mean, standard deviation and fragmentation for each taxa level for each 
             cluster. Fragmentation = 1 - number of different taxa / number of cluster,
-            so if for each cluster there is one different taxa, fragmentation = 0.
+            so if for each different taxa there is one cluster, fragmentation = 0.
             This value has no expression for superkingdom level, but from then, 
             it shows how much were the different taxa differentiated - if we get 
             10 clusters on a sample with 10 different phylum, it could be possible 
@@ -251,45 +255,49 @@ class Binner:
         It will also output a TSV file with the contigs and corresponding clusters
     '''
     def calculate_epsilon(self, contigs, coords, blast, uniprotinfo, output, 
-                          start = 0.01, end = 0.31, step = 0.01, safety_multiplier = 10000):
-        best_success = 0
+                          start = 0.01, end = 0.41, step = 0.01, safety_multiplier = 10000):
         [start, end, step] = map(lambda x: int(x*safety_multiplier), [start, end, step])
         all_major_taxa_abundance_metrics = pd.DataFrame()
         ns_clusters = list()
+        contigs = [k for k in mtools.parse_fasta(contigs).keys()]
+        best_eps = None
+        best_score = -float('inf')
         for eps in range(start, end, step):
             print('Calculating for eps = ' + str(eps / safety_multiplier))
             contigs_clusters = self.cluster_coords(contigs, coords, eps = eps / safety_multiplier)
-            clusters_used = round(sum(contigs_clusters.cluster != -1) / len(contigs_clusters) * 100, 2)
+            contigs_used = round(sum(contigs_clusters.cluster != -1) / len(contigs_clusters) * 100, 2)
             major_taxon_abundances = self.estimate_mistake(contigs_clusters, blast, uniprotinfo)
             n_clusters, major_taxa_abundance_metrics = self.calculate_clustering_metrics(major_taxon_abundances, str(eps / safety_multiplier))
-            print(str(n_clusters) + ' clusters were obtained.')
-            ns_clusters.append([eps / safety_multiplier, n_clusters, clusters_used])
+            ns_clusters.append([eps / safety_multiplier, n_clusters, contigs_used])
             all_major_taxa_abundance_metrics = pd.concat([all_major_taxa_abundance_metrics, major_taxa_abundance_metrics])
-            success = float(major_taxa_abundance_metrics.xs('6.Taxonomic lineage (GENUS)', level = 1)['Mean'] *
-                            clusters_used * major_taxa_abundance_metrics['Fragmentation'])
-            if clusters_used > 50 and success > best_success:
-                best_success = success
+            if contigs_used > 50 and float(major_taxa_abundance_metrics.xs('6.Taxonomic lineage (GENUS)', level = 1)['Score']) > best_score:
+                best_score = float(major_taxa_abundance_metrics.xs('6.Taxonomic lineage (GENUS)', level = 1)['Score'])
                 best_eps = eps
                 best_major_taxon_abundances = major_taxon_abundances
-                best_clusters = contigs_clusters['contig','cluster']
-        ns_clusters = pd.DataFrame(ns_clusters)
-        ns_clusters.columns = ['Epsilon', 'Number of clusters', '% of contigs used']
-        print('Best eps was ' + str(best_eps / safety_multiplier))
-        best_clusters_output = output + '/best_clusters.tsv'
-        best_clusters.to_csv(best_clusters_output, sep = '\t')
-        print('Best clusters are outputed to ' + best_clusters_output)
-        writer = pd.ExcelWriter(output + '/binning_results.xlsx', engine='xlsxwriter')
-        best_major_taxon_abundances.index.names = ['Eps','Taxa level']
-        best_major_taxon_abundances.columns = ['Taxa', 'Relative abundance']
-        best_major_taxon_abundances.to_excel(writer, sheet_name = 'Abundances for eps ' + str(best_eps / safety_multiplier))
-        all_major_taxa_abundance_metrics.index.names = ['Eps','Taxa level']
-        all_major_taxa_abundance_metrics.to_excel(writer, sheet_name = 'Validation metrics')
-        ns_clusters.to_excel(writer, sheet_name = 'Cluster metrics', index = False)
-        writer.save()
-        print('Taxonomic results of best binning are available, along with binning validation metrics, at ' + output)
+                best_clusters = contigs_clusters
+        if best_eps is not None:
+            ns_clusters = pd.DataFrame(ns_clusters)
+            ns_clusters.columns = ['Epsilon', 'Number of clusters', '% of contigs used']
+            print('Best eps was ' + str(best_eps / safety_multiplier))
+            best_clusters_output = output + '/best_clusters.tsv'
+            best_clusters.to_csv(best_clusters_output, sep = '\t', index = False)
+            print('Best clusters are outputed to ' + best_clusters_output)
+            writer = pd.ExcelWriter(output + '/binning_results.xlsx', engine='xlsxwriter')
+            best_major_taxon_abundances.index.names = ['Eps','Taxa level']
+            best_major_taxon_abundances = best_major_taxon_abundances.sort_index(level = 0, sort_remaining = True)
+            best_major_taxon_abundances.columns = ['Taxa', 'Relative abundance']
+            best_major_taxon_abundances.to_excel(writer, sheet_name = 'Abundances for eps ' + str(best_eps / safety_multiplier))
+            all_major_taxa_abundance_metrics.index.names = ['Eps','Taxa level']
+            all_major_taxa_abundance_metrics = all_major_taxa_abundance_metrics.sort_index(level = 0, sort_remaining = True)
+            all_major_taxa_abundance_metrics.to_excel(writer, sheet_name = 'Validation metrics')
+            ns_clusters.to_excel(writer, sheet_name = 'Cluster metrics', index = False)
+            writer.save()
+            print('Taxonomic results of best binning are available, along with binning validation metrics, at ' + output)
+        else:
+            print('No clustering used at least 50% of contigs. Results are not available.')
         
     def run(self):
-        self.run_vizbin_binning(self.contigs, self.output)
+        #self.run_vizbin_binning(self.contigs, self.output)
         self.calculate_epsilon(self.contigs, self.output + '/points.txt', 
                                self.blast, self.uniprotinfo, self.output)
         

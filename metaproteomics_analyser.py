@@ -11,8 +11,8 @@ from progressbar import ProgressBar
 from mosca_tools import MoscaTools
 from diamond import DIAMOND
 import pandas as pd
-import xml.etree.ElementTree as ET
-import os, pathlib, shlex, subprocess
+from lxml import etree
+import os, pathlib, shlex, subprocess, glob
 
 mtools = MoscaTools()
 
@@ -224,13 +224,36 @@ class MetaProteomicsAnalyser:
     output:
         the "file" file will be updated with the new parameters
     '''
-    def edit_maxquant_mqpar(self, mqpar, fasta_database, spectra_folder, mg_name):
-        tree = ET.parse(mqpar)
+    def edit_maxquant_mqpar(self, mqpar, fasta_database, spectra_folder, mg_name, 
+                            threads = 1):
+        print('Updating parameters file information.')
+        parser = etree.XMLParser(remove_blank_text=True)
+        tree = etree.parse(mqpar, parser)
         root = tree.getroot()
         root.find("fastaFiles/FastaFileInfo/fastaFilePath").text = fasta_database
-        root.find("filePaths/string").text = spectra_folder
-        root.find("experiments/string").text = mg_name
-        tree.write(mqpar)
+        print('Fasta database = ' + fasta_database)
+        root.find("numThreads").text = str(threads)
+        print('Number of threads = ' + str(threads))
+        files = mtools.sort_alphanumeric(glob.glob(spectra_folder + '/*.RAW'))
+        print('Spectra folder = ' + spectra_folder)
+        for child in ['filePaths/string', 'experiments/string',
+                                'fractions/short', 'ptms/boolean', 
+                                'paramGroupIndices/int']:
+            tree.xpath(child)[0].getparent().remove(tree.xpath(child)[0])       # the default params file of MaxQuant brings default arguments that can't be present
+        filePaths = root.find("filePaths")
+        experiments = root.find("experiments")
+        fractions = root.find("fractions")
+        ptms = root.find("ptms")
+        paramGroupIndices = root.find("paramGroupIndices")
+        for file in files:
+            print('Adding information for spectra file ' + file)
+            etree.SubElement(filePaths, 'string').text = file
+            etree.SubElement(experiments, 'string').text = mg_name
+            etree.SubElement(fractions, 'short').text = '32767'
+            etree.SubElement(ptms, 'boolean').text = 'False'
+            etree.SubElement(paramGroupIndices, 'int').text = '0'
+        tree.write(mqpar, pretty_print=True)
+        print('Parameters file is available at ' + mqpar)
         
     '''
     input:
@@ -239,11 +262,11 @@ class MetaProteomicsAnalyser:
         
     '''
     def run_maxquant(self, mqpar):
-        mtools.run_command('mono ' + os.path.expanduser('~/MaxQuant/bin/MaxQuantCmd.exe ' + 
+        mtools.run_command('mono ' + os.path.expanduser('~/MaxQuant/bin/MaxQuantCmd.exe ' +         # TODO - get the shell messages from MaxQuant to appear
                                                         mqpar))
         
 if __name__ == '__main__':
-    correspondence = {'EST6_S1_L001':'DNA4','OL6_S3_L001':'DNA5','OLDES6_S4_L001':'DNA6','PAL6_S2_L001':'DNA7'}  #already done 'EST6_S1_L001':'DNA4','OLDES6_S4_L001':'DNA6','PAL6_S2_L001':'DNA7'
+    correspondence = {'PAL6_S2_L001':'DNA7'}  # 'EST6_S1_L001':'DNA4','OL6_S3_L001':'DNA5','OLDES6_S4_L001':'DNA6',
     
     mper = MetaProteomicsAnalyser()
     
@@ -253,7 +276,7 @@ if __name__ == '__main__':
         mper.edit_maxquant_mqpar('/HDDStorage/jsequeira/Thesis/MGMP/MetaProteomics/' + experiment + '/mqpar.xml',
                                  '/HDDStorage/jsequeira/Thesis/MGMP/MetaProteomics/' + experiment + '/database.fasta',
                                  '/HDDStorage/jsequeira/Thesis/Datasets/Proteic/' + correspondence[experiment],
-                                 experiment)
+                                 experiment, threads = 6)
         mper.run_maxquant('/HDDStorage/jsequeira/Thesis/MGMP/MetaProteomics/' + experiment + '/mqpar.xml')
     
     '''

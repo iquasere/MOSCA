@@ -14,7 +14,7 @@ from progressbar import ProgressBar
 from io import StringIO
 import pandas as pd
 import numpy as np
-import time, os
+import time, os, shutil
 
 mtools = MoscaTools()
 
@@ -109,6 +109,7 @@ class Annotater:
         else:
             print(output + ' not found.')
             ids_done = list()
+            result = pd.DataFrame()
         all_ids = set([ide.split('|')[1] for ide in DIAMOND(out = blast).parse_result()['sseqid'] if ide != '*'])
         i = 0
         ids_unmapped_output = '/'.join(output.split('/'))[:-1] + '/ids_unmapped.txt'
@@ -329,7 +330,7 @@ class Annotater:
                       whog = 'DomainIdentification/whog', 
                       name_of_cdd2cog = 'DomainIdentification/cdd2cog.pl'):
         mtools.run_command('perl ' + name_of_cdd2cog + ' -r ' + blast + ' -c ' + cddid + ' -f ' + fun + ' -w ' + whog)
-        os.rename('results', output + '/results')
+        shutil.move('results', output + '/results')
         
     '''
     Input: the output from cdd2go, a blast file with CDD and COG annotations (cogblast)
@@ -337,7 +338,7 @@ class Annotater:
     Output: a pandas.DataFrame with the functional categories intrisic levels 
         reorganized into corresponding columns
     '''      
-    def organize_cdd_blast(self, cogblast, fun):
+    def organize_cdd_blast(self, cogblast, fun = 'DomainIdentification/fun.txt'):
         cogblast = self.parse_cogblast(cogblast)
         cog_relation = self.parse_fun(fun)
         data = [cog_relation[functional_category] for functional_category in cogblast['functional categories']]
@@ -353,7 +354,7 @@ class Annotater:
     Output: an Excel with the COG identifications counted for krona plotting
     '''      
     def write_cogblast(self, cogblast, output):
-        self.organize_cdd_blast(cogblast)
+        cogblast = self.organize_cdd_blast(cogblast)
         cogblast = cogblast.groupby(cogblast.columns.tolist()).size().reset_index().rename(columns={0:'count'})
         cogblast.to_excel(output, index = False)
         
@@ -453,7 +454,13 @@ class Annotater:
         self.recursive_uniprot_information(self.out_dir + '/Annotation/' + self.name + '/aligned.blast', 
                                            self.out_dir + '/Annotation/' + self.name + '/uniprot.info')
         self.run_rpsblast(self.out_dir + '/Annotation/' + self.name + '/fgs.faa',
-                          )
+                          self.out_dir + '/Annotation/' + self.name + '/cdd_aligned.blast')
+        if os.path.isdir('/Annotation/' + self.name + '/results'):                          # the cdd2cog tool does not overwrite, and fails if results directory already exists
+            shutil.rmtree('/Annotation/' + self.name + '/results', ignore_errors=True)
+        self.annotate_cogs(self.out_dir + '/Annotation/' + self.name + '/cdd_aligned.blast', 
+                           self.out_dir + '/Annotation')
+        self.write_cogblast(self.out_dir + '/Annotation/' + self.name + '/results/rps-blast_cog.txt',
+                            self.out_dir + '/Annotation/' + self.name + '/cogs.xlsx')
         
     def set_to_uniprotID(self, fasta, aligned, output):
         pbar = ProgressBar()
