@@ -15,6 +15,8 @@ from io import StringIO
 import pandas as pd
 import numpy as np
 import time, os, shutil
+from tqdm import tqdm
+import glob
 
 mtools = MoscaTools()
 
@@ -52,7 +54,8 @@ class Annotater:
             
         diamond.run()
     
-    def uniprot_request(self, ids, original_database = 'ACC+ID', database_destination = ''):
+    def uniprot_request(self, ids, original_database = 'ACC+ID', database_destination = '',
+                        output_format = 'tab'):
         import requests
          
         BASE_URL = 'https://www.uniprot.org/uniprot/'
@@ -73,14 +76,18 @@ class Annotater:
         
         params = {
             'from':original_database,
-            'format':'tab',
-            'query':'+OR+'.join(['accession:'+acc for acc in ids]),
-            'columns':('id,ec,lineage(SUPERKINGDOM),lineage(PHYLUM),lineage(CLASS),'+
-            'lineage(ORDER),lineage(FAMILY),lineage(GENUS),lineage(SPECIES),pathway,'+
-            'protein names,database(KEGG)')
+            'format':output_format,
+            'query':'+OR+'.join(['accession:' + acc for acc in ids]),
+            'columns':('id,genes,protein names,ec,comment(FUNCTION),pathway,' + 
+                       'keywords,existence,go,families,lineage(SUPERKINGDOM),' +
+                       'lineage(PHYLUM),lineage(CLASS),lineage(ORDER),' + 
+                       'lineage(FAMILY),lineage(GENUS),lineage(SPECIES),'+
+                       'database(' + '),database('.join(['BioCyc','BRENDA',
+                        'CDD','eggNOG','Ensembl','InterPro','KEGG','KO',
+                        'Pfam','Reactome','RefSeq','UniPathway']) + ')')
         }
-        if database_destination != '':
-            params['to'] = database_destination
+        if database_destination != '' or original_database != 'ACC+ID':
+            params['to'] = 'ACC'
         try:
             return http_post(BASE_URL, params=params).decode('utf-8')
         except:
@@ -89,22 +96,68 @@ class Annotater:
             except:
                 return ''
             
-    def get_uniprot_information(self, ids, original_database = 'ACC+ID', database_destination = '', chunk = 1000):
+    def get_uniprot_information(self, ids, original_database = 'ACC+ID', output_format = 'tab',
+                                database_destination = '', chunk = 1000):
         pbar = ProgressBar()
-        result = pd.DataFrame()
         print('Retrieving UniProt information from ' + str(len(ids)) + ' IDs.')
-        for i in pbar(range(0, len(ids), chunk)):
-            j = i + chunk if i + chunk < len(ids) else len(ids)
-            data = self.uniprot_request(ids[i:j], original_database, database_destination)
-            time.sleep(60)
-            if len(data) > 0:
-                uniprot_info = pd.read_csv(StringIO(data), sep = '\t')
-                result = pd.concat([result, uniprot_info])
+        if output_format == 'tab':
+            result = pd.DataFrame()
+            for i in pbar(range(0, len(ids), chunk)):
+                j = i + chunk if i + chunk < len(ids) else len(ids)
+                data = self.uniprot_request(ids[i:j], original_database, database_destination)
+                time.sleep(60)
+                if len(data) > 0:
+                    uniprot_info = pd.read_csv(StringIO(data), sep = '\t')
+                    result = pd.concat([result, uniprot_info])
+        elif output_format == 'fasta':
+            result = str()
+            for i in pbar(range(0, len(ids), chunk)):
+                j = i + chunk if i + chunk < len(ids) else len(ids)
+                data = self.uniprot_request(ids[i:j], original_database, database_destination,
+                                            output_format = output_format)
+                #time.sleep(60)
+                if len(data) > 0:
+                    result += data
         return result
     
+    def recursive_uniprot_fasta(self, output, fasta = None, blast = None, max_iter = 5):
+        if fasta is not None:
+            fasta = mtools.parse_fasta(fasta)
+            all_ids = list(set(fasta.keys()))
+        elif blast is not None:
+            blast = mtools.parse_blast(blast)
+            all_ids = list(set([ide.split('|')[1] if ide != '*' else ide 
+                                for ide in blast.sseqid]))
+        all_ids = all_ids
+        i = 0
+        ids_done = ([ide.split('|')[1] for ide in mtools.parse_fasta(output).keys()]
+                    if os.path.isfile(output) else list())
+        while len(ids_done) < len(all_ids) and i < max_iter:
+            print('Checking which IDs are missing information.')
+            pbar = ProgressBar()
+            ids_missing = list(set([ide for ide in pbar(all_ids) if ide not in ids_done]))
+            print('Information already gathered for ' + str(len(ids_done)) + 
+                  ' ids. Still missing for ' + str(len(ids_missing)) + '.')
+            uniprotinfo = self.get_uniprot_information(ids_missing, 
+                                                       output_format = 'fasta')
+            with open(output, 'a') as file:
+                file.write(uniprotinfo)
+            ids_done = [ide.split('|')[1] for ide in mtools.parse_fasta(output).keys()]
+            i += 1
+        if len(ids_done) == len(all_ids):
+            print('Results for all IDs are available at ' + output)
+        else:
+            ids_unmapped_output = '/'.join(output.split('/')[:-1]) + '/ids_unmapped.txt'
+            handler = open(ids_unmapped_output, 'w')
+            handler.write('\n'.join(ids_missing))
+            print(str(i) + ' iterations were made. Results related to ' + str(len(ids_missing)) + 
+                  ' IDs were not obtained. IDs with missing information are available' +
+                  ' at ' + ids_unmapped_output + ' and information obtained is available' +
+                  ' at ' + output)
+        
     def recursive_uniprot_information(self, blast, output, max_iter = 5):
         if os.path.isfile(output):
-            result = pd.read_csv(output, sep = '\t', index_col = 0).drop_duplicates()
+            result = pd.read_csv(output, sep = '\t').drop_duplicates()
             ids_done = set(list(result['Entry']))
         else:
             print(output + ' not found.')
@@ -112,20 +165,24 @@ class Annotater:
             result = pd.DataFrame()
         all_ids = set([ide.split('|')[1] for ide in DIAMOND(out = blast).parse_result()['sseqid'] if ide != '*'])
         i = 0
-        ids_unmapped_output = '/'.join(output.split('/'))[:-1] + '/ids_unmapped.txt'
+        ids_unmapped_output = '/'.join(output.split('/')[:-1]) + '/ids_unmapped.txt'
         print('Checking which IDs are missing information.')
         pbar = ProgressBar()
         ids_missing = list(set([ide for ide in pbar(all_ids) if ide not in ids_done]))
         while len(ids_done) < len(all_ids) and i < max_iter:
-            print('Information already gathered for ' + str(len(ids_done)) + 
-                  ' ids. Still missing for ' + str(len(ids_missing)) + '.')
-            uniprotinfo = self.get_uniprot_information(ids_missing)
-            result = pd.concat([result, uniprotinfo])
-            ids_done = set(list(result['Entry']))
-            print('Checking which IDs are missing information.')
-            pbar = ProgressBar()
-            ids_missing = list(set([ide for ide in pbar(all_ids) if ide not in ids_done]))
-            i += 1
+            try:
+                print('Information already gathered for ' + str(len(ids_done)) + 
+                      ' ids. Still missing for ' + str(len(ids_missing)) + '.')
+                uniprotinfo = self.get_uniprot_information(ids_missing)
+                result = pd.concat([result, uniprotinfo])
+                ids_done = set(list(result['Entry']))
+                print('Checking which IDs are missing information.')
+                pbar = ProgressBar()
+                ids_missing = list(set([ide for ide in pbar(all_ids) if ide not in ids_done]))
+                i += 1
+            except:
+                continue
+        result.to_csv(output, sep = '\t')
         if i < max_iter:
             print('Results for all IDs are available at ' + output)
         else:
@@ -135,7 +192,7 @@ class Annotater:
                   ' IDs were not obtained. IDs with missing information are available' +
                   ' at ' + ids_unmapped_output + ' and information obtained is available' +
                   ' at ' + output)
-        result.to_csv(output, sep = '\t')
+        
     
     def split(self, pathway):
         pathway = pathway.split('. ')
@@ -312,7 +369,7 @@ class Annotater:
         name of output file
     Output: annotated file with CDD IDs
     '''
-    def run_rpsblast(self, fasta, output, cog = 'DomainIdentification/Cog'):
+    def run_rpsblast(self, fasta, output, cog):
         mtools.run_command('rpsblast -i ' + fasta + ' -d ' + cog + ' -o ' + output + ' -m 8')
         
     '''
@@ -325,11 +382,8 @@ class Annotater:
         output folder where to store the resuls folder
     Output: results folder 
     '''
-    def annotate_cogs(self, blast, output, cddid = 'DomainIdentification/cddid.tbl',
-                      fun = 'DomainIdentification/fun.txt', 
-                      whog = 'DomainIdentification/whog', 
-                      name_of_cdd2cog = 'DomainIdentification/cdd2cog.pl'):
-        mtools.run_command('perl ' + name_of_cdd2cog + ' -r ' + blast + ' -c ' + cddid + ' -f ' + fun + ' -w ' + whog)
+    def annotate_cogs(self, blast, output, cddid, fun, whog, cdd2cog_executable):
+        mtools.run_command('perl ' + cdd2cog_executable + ' -r ' + blast + ' -c ' + cddid + ' -f ' + fun + ' -w ' + whog)
         shutil.move('results', output + '/results')
         
     '''
@@ -343,9 +397,9 @@ class Annotater:
         cog_relation = self.parse_fun(fun)
         data = [cog_relation[functional_category] for functional_category in cogblast['functional categories']]
         result = pd.DataFrame(data)
-        result.columns = ['functional categories', 'general functional categories']
-        result = pd.concat([result[['general functional categories', 'functional categories']], 
-                            cogblast[['COG protein description','qseqid']]], axis = 1)
+        result.columns = ['COG general functional category','COG functional category']
+        result = pd.concat([result[['COG general functional category','COG functional category']], 
+                            cogblast[['COG protein description','cog','qseqid']]], axis = 1)
         return result
     
     '''
@@ -364,7 +418,7 @@ class Annotater:
     '''      
     def parse_cogblast(self, cogblast):
         cogblast = pd.read_csv(cogblast, header=None, skiprows = 1, sep = '\t', low_memory=False)
-        cogblast = cogblast[list(range(0,14))+[18]]                     #several extra columns are produced because of bad formatting
+        cogblast = cogblast[list(range(0,14))+[18]]                                             #several extra columns are produced because of bad formatting
         cogblast.columns = ['qseqid', 'sseqid', 'pident', 'length', 'mismatch', 'gapopen', 
                    'qstart', 'qend', 'sstart', 'send', 'evalue', 'bitscore', 'cog',
                    'functional categories', 'COG protein description']
@@ -394,28 +448,22 @@ class Annotater:
     Input: 
         blast: name of the file from the DIAMOND annotation
         uniprotinfo: name of the uniprot information file
-        cog_blast: name of the COG annotation file
+        cog_blast: name of the COG annotation file from self.annotate_cogs
         fun: name of the fun.txt file
         split_pathways: boolean, if MOSCA should split the information from the
         Pathway column provided by UniProt mapping
         readcounts_matrix: name of the file containing protein expression
     Output: 
-        pandas.DataFrame with all the information
+        pandas.DataFrame with integration of information from UniProt and COGs
     '''
-    def join_reports(self, blast, uniprotinfo, cog_blast, fun, split_pathways = False,
-                     readcounts_matrix = None):
-        result = DIAMOND(out = blast).parse_result()
+    def join_reports(self, blast, uniprotinfo, cog_blast, fun, split_pathways = False):
+        result = mtools.parse_blast(blast)
         result.index = result.qseqid
-        if readcounts_matrix is not None:
-            readcountsdf = pd.read_csv(readcounts_matrix, sep = '\t', header = None)[:-5]
-            result = pd.merge(result, readcountsdf, left_index = True, right_index = True)
-        else:
-            result['Abundance'] = [ide.split('_')[5] for ide in result.qseqid]
-        result.index = [ide.split('|')[1] for ide in result.sseqid]
-        uniprotinfo = pd.read_csv(uniprotinfo, sep= '\t')
-        uniprotinfo = uniprotinfo.drop_duplicates()
-        if split_pathways == True:
-            funcdf = uniprotinfo[uniprotinfo.Pathway.notnull()][['Query','Pathway']]
+        result['Entry'] = [ide.split('|')[1] if ide != '*' else ide for ide in result.sseqid]
+        uniprotinfo = pd.read_csv(uniprotinfo, sep= '\t').drop_duplicates()
+        if split_pathways == True:                                              # TODO - the reorganization of pathways incurs in extra lines for same IDs. Find workaround
+            print('Reorganizing pathways information.')
+            funcdf = uniprotinfo[uniprotinfo.Pathway.notnull()][['Entry','Pathway']]
             funcdf.Pathway = funcdf.Pathway.apply(self.split)
             funcdf = self.using_repeat(funcdf)
             pathways = pd.DataFrame([(path.split('; ') + [np.nan] * (3 - len(path.split('; ')))) 
@@ -423,25 +471,64 @@ class Annotater:
             pathways.columns = ['Superpathway','Pathway','Subpathway']
             del funcdf['Pathway']; del uniprotinfo['Pathway']
             funcdf = pd.concat([pathways, funcdf], axis = 1)
-            uniprotinfo = pd.merge(uniprotinfo, funcdf, on = ['Query'], how = 'outer')
-        result = pd.merge(result, uniprotinfo, left_index=True, right_on = ['Entry'], how = 'outer')
+            uniprotinfo = pd.merge(uniprotinfo, funcdf, on = ['Entry'], how = 'outer')
+        result = pd.merge(result, uniprotinfo, on = ['Entry'], how = 'outer')
         cog_blast = self.organize_cdd_blast(cog_blast, fun)
-        result = pd.merge(result, cog_blast, left_on = ['qseqid'], right_on = ['qseqid'], how = 'outer')
+        result = pd.merge(result, cog_blast, on = ['qseqid'], how = 'outer')
+        tqdm.pandas()
+        print('Defining best consensus COG for each UniProt ID.')
+        cogs_df = pd.DataFrame()
+        
+        cogs_df['cog'] = result.groupby('Entry')['cog'].progress_apply(lambda x:
+            x.value_counts().index[0] if len(x.value_counts().index) > 0 else np.nan)
+        cogs_relation = result[['COG general functional category','COG functional category',
+                            'COG protein description','cog']]
+        cogs_df['Entry'] = cogs_df.index
+        cogs_relation = cogs_relation.drop_duplicates()
+        cogs_df = cogs_df[cogs_df['cog'].notnull()]
+        cogs_df = pd.merge(cogs_df, cogs_relation, on = 'cog', how = 'inner') 
         result = result[['Entry','Taxonomic lineage (SUPERKINGDOM)',
                         'Taxonomic lineage (PHYLUM)','Taxonomic lineage (CLASS)',
                         'Taxonomic lineage (ORDER)','Taxonomic lineage (FAMILY)',
                         'Taxonomic lineage (GENUS)','Taxonomic lineage (SPECIES)',
-                        'Pathway','Protein names','EC number','Cross-reference (KEGG)',
-                        'functional categories', 'general functional categories',
-                        'COG protein description','Abundance']]
-        result.columns = ['UniProt ID','Taxonomic lineage (SUPERKINGDOM)',
-                        'Taxonomic lineage (PHYLUM)','Taxonomic lineage (CLASS)',
-                        'Taxonomic lineage (ORDER)','Taxonomic lineage (FAMILY)',
-                        'Taxonomic lineage (GENUS)','Taxonomic lineage (SPECIES)',
-                        'Pathway','Protein name','EC number','Cross-reference (KEGG)',
-                        'COG general functional category','COG functional category', 
-                        'COG protein description','Abundance']
-        result = result[result['ORF name'].notnull()]
+                        'Pathway','Protein names','EC number','Cross-reference (KEGG)']]
+        result = pd.merge(result, cogs_df, on = 'Entry')
+        result.columns = ['Protein ID'] + result.columns.tolist()[1:]
+        result = result.drop_duplicates()
+        return result
+    
+    '''
+    Input: 
+        relation: pandas.DataFrame from Annotater.join_reports
+        file: name of file from where to extract information (htseq-count or 
+        blast output)
+        blast: boolean, if file inputed is a blast output (True) or expression
+        column (False)
+        file_has_tail: boolean, if file is htseq-count expression matrix with
+        those last 5 lines of general information
+        file_has_last_ids: boolean, if file still uses the third portion of
+        UniProt IDs (tr|2nd|3rd)
+    Output: 
+        pandas.DataFrame with abundance and expression information
+    '''
+    def define_abundance(self, relation, file, blast = True, file_has_tail = True,
+                         file_has_last_ids = False):
+        name = file.split('/')[-2]                                              # name is supposed to be the folder name containing the file
+        if blast:
+            blast = mtools.parse_blast(file)
+            blast[name] = [float(ide.split('_')[5]) for ide in blast.qseqid]
+            blast['Protein ID'] = [ide.split('|')[1] if ide != '*' else ide for ide in blast.sseqid]
+            blast = blast.groupby('Protein ID')[name].sum().reset_index()[['Protein ID', name]]
+            result = pd.merge(relation, blast, on = 'Protein ID', how = 'outer')
+        else:
+            expressiondf = pd.read_csv(file, sep = '\t')                   
+            if file_has_tail: expressiondf = expressiondf[:-5]                  # remove those last resume lines
+            expressiondf['Protein ID'] = [ide.split('_')[0] if file_has_last_ids 
+                        else ide for ide in expressiondf[0]]
+            expressiondf.columns = ['geneid', name, 'Protein ID']
+            del expressiondf.geneid
+            result = pd.merge(result, expressiondf, on = 'Protein ID')
+        result[name] = result[name].fillna(value = 0)
         return result
         
     def run(self):
@@ -449,19 +536,27 @@ class Annotater:
         self.annotation()
         blast = DIAMOND(out = self.out_dir + '/Annotation/' + self.name + '/aligned.blast').parse_result()
         ids = list(set([ide.split('|')[1] for ide in blast['sseqid'][blast.sseqid != '*']]))
-        uniprot_info = self.get_uniprot_information(ids)
-        uniprot_info.to_csv(self.out_dir + '/Annotation/' + self.name + '/uniprot.info', sep = '\t')
-        self.recursive_uniprot_information(self.out_dir + '/Annotation/' + self.name + '/aligned.blast', 
-                                           self.out_dir + '/Annotation/' + self.name + '/uniprot.info')
-        self.run_rpsblast(self.out_dir + '/Annotation/' + self.name + '/fgs.faa',
-                          self.out_dir + '/Annotation/' + self.name + '/cdd_aligned.blast')
-        if os.path.isdir('/Annotation/' + self.name + '/results'):                          # the cdd2cog tool does not overwrite, and fails if results directory already exists
-            shutil.rmtree('/Annotation/' + self.name + '/results', ignore_errors=True)
-        self.annotate_cogs(self.out_dir + '/Annotation/' + self.name + '/cdd_aligned.blast', 
-                           self.out_dir + '/Annotation')
-        self.write_cogblast(self.out_dir + '/Annotation/' + self.name + '/results/rps-blast_cog.txt',
-                            self.out_dir + '/Annotation/' + self.name + '/cogs.xlsx')
-        
+        return ids
+    
+    '''
+    Input: 
+        faa: FASTA file with protein sequences to be annotated
+        output: name of folder where to output results
+        cog: name of COG
+        cddid: name of cddid.tbl file for COG analysis
+        whog: name of whog file for COG analysis
+        fun: name of fun.txt file for COG analysis
+    Output: 
+        pandas.DataFrame with abundance and expression information
+    '''
+    def cog_annotation(self, faa, output, cog, cddid, whog, fun):
+        self.run_rpsblast(faa, output + '/cdd_aligned.blast', 'DomainIdentification/Cog')
+        if os.path.isdir(output + '/results'):                              # the cdd2cog tool does not overwrite, and fails if results directory already exists
+            shutil.rmtree(output + '/results', ignore_errors=True)          # is not necessary when running the tool once, but better safe then sorry!
+        self.annotate_cogs(output + '/cdd_aligned.blast', output,        
+                           cddid, fun, whog, 'DomainIdentification/cdd2cog.pl')
+        self.write_cogblast(output + '/results/rps-blast_cog.txt', output + '/cogs.xlsx')
+
     def set_to_uniprotID(self, fasta, aligned, output):
         pbar = ProgressBar()
         result = DIAMOND(out = aligned).parse_result()
@@ -473,50 +568,75 @@ class Annotater:
                     f.write('>' + str(result[result.qseqid == key]['sseqid'].item()) + '\n' + value + '\n')
                 except:
                     print(result[result.qseqid == key]['sseqid'])
+                    
+    def global_information(self):
+        # Join reports
+        mtools.run_command('cat ' + ' '.join(glob.glob(self.out_dir + '/Annotation/*/fgs.faa')),
+                                             self.out_dir + '/Annotation/fgs.faa')
+        mtools.run_command('cat ' + ' '.join(glob.glob(self.out_dir + '/Annotation/*/aligned.blast')), 
+                           file = self.out_dir + '/Annotation/aligned.blast')
+        
+        # Retrieval of information from UniProt IDs
+        self.recursive_uniprot_information(self.out_dir + '/Annotation/aligned.blast', 
+                                           self.out_dir + '/Annotation/uniprot.info')
+        
+        # Functional annotation with COG database
+        
+        self.cog_annotation(self.out_dir + '/Annotation/fgs.faa', 
+                            self.out_dir + '/Annotation', self.cog, 
+                            self.cddid, self.whog, self.fun)
+
+        # Quantification of each protein presence
+        joined = self.join_reports(self.out_dir + '/Annotation/aligned.blast', 
+                               self.out_dir + '/Annotation/uniprot.info', 
+                               self.out_dir + '/Annotation/results/rps-blast_cog.txt', 
+                               self.fun)
+        
+        blast_files = glob.glob(self.out_dir + '/Annotation/*/aligned.blast')
+        for file in blast_files:
+            joined = self.define_abundance(joined, file)
+        joined.to_excel(self.out_dir + '/joined_information.xlsx', index=False) # it is written either or not it is used posteriorly
+        print('joined was written to ' + self.out_dir + '/joined_information.xlsx')
+        return joined
     
 if __name__ == '__main__':
     
     annotater = Annotater()
+    #annotater.recursive_uniprot_information('MOSCAfinal/Annotation/aligned.blast', 'MOSCAfinal/Annotation/uniprot.info')
+    
+    #writer = pd.ExcelWriter('MOSCAfinal/Annotation/all_info.xlsx', engine='xlsxwriter')
+    
+    annotater = Annotater(out_dir = 'SimulatedMGMT',
+                      fun = 'DomainIdentification/fun.txt',
+                      cog = 'Databases/COG/Cog',
+                      cddid = 'Databases/COG/cddid.tbl',
+                      whog = 'Databases/COG/whog',
+                      cdd2cog_executable = 'DomainIdentification/cdd2cog.pl')
+
+    #annotater.global_information()
+    
+    for output in ['MGMP']:
+        Annotater(fun = 'DomainIdentification/fun.txt',
+                  cog = 'Databases/COG/Cog',
+                  cddid = 'Databases/COG/cddid.tbl',
+                  whog = 'Databases/COG/whog',
+                  cdd2cog_executable = 'DomainIdentification/cdd2cog.pl',
+                  out_dir = output).global_information()
+    
     '''
-    blast = DIAMOND(out = 'MOSCAfinal/Annotation/aligned.blast').parse_result()
-    
-    ids = list(set([ide.split('|')[1] for ide in blast.sseqid if ide != '*']))
-    
-    uniprotinfo = annotater.get_uniprot_information(ids)
-    
-    uniprotinfo.to_csv('MOSCAfinal/Annotation/uniprot.info', sep = '\t')
-    '''
-    annotater.recursive_uniprot_information('MOSCAfinal/Annotation/aligned.blast', 'MOSCAfinal/Annotation/uniprot.info')
-    '''       
-    report = annotater.join_reports('MOSCAfinal/Annotation/aligned.blast',
-                                       'MOSCAfinal/Annotation/uniprot.info',
-                                       'MOSCAfinal/Annotation/' + sample + '/cogs.tsv',
-                                       'DomainIdentification/fun.txt')
+    annotater.recursive_uniprot_information('MOSCAfinal/Annotation/aligned.blast',
+                                            'MOSCAfinal/Annotation/uniprot1.info')
     '''
     '''
-    writer = pd.ExcelWriter('MOSCAfinal/Annotation/all_info.xlsx', engine='xlsxwriter')
-    
-    for sample in ['4478-DNA-S1613-MiSeqKapa','4478-DNA-S1616-MiSeqKapa','4478-DNA-S1618-MiSeqKapa']:
-        print(sample)
-        report = annotater.join_reports('MOSCAfinal/Annotation/aligned.blast',
-                                       'MOSCAfinal/Annotation/uniprot.info',
-                                       'MOSCAfinal/Annotation/' + sample + '/cogs.tsv',
-                                       'DomainIdentification/fun.txt')
-    
-        print(len(report))
-        
-        print(report.head())
-        
-        if len(report) > 1048576:
-            i = 0
-            k = 0
-            while i + 1048576 < len(report):
-                j = i + 1048576
-                report.iloc[i:j].to_excel(writer, sheet_name = sample + '_' + str(k), index = False)
-                i += 1048576
-                k += 1
-            report.iloc[i:].to_excel(writer, sheet_name = sample + '_' + str(k), index = False)
-        else:
-            report.to_excel(writer, sheet_name = sample, index = False)
-    writer.save()
+    if len(report) > 1048576:
+        i = 0
+        k = 0
+        while i + 1048576 < len(report):
+            j = i + 1048576
+            report.iloc[i:j].to_excel(writer, sheet_name = sample + '_' + str(k), index = False)
+            i += 1048576
+            k += 1
+        report.iloc[i:].to_excel(writer, sheet_name = sample + '_' + str(k), index = False)
+    else:
+        report.to_excel(writer, sheet_name = sample, index = False)
     '''

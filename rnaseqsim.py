@@ -9,6 +9,8 @@ from annotation import Annotater
 from diamond import DIAMOND
 import pandas as pd
 from mosca_tools import MoscaTools
+from progressbar import ProgressBar
+import os
 
 annotater = Annotater()
 mtools = MoscaTools()
@@ -90,41 +92,101 @@ class RNASeqSim:
         return result[['qseqid', 'pathway','name']]
 
     #abundance is tuple (organism_presence, {pathway:expression})
-    def define_abundance(self, abundance, info, output, factor = 1, base = 0):
-        print(info.head())
-        info['abundance'] = [0.01 for i in range(len(info))]
-        for qseqid in info.index:
-            for path, expression in abundance[1].items():
-                if path in info.loc[qseqid]['pathway'] or 'ATP synthase' in info.loc[qseqid]['name']:
-                    info.at[qseqid,'abundance'] = float(base + factor * expression * abundance[0])
-        result = info[['abundance']]
-        result.to_csv(output + '/abundance' + str(factor) + '.config', sep = '\t', header = False)
+    def define_abundance(self, excel, profiles, uniprotinfo, output, 
+                         factor = 1, base = 0):
+        simulated = pd.read_excel(excel, index = False)
+        simulated = simulated[simulated['Transcriptome link'].notnull()].reset_index()
+        uniprotinfo = pd.read_csv(uniprotinfo, sep = '\t').drop_duplicates()
+        uniprotinfo.columns = ['EMBL'] + uniprotinfo.columns.tolist()[1:]
+        handler = open(output,'w')
+        print('Defining expressions for ' + str(len(simulated)) + ' organisms.')
+        for i in range(len(simulated)):
+            pbar = ProgressBar()
+            print('Dealing with ' + simulated.iloc[i]['Species'])
+            rna_file = 'SimulatedMGMT/Transcriptomes/' + simulated.iloc[i]['Transcriptome link'].split('/')[-1].split('.gz')[0]
+            rnas = mtools.parse_fasta(rna_file).keys()
+            abundance = simulated.iloc[i]['Abundance']
+            profile = profiles[simulated.iloc[i]['Profile']]
+            for rna in pbar(rnas):
+                found = False
+                ide = rna.split()[0]
+                info = uniprotinfo[uniprotinfo['EMBL'] == ide]
+                for path in profile['Pathway'].keys():
+                    if path in str(info['Pathway']): 
+                        handler.write(rna + '\t' + str(base + factor * abundance) + '\n')
+                        found = True
+                if found == False:
+                    if 'ATP synthase' in str(info['Protein names']):
+                        handler.write(rna + '\t' + str(base + factor * abundance) + '\n')
+                    else:
+                        handler.write(rna + '\t' + str(base + abundance) + '\n')
         
-    def use_grinder(self, output, relative_abundance, name, factor = 1):
-        command = ('/home/jsequeira/biogrinder/script/grinder -reference_file ../PostThesis/piptest/grinder/MT/' + name + '.fasta -abundance_file ../PostThesis/piptest/grinder/MT/abundance.config ' + 
-                   '-total_reads ' + str(round(relative_abundance*100)) + ' -mate_orientation FR -random_seed 13 -fastq_output 1 ' + 
-                   '-qual_levels 30 10 -output_dir ' + output + ' -read_dist 251 -insert_dist 2500 -mutation_dist poly4 3e-3 3.3e-8')
-        self.run(command)
     
+        
+    def use_grinder(self, fasta, abundance, total_reads, output):
+        command = (os.path.expanduser('~/biogrinder/script/grinder') + 
+                   ' -reference_file ' + fasta + ' -abundance_file ' + abundance + 
+                   ' -total_reads ' + str(total_reads) + ' -mate_orientation FR -random_seed ' + 
+                   '13 -fastq_output 1 -qual_levels 30 10 -output_dir ' + output + 
+                   ' -read_dist 151 -insert_dist 2500 -mutation_dist poly4 3e-3 3.3e-8')
+        mtools.run_command(command)
+        
 if __name__ == '__main__':
     import glob, pathlib, os
     
-    files = glob.glob('SimulatedMGMT/Genomes/*.fasta')
+    files = glob.glob('SimulatedMGMT/Transcriptomes/*.fa')
     
     rnaseqsimer = RNASeqSim()
-    
+    '''
     annotater = Annotater()
     
-    for file in files:
-        if not os.path.isfile(file.replace('.fasta','.blast')):
-            name = file.split('/')[-1].split('.fasta')[0]
-            rnaseqsimer.use_fgs('SimulatedMGMT/Genomes/' + name + '.fasta', 
-                                'SimulatedMGMT/Genomes/' + name)
-            rnaseqsimer.use_diamond('SimulatedMGMT/Genomes/' + name + '.faa', 
-                                    'SimulatedMGMT/Genomes/' + name + '.blast')
-            annotater.recursive_uniprot_information('SimulatedMGMT/Genomes/' + name + '.blast',
-                                                    'SimulatedMGMT/Genomes/' + name + '_uniprot.info')
-        
+    simulated = pd.read_excel('SimulatedMGMT/simulated_taxa.xlsx', index=False)
+    simulated = simulated[simulated['Transcriptome link'].notnull()]
+    simulated = simulated.reset_index()
+    uniprotinfo = pd.read_csv('SimulatedMGMT/Transcriptomes/uniprot.info',sep='\t')
+    
+    abundances = {'archaea_co2': {
+                        'Pathway':{
+                                'One-carbon metabolism; methanogenesis from CO(2)':1, 
+                                'Cofactor biosynthesis':1}, 
+                        'Protein names':{
+                                'ATP synthase':1}
+                        },
+                'archaea_acetate': {
+                        'Pathway':{
+                                'One-carbon metabolism; methanogenesis from acetate':1, 
+                                'Cofactor biosynthesis':1}, 
+                        'Protein names':{
+                                'ATP synthase':1}
+                        },
+                'bacteria':{
+                        'Pathway':{
+                                'lipid metabolism': 1, 
+                                'Cofactor biosynthesis':1,
+                                'Metabolic intermediate biosynthesis': 1}, 
+                        'Protein names':{
+                                'ATP synthase':1}
+                        }
+                    }
+                    
+    for factor in [3,0.17,1]:
+        rnaseqsimer.define_abundance('SimulatedMGMT/simulated_taxa.xlsx',
+                           abundances, 'SimulatedMGMT/Transcriptomes/uniprot.info',
+                           'SimulatedMGMT/Transcriptomes/abundance' + str(factor) + '.config',
+                           factor = factor)
+    '''
+    
+    for factor in [1,3,0.17]:
+        rnaseqsimer.use_grinder('SimulatedMGMT/Transcriptomes/all_transcriptome.fa',
+                              'SimulatedMGMT/Transcriptomes/abundance' + str(factor) + '.config',
+                              1000000, 'SimulatedMGMT/Transcriptomes/b/' + str(factor))
+    
+    for factor in [1,3,0.17]:
+        rnaseqsimer.use_grinder('SimulatedMGMT/Transcriptomes/all_transcriptome.fa',
+                              'SimulatedMGMT/Transcriptomes/abundance' + str(factor) + '.config',
+                              1000000, 'SimulatedMGMT/Transcriptomes/c/' + str(factor))
+    
+    
     
     '''
     simulated = pd.read_excel('SimulatedMGMT/Genomes/simulated_taxa.xlsx', index = False, header = None)

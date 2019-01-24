@@ -11,7 +11,7 @@ Sep 2017
 from mosca_tools import MoscaTools
 import pandas as pd
 import numpy as np
-import glob
+import glob, os
 from annotation import Annotater
 
 mtools = MoscaTools()
@@ -34,12 +34,21 @@ class MetaTranscriptomicsAnalyser:
     generates an expression column file
     '''
     def readcounts_file(self):
-        self.generate_mg_index(self.contigs, self.out_dir + '/Analysis/' + self.mt + '_index')
-        mtools.build_gff(self.out_dir + '/Annotation/' + self.mg + '/aligned.blast', self.out_dir + '/Analysis/' + self.mt + '.gff')
-        self.run_alignment([self.out_dir + '/Preprocess/SortMeRNA/' + self.mt + '_' + fr + '.fastq' for fr in ['forward','reverse']],
-                           self.out_dir + '/Analysis/' + self.mt + '_index', self.out_dir + '/Analysis/' + self.mt + '.sam')
-        self.run_htseq_count(self.out_dir + '/Analysis/' + self.mt + '.sam', self.out_dir + '/Analysis/' + self.mt + '.gff',
-                             self.out_dir + '/Analysis/' + self.mt + '.readcounts')
+        possible_files = glob.glob(self.out_dir + '/' + self.mg + '_index.*.bt2')
+        if len(possible_files) < 6:
+            print('No index was detected at ' + self.out_dir + '/' + self.mg + 
+                  " or it wasn't complete.\nGenerating one from the contigs at " + 
+                  self.contigs)
+            self.generate_mg_index(self.contigs, self.out_dir + '/' + self.mg + '_index')
+        if not os.path.isfile(self.out_dir + '/' + self.mg + '/' + self.mg + '.gff'):
+            mtools.build_gff(self.blast, self.out_dir + '/' + self.mg + '/' + self.mg + '.gff')
+        self.run_alignment([self.reads_folder + '/quality_trimmed_' + self.mt + '_' 
+                            + fr + '_paired.fq' for fr in ['forward','reverse']],
+                           self.out_dir + '/' + self.mg + '_index', 
+                           self.out_dir + '/' + self.mt + '/' + self.mt + '.sam')
+        self.run_htseq_count(self.out_dir + '/' + self.mt + '/' + self.mt + '.sam', 
+                             self.out_dir + '/' + self.mg + '/' + self.mg + '.gff',
+                             self.out_dir + '/' + self.mt + '/' + self.mt + '.readcounts')
         
     '''
     input: 

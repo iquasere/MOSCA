@@ -35,6 +35,7 @@ class Preprocesser:
         print('Checking for adapters')
         trimmomatic = Trimmomatic(input_files = self.files,
                                   paired = self.paired,
+                                  minlen = '100',
                                   working_dir = self.working_dir,
                                   output = self.working_dir + '/Preprocess/Trimmomatic/after_adapter_removal_' + self.name,
                                   data = self.data,

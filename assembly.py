@@ -133,6 +133,7 @@ class Assembler:
     def run(self):
         self.run_assembler()
         self.quality_control()
+        '''
         if self.assembler == 'metaghit':
             os.rename(self.out_dir + '/Assembly/' + self.name + '/final.contigs.fa',
                       self.out_dir + '/Assembly/' + self.name + '/contigs.fasta')
@@ -141,6 +142,7 @@ class Assembler:
             mtools.run_command('htseq-count ' + self.out_dir + '/Assembly/' + self.name + 
                                '/quality_control/library.sam ' + ,
                                self.out_dir + '/Assembly/' + self.name + '/contigs.readcounts')
+        '''
 
 if __name__ == '__main__':
     

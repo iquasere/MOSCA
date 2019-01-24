@@ -26,15 +26,21 @@ class MoscaTools:
     def run_command(self, bashCommand, file = '', mode = 'w'):
         print(bashCommand)
         if file == '':
-                process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
+                subprocess.run(bashCommand.split(), stdout=subprocess.PIPE, check = True)       # was subprocess.Popen
         else:
             with open(file, mode) as output_file:
-                process = subprocess.Popen(bashCommand.split(), stdout=output_file)
-        output, error = process.communicate()
+                subprocess.run(bashCommand.split(), stdout=output_file)           # was subprocess.Popen
+        
+    def parse_blast(self, blast):
+        result = pd.read_csv(blast, sep='\t', header = None)
+        result.columns = ['qseqid', 'sseqid', 'pident', 'length', 'mismatch', 
+                          'gapopen', 'qstart', 'qend', 'sstart', 'send', 
+                          'evalue', 'bitscore']
+        return result
     
     def build_gff(self, blast, output):
         gff = pd.DataFrame()
-        diamond = DIAMOND(out = blast).parse_result()
+        diamond = self.parse_blast(blast)
         parts = [qid.split('_') for qid in diamond.qseqid]
         preid = [part[1] for part in parts]
         node = 1
@@ -47,11 +53,7 @@ class MoscaTools:
             else:
                 node = i
                 j = 1
-        if self.assembler == 'metaspades':
-            gff["seqid"] = ['_'.join(part[:-3]) for part in parts]
-        elif self.assembler == 'megahit':
-            constant = parts[0][0]
-            gff["seqid"] = [constant + '_' + part[1] for part in parts[:-3]]
+        gff["seqid"] = ['_'.join(part[:-3]) for part in parts]
         size = gff.size
         gff["source"] = ['UniProtKB' for i in range(size)]
         gff["type"] = ['exon' for i in range(size)]
@@ -60,10 +62,9 @@ class MoscaTools:
         gff["score"] = diamond.evalue
         gff["strand"] = [part[-1] for part in parts]
         gff["phase"] = ['.' for i in range(size)]
-        gff["ID"] = [ide.split('|')[2] if ide != '*' else ide for ide in diamond.sseqid]
+        ids = [ide.split('|')[1] if ide != '*' else ide for ide in diamond.sseqid]
         gff["Name"] = diamond.qseqid
-        gff["attributes"] = ['gene_id=' + i.Name + ';Name=' + i.ID for i in gff.itertuples()]
-        del gff['ID']; del gff['Name']
+        gff["attributes"] = ['gene_id=' + ids[i] + ';Name=' + diamond.iloc[i]['qseqid'] for i in range(size)]
         gff.to_csv(output, sep = '\t', index=False, header=False)
     
     def count_reads(self, file):
@@ -220,7 +221,7 @@ class MoscaTools:
                     sequences[name] += lines[i]
                     i += 1
         return sequences
-
+    
     def validate_arguments(self, parser):
         args = parser.parse_args()
         nice_arguments = True

@@ -14,6 +14,12 @@ from diamond import DIAMOND
 from progressbar import ProgressBar
 import os
 import pandas as pd
+import numpy as np
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+import matplotlib.cm as cm
+
 
 mtools = MoscaTools()
 
@@ -267,11 +273,15 @@ class Binner:
             contigs_clusters = self.cluster_coords(contigs, coords, eps = eps / safety_multiplier)
             contigs_used = round(sum(contigs_clusters.cluster != -1) / len(contigs_clusters) * 100, 2)
             major_taxon_abundances = self.estimate_mistake(contigs_clusters, blast, uniprotinfo)
-            n_clusters, major_taxa_abundance_metrics = self.calculate_clustering_metrics(major_taxon_abundances, str(eps / safety_multiplier))
+            n_clusters, major_taxa_abundance_metrics = self.calculate_clustering_metrics(
+                    major_taxon_abundances, str(eps / safety_multiplier))
             ns_clusters.append([eps / safety_multiplier, n_clusters, contigs_used])
-            all_major_taxa_abundance_metrics = pd.concat([all_major_taxa_abundance_metrics, major_taxa_abundance_metrics])
-            if contigs_used > 50 and float(major_taxa_abundance_metrics.xs('6.Taxonomic lineage (GENUS)', level = 1)['Score']) > best_score:
-                best_score = float(major_taxa_abundance_metrics.xs('6.Taxonomic lineage (GENUS)', level = 1)['Score'])
+            all_major_taxa_abundance_metrics = pd.concat([all_major_taxa_abundance_metrics, 
+                                                          major_taxa_abundance_metrics])
+            if contigs_used > 50 and float(major_taxa_abundance_metrics.xs(
+                    '6.Taxonomic lineage (GENUS)', level = 1)['Score']) > best_score:
+                best_score = float(major_taxa_abundance_metrics.xs(
+                        '6.Taxonomic lineage (GENUS)', level = 1)['Score'])
                 best_eps = eps
                 best_major_taxon_abundances = major_taxon_abundances
                 best_clusters = contigs_clusters
@@ -284,32 +294,125 @@ class Binner:
             print('Best clusters are outputed to ' + best_clusters_output)
             writer = pd.ExcelWriter(output + '/binning_results.xlsx', engine='xlsxwriter')
             best_major_taxon_abundances.index.names = ['Eps','Taxa level']
-            best_major_taxon_abundances = best_major_taxon_abundances.sort_index(level = 0, sort_remaining = True)
+            best_major_taxon_abundances = best_major_taxon_abundances.sort_index(
+                    level = 0, sort_remaining = True)
             best_major_taxon_abundances.columns = ['Taxa', 'Relative abundance']
-            best_major_taxon_abundances.to_excel(writer, sheet_name = 'Abundances for eps ' + str(best_eps / safety_multiplier))
+            best_major_taxon_abundances.to_excel(writer, sheet_name = 'Abundances for eps ' 
+                                                 + str(best_eps / safety_multiplier))
             all_major_taxa_abundance_metrics.index.names = ['Eps','Taxa level']
-            all_major_taxa_abundance_metrics = all_major_taxa_abundance_metrics.sort_index(level = 0, sort_remaining = True)
+            all_major_taxa_abundance_metrics = all_major_taxa_abundance_metrics.sort_index(
+                    level = 0, sort_remaining = True)
             all_major_taxa_abundance_metrics.to_excel(writer, sheet_name = 'Validation metrics')
             ns_clusters.to_excel(writer, sheet_name = 'Cluster metrics', index = False)
             writer.save()
             print('Taxonomic results of best binning are available, along with binning validation metrics, at ' + output)
         else:
-            print('No clustering used at least 50% of contigs. Results are not available.')
+            print('No clustering used at least 50% of contigs. Binning could not be performed.')
+    
+    '''
+    Input: 
+        clusters: name of the TSV file outputed by Binner.calculate_epsilon,
+        associating a cluster to each contig
+        blast: name of BLAST annotation file
+        uniprotinfo: name of TSV file with UniProt information
+        output: 
+        taxa_level: the taxa_level to be described
+        deepness: how many different taxa to report for each cluster
+    Output:
+        A TSV file named output will describe the main taxon (number of taxon
+        is deepness value) and corresponding percentage of abundance in each cluster.
+        Cluster    most abundance genus    % abundance of most abundance genus  2nd most ...
+    '''
+    def describe_taxa_level(self, clusters, blast, uniprotinfo, output, 
+                            taxa_level = 'genus', deepness = 5):
+        clusters = pd.read_csv(clusters, sep = '\t')
+        column = 'Taxonomic lineage (' + taxa_level.upper() + ')'
+        blast = mtools.parse_blast(blast)
+        print('Organizing blast information.')
+        pbar = ProgressBar()
+        blast_part = pd.DataFrame([['_'.join(blast.iloc[i]['qseqid'].split('_')[:6]), 
+                      float(blast.iloc[i]['qseqid'].split('_')[5]),
+                      blast.iloc[i]['sseqid'].split('|')[1] if blast.iloc[i]['sseqid'] != '*'
+                      else blast.iloc[i]['sseqid']] for i in pbar(range(len(blast)))])
+        blast_part.columns = ['contig','coverage','Entry']
+        joined = pd.merge(clusters, blast_part, on='contig')
+        uniprotinfo = pd.read_csv(uniprotinfo, sep = '\t').drop_duplicates()
+        joined = pd.merge(joined, uniprotinfo, on = 'Entry')
+        handler = open(output, 'w')
+        pbar = ProgressBar()
+        for cluster in pbar(list(set(joined['cluster']))):
+            joined_partial = joined[joined['cluster'] == cluster]
+            joined_partial = joined_partial.groupby(['cluster', column])['coverage'].sum().reset_index()
+            joined_partial = joined_partial.sort_values('coverage', ascending = False)
+            joined_partial['coverage'] /= joined_partial['coverage'].sum()
+            handler.write(str(cluster) + '\t' + '\t'.join([joined_partial.iloc[i][column] + '\t' + 
+            str(joined_partial.iloc[i]['coverage']) for i in range(len(joined_partial))]) + '\n')
+        handler.close()
+        
+    '''
+    Input: 
+        data: EXCEL file outputed by Binning.calculate_epsilon
+        taxa_level: The taxa level to be described - superkingdom, phylum, class, 
+        order, family, genus or species
+        best_clusters: TSV file with best clusters outputed by Binning.calculate_epsilon
+        points: TXT file outputed by VizBin with contigs coordinates after binning
+        output: name of plot file to output, should terminate in .png
+    Output:
+        
+    '''
+    def plot_clusters(self, data, taxa_level, best_clusters, points, output, 
+                      label = True, subtitle_size = 20):
+        points = pd.read_csv(points, header = None)
+        points.columns = ['lat','lon']
+        best_clusters = pd.read_csv(best_clusters, sep = '\t')
+        points = pd.concat([points, best_clusters], axis = 1)
+        numeration = {'superkingdom':'1', 'phylum':'2', 'class':'3', 'order':'4',
+                      'family':'5', 'genus':'6', 'species':'7'}
+        column = numeration[taxa_level] + '.Taxonomic lineage (' + taxa_level.upper() + ')'
+        data = pd.read_excel(data, index_col = [0,1])
+        partial = data.xs(column, level = 1)
+        points = pd.merge(points, partial, left_on = 'cluster', right_index = True)
+        points = points[['lat','lon','Taxa']]
+        points = points.fillna(value = 'Not identified')
+        
+        taxa = list(set(points['Taxa']))
+        colors = iter(cm.rainbow(np.linspace(0, 1, len(taxa))))
+        plt.gcf().clear()
+        for i in range(len(taxa)):
+            partial_points = points[points['Taxa'] == taxa[i]]
+            plt.scatter(partial_points['lat'], partial_points['lon'], 0.1,
+                        color = next(colors), label = taxa[i], marker = 'o')
+        if label: 
+            label = plt.legend(loc='best')
+            for i in range(len(taxa)):
+                label.legendHandles[i]._sizes = [subtitle_size]
+        plt.savefig(output, bbox_inches='tight')
         
     def run(self):
-        #self.run_vizbin_binning(self.contigs, self.output)
+        self.run_vizbin_binning(self.contigs, self.output)
         self.calculate_epsilon(self.contigs, self.output + '/points.txt', 
                                self.blast, self.uniprotinfo, self.output)
         
 if __name__ == '__main__':
     
     binner = Binner(contigs = 'Binning/all_info_contigs.fasta', 
-                     output = 'Binning/VizBin/all_info',
-                     blast = 'Binning/all_info_aligned.blast',
-                     uniprotinfo = 'MOSCAfinal/Annotation/uniprot.info')
+                    output = 'SimulatedMGMT/Binning/genus_taxa_description.tsv',
+                    blast = 'SimulatedMGMT/Annotation/aligned.blast',
+                    uniprotinfo = 'SimulatedMGMT/Annotation/uniprot.info')
     
-    binner.run()
-
+    taxa_list = ['superkingdom','phylum','class','order','family','genus','species']
+    
+    pbar = ProgressBar()
+    
+    for taxon in pbar(taxa_list):
+        binner.plot_clusters('SimulatedMGMT/Binning/grinder-reads/binning_results.xlsx',
+                             taxon, 'SimulatedMGMT/Binning/grinder-reads/best_clusters.tsv',
+                             'SimulatedMGMT/Binning/grinder-reads/points.txt',
+                             'SimulatedMGMT/Binning/grinder-reads/' + taxon + '.png',
+                             label = True)
+    
+    
+    
     '''
     clusters = binner.cluster_coords('Binning/VizBin/' + sample + '/over_cutoff_contigs.fasta',
                           'Binning/VizBin/' + sample + '/points.txt')

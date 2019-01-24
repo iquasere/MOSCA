@@ -1,7 +1,7 @@
 #-----------FastQC-----------
 install https://sourceforge.net/projects/xming/?source=typ_redirect
 export DISPLAY=:0
-sudo apt-get install -y fastqc
+sudo apt-get install fastqc
 wget https://launchpad.net/ubuntu/+archive/primary/+files/fastqc_0.11.5+dfsg-3_all.deb
 sudo dpkg -i fastqc_0.11.5+dfsg-3_all.deb
 sudo apt-get install -f
@@ -16,12 +16,13 @@ export PATH=~/anaconda3/bin:$PATH
 
 #-----------SortMeRNA-----------
 conda install -c biocore sortmerna
-sudo apt-get install -y seqtk
+sudo apt-get install seqtk
 
 #-----------Trimmomatic-----------
 conda install -c faircloth-lab trimmomatic
+PATH=$PATH:/home/sequeira/anaconda3/jar
 
-sudo apt-get install -y subversion #----> for downloading trimmomatic adapter files
+sudo apt-get install subversion ----> for downloading trimmomatic adapter files
 
 #-----------SPAdes-----------
 wget http://spades.bioinf.spbau.ru/release3.9.0/SPAdes-3.9.0.tar.gz
@@ -33,7 +34,7 @@ cd ..
 #-----------MEGAHIT-----------
 sudo apt install aptitude
 sudo aptitude install build-essential
-sudo apt-get install -y zlib1g-dev
+sudo apt-get install zlib1g-dev
 git clone https://github.com/voutcn/megahit.git
 cd megahit
 make
@@ -55,25 +56,19 @@ cd ..
 #-----------DIAMOND-----------
 wget http://github.com/bbuchfink/diamond/releases/download/v0.9.9/diamond-linux64.tar.gz
 tar xzf diamond-linux64.tar.gz
-sudo apt-get install -y python-configobj
+sudo apt-get install python-configobj
 
 #-----------UNIPROT-----------
 cd Databases
 wget ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_trembl.fasta.gz
 wget ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_sprot.fasta.gz
-gunzip *
-cat *.fasta > uniprot.fasta
+cat uniprot_trembl.fasta.gz uniprot_sprot.fasta.gz > uniprot.fasta.gz
+rm uniprot_trembl.fasta.gz uniprot_sprot.fasta.gz
+gunzip uniprot.fasta.gz
 cd ..
-
-#-----------VizBin-----------
-git clone -b devel https://github.com/claczny/VizBin.git
 
 #-----------Python packages-----------
 pip install progressbar33
-conda install -c conda-forge biopython
-conda install numpy
 
-#-----------R packages-----------
-echo -e 'if (!requireNamespace("BiocManager", quietly = TRUE))\n\tinstall.packages("BiocManager")\nBiocManager::install("DESeq2", version = "3.8")' > check_deseq.r
-Rscript check_deseq.r
-
+import numpy as np
+import subprocess
