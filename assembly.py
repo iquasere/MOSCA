@@ -93,15 +93,7 @@ class Assembler:
             bashCommand = self.megahit_command()
         mtools.run_command(bashCommand)
         
-    def bowtie2(self, reads, contigs, temp, sam, log):
-        bashCommand = 'bowtie2-build ' + contigs + ' ' + temp
-        mtools.run_command(bashCommand)
-        bashCommand = 'bowtie2 -a -x ' + temp + ' -q -1 ' + reads[0] + ' -2 ' + reads[1]
-        bashCommand = bashCommand.rstrip(',') + ' -p 6 1> ' + sam + ' 2> ' + log
-        mtools.run_command(bashCommand)
-        return self.parse_bowtie2(log)
-        
-    def parse_bowtie2(self, file):
+    def parse_bowtie2log(self, file):
         handler = open(file)
         lines = handler.readlines()
         return lines[-1].split('%')[0]
@@ -111,49 +103,28 @@ class Assembler:
         mtools.run_command(bashCommand)
      
     def quality_control(self):
-        terminations = {'megahit':'/final.contigs.fa', 'metaspades':'/contigs.fasta'}
         out_dir = self.out_dir + '/Assembly/' + self.name
-        contigs = out_dir + terminations[self.assembler]
+        contigs = out_dir + '/contigs.fasta'
         self.metaquast(contigs, out_dir + '/quality_control')
-        percentage_of_reads = self.bowtie2([self.forward,self.reverse], contigs, 
+        mtools.perform_alignment(contigs, [self.forward, self.reverse], 
+                                 out_dir + '/quality_control/alignment', threads = 6)
+        percentage_of_reads = self.parse_bowtie2log(out_dir + '/quality_control/alignment.loj')
+        
+        self.bowtie2([self.forward,self.reverse], contigs, 
                                            out_dir + '/quality_control', 
                                            out_dir + '/quality_control/library.sam', 
                                            out_dir + '/quality_control/bowtie.log')
         
-        if os.path.isfile(out_dir + '/quality_control/combined_reference/report.tsv'):
+        if os.path.isfile(out_dir + '/quality_control/combined_reference/report.tsv'):  #if metaquast finds references to the contigs, it will output results to different folders
             os.rename(out_dir + '/quality_control/combined_reference/report.tsv', 
                       out_dir + '/quality_control/report.tsv')
         
         handler = open(out_dir + '/quality_control/report.tsv', 'a')
-        handler.write('Reads aligned (%)\t' + percentage_of_reads + '\n')
-        
-    def make_contigs_gff(self, file):
-        pass
+        handler.write('\nReads aligned (%)\t' + percentage_of_reads + '\n')
         
     def run(self):
         self.run_assembler()
-        self.quality_control()
-        '''
-        if self.assembler == 'metaghit':
-            os.rename(self.out_dir + '/Assembly/' + self.name + '/final.contigs.fa',
+        if self.assembler == 'megahit':                                         # all contigs files are outputed the metaspades way
+            os.rename(self.out_dir + '/Assembly/' + self.name + '/final.contigs.fa', 
                       self.out_dir + '/Assembly/' + self.name + '/contigs.fasta')
-            self.make_contigs_gff(self.out_dir + '/Assembly/' + self.name + '/contigs.fasta',
-                                  self.out_dir + '/Assembly/' + self.name + '/contigs.gff')
-            mtools.run_command('htseq-count ' + self.out_dir + '/Assembly/' + self.name + 
-                               '/quality_control/library.sam ' + ,
-                               self.out_dir + '/Assembly/' + self.name + '/contigs.readcounts')
-        '''
-
-if __name__ == '__main__':
-    
-    for name in ['EST6_S1_L001','OLDES6_S4_L001']:
-    
-        assembler = Assembler(out_dir = 'MGMP',
-                              assembler = 'metaspades',
-                              forward = 'MGMP/Preprocess/Trimmomatic/quality_trimmed_' + name + '_forward_paired.fq',
-                              reverse = 'MGMP/Preprocess/Trimmomatic/quality_trimmed_' + name + '_reverse_paired.fq',
-                              name = name)
-        
-        assembler.run()
-    
-    
+        self.quality_control()

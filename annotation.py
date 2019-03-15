@@ -8,15 +8,14 @@ By João Sequeira
 Jun 2017
 """
 
-from diamond import DIAMOND
-from mosca_tools import MoscaTools
+from MOSCA.diamond import DIAMOND
+from MOSCA.mosca_tools import MoscaTools
 from progressbar import ProgressBar
 from io import StringIO
+from tqdm import tqdm
 import pandas as pd
 import numpy as np
-import time, os, shutil
-from tqdm import tqdm
-import glob
+import time, os, shutil, glob
 
 mtools = MoscaTools()
 
@@ -25,19 +24,26 @@ class Annotater:
     def __init__ (self, **kwargs):
         self.__dict__ = kwargs
         
-    def gene_calling(self):
-        bashCommand = 'perl ' + os.path.expanduser('~/FGS/run_FragGeneScan.pl') + ' -genome='
-        if self.assembled == True:
-            fgs_dict = {'megahit':'final.contigs.fa','metaspades':'contigs.fasta'}
-            bashCommand += self.out_dir + '/Assembly/' + self.name + '/' + fgs_dict[self.assembler]
-            bashCommand += ' -out=' + self.out_dir + '/Annotation/' + self.name + '/fgs -complete=1 -train=./complete'
+    '''
+    Input:
+        file: name of input file to perform gene calling on
+        output: basename of output files
+        assembled: True if input is contigs, False if it are reads
+        error_model: quality model to consider when input are reads
+    Output:
+        FragGeneScan output files will be produced with basename 'output + /fgs'
+        If input is FASTQ reads (if assembled == False) a FASTA version will
+        be produced in the same folder with the same name as the FASTQ file
+        (but with .fasta instead of .fastq)
+    '''
+    def gene_calling(self, file, output, assembled = True, error_model = 'illumina_10'):
+        bashCommand = 'fraggenescan -genome='
+        if assembled:
+            bashCommand += file + ' -out=' + output + '/fgs -complete=1 -train=./complete'
         else:
-            fastq2fasta_command = ("paste - - - - < " + self.out_dir + "/Preprocess/SortMeRNA/rejected.fastq.fastq"
-                                   + "| cut -f 1,2 | sed 's/^@/>/' | tr \"\t" "\n\" > " + self.out_dir + 
-                                   "/Preprocess/SortMeRNA/rejected.fasta")
-            mtools.run_command(fastq2fasta_command)
-            bashCommand += (self.out_dir + '/Preprocess/SortMeRNA/rejected.fasta -out=' + self.out_dir + 
-            '/Annotation/' + self.name + '/fgs -complete=0 -train=./' + self.error_model)
+            mtools.fastq2fasta(file, file.replace('fastq', 'fasta'))            # fraggenescan only accepts FASTA input
+            bashCommand += (file.replace('fastq', 'fasta') + ' -out=' + output +
+                            '/fgs -complete=0 -train=./' + error_model)
         mtools.run_command(bashCommand)
     
     def annotation(self):
@@ -49,9 +55,18 @@ class Annotater:
                           unal = '1',
                           max_target_seqs = '1')
         
-        if not os.path.isfile(self.db):
-            diamond.set_database(self.db, self.out_dir + '../Databases/DIAMOND')
+        if self.db[-6:] == '.fasta':
+            print('FASTA database was inputed')
+            if not os.path.isfile(self.db.replace('fasta','dmnd')):
+                print('DMND database not found. Generating a new one')
+                diamond.set_database(self.db, self.db.replace('fasta','dmnd'))
+            else:
+                print('DMND database was found. Using it')
+        elif self.db[-5:] != '.dmnd':
+            print('Database must either be a FASTA (.fasta) or a DMND (.dmnd) file')
             
+        diamond.db = self.db.split('.dmnd')[0] if '.dmnd' in self.db else self.db.split('.fasta')[0]
+        
         diamond.run()
     
     def uniprot_request(self, ids, original_database = 'ACC+ID', database_destination = '',
@@ -182,7 +197,9 @@ class Annotater:
                 i += 1
             except:
                 continue
-        result.to_csv(output, sep = '\t')
+            
+        result.to_csv(output, sep = '\t', index = False)
+        
         if i < max_iter:
             print('Results for all IDs are available at ' + output)
         else:
@@ -369,8 +386,9 @@ class Annotater:
         name of output file
     Output: annotated file with CDD IDs
     '''
-    def run_rpsblast(self, fasta, output, cog):
-        mtools.run_command('rpsblast -i ' + fasta + ' -d ' + cog + ' -o ' + output + ' -m 8')
+    def run_rpsblast(self, fasta, output, cog, threads = 6):
+        mtools.run_command('rpsblast -i ' + fasta + ' -d ' + cog + ' -o ' + 
+                           output + ' -m 8 -a ' + str(threads))
         
     '''
     Input: 
@@ -384,7 +402,7 @@ class Annotater:
     '''
     def annotate_cogs(self, blast, output, cddid, fun, whog, cdd2cog_executable):
         mtools.run_command('perl ' + cdd2cog_executable + ' -r ' + blast + ' -c ' + cddid + ' -f ' + fun + ' -w ' + whog)
-        shutil.move('results', output + '/results')
+        os.rename('results', output + '/results')
         
     '''
     Input: the output from cdd2go, a blast file with CDD and COG annotations (cogblast)
@@ -394,6 +412,7 @@ class Annotater:
     '''      
     def organize_cdd_blast(self, cogblast, fun = 'DomainIdentification/fun.txt'):
         cogblast = self.parse_cogblast(cogblast)
+        cogblast = cogblast[cogblast['functional categories'].notnull()]
         cog_relation = self.parse_fun(fun)
         data = [cog_relation[functional_category] for functional_category in cogblast['functional categories']]
         result = pd.DataFrame(data)
@@ -459,8 +478,9 @@ class Annotater:
     def join_reports(self, blast, uniprotinfo, cog_blast, fun, split_pathways = False):
         result = mtools.parse_blast(blast)
         result.index = result.qseqid
-        result['Entry'] = [ide.split('|')[1] if ide != '*' else ide for ide in result.sseqid]
-        uniprotinfo = pd.read_csv(uniprotinfo, sep= '\t').drop_duplicates()
+        result = result[result.sseqid != '*']
+        result['Entry'] = [ide.split('|')[1] for ide in result.sseqid]
+        uniprotinfo = pd.read_csv(uniprotinfo, sep= '\t', low_memory=False).drop_duplicates()
         if split_pathways == True:                                              # TODO - the reorganization of pathways incurs in extra lines for same IDs. Find workaround
             print('Reorganizing pathways information.')
             funcdf = uniprotinfo[uniprotinfo.Pathway.notnull()][['Entry','Pathway']]
@@ -475,10 +495,9 @@ class Annotater:
         result = pd.merge(result, uniprotinfo, on = ['Entry'], how = 'outer')
         cog_blast = self.organize_cdd_blast(cog_blast, fun)
         result = pd.merge(result, cog_blast, on = ['qseqid'], how = 'outer')
-        tqdm.pandas()
         print('Defining best consensus COG for each UniProt ID.')
         cogs_df = pd.DataFrame()
-        
+        tqdm.pandas()        
         cogs_df['cog'] = result.groupby('Entry')['cog'].progress_apply(lambda x:
             x.value_counts().index[0] if len(x.value_counts().index) > 0 else np.nan)
         cogs_relation = result[['COG general functional category','COG functional category',
@@ -486,57 +505,32 @@ class Annotater:
         cogs_df['Entry'] = cogs_df.index
         cogs_relation = cogs_relation.drop_duplicates()
         cogs_df = cogs_df[cogs_df['cog'].notnull()]
-        cogs_df = pd.merge(cogs_df, cogs_relation, on = 'cog', how = 'inner') 
+        cogs_df = pd.merge(cogs_df, cogs_relation, on = 'cog', how = 'inner')
+        result.drop(['COG general functional category', 'COG functional category',
+              'COG protein description', 'cog'], axis=1, inplace=True)
+        result = pd.merge(result, cogs_df, on = 'Entry', how = 'outer')
         result = result[['Entry','Taxonomic lineage (SUPERKINGDOM)',
-                        'Taxonomic lineage (PHYLUM)','Taxonomic lineage (CLASS)',
-                        'Taxonomic lineage (ORDER)','Taxonomic lineage (FAMILY)',
-                        'Taxonomic lineage (GENUS)','Taxonomic lineage (SPECIES)',
-                        'Pathway','Protein names','EC number','Cross-reference (KEGG)']]
-        result = pd.merge(result, cogs_df, on = 'Entry')
+              'Taxonomic lineage (PHYLUM)','Taxonomic lineage (CLASS)',
+              'Taxonomic lineage (ORDER)','Taxonomic lineage (FAMILY)',
+              'Taxonomic lineage (GENUS)','Taxonomic lineage (SPECIES)',
+              'EC number', 'Ensembl transcript','Function [CC]', 'Gene names',
+              'Gene ontology (GO)', 'Keywords','Pathway', 'Protein existence', 
+              'Protein families', 'Protein names','Cross-reference (BRENDA)', 
+              'Cross-reference (BioCyc)','Cross-reference (CDD)', 
+              'Cross-reference (InterPro)','Cross-reference (KEGG)', 
+              'Cross-reference (KO)','Cross-reference (Pfam)', 
+              'Cross-reference (Reactome)','Cross-reference (RefSeq)', 
+              'Cross-reference (UniPathway)','Cross-reference (eggNOG)',
+              'COG general functional category', 'COG functional category',
+              'COG protein description','cog']]
         result.columns = ['Protein ID'] + result.columns.tolist()[1:]
         result = result.drop_duplicates()
         return result
     
-    '''
-    Input: 
-        relation: pandas.DataFrame from Annotater.join_reports
-        file: name of file from where to extract information (htseq-count or 
-        blast output)
-        blast: boolean, if file inputed is a blast output (True) or expression
-        column (False)
-        file_has_tail: boolean, if file is htseq-count expression matrix with
-        those last 5 lines of general information
-        file_has_last_ids: boolean, if file still uses the third portion of
-        UniProt IDs (tr|2nd|3rd)
-    Output: 
-        pandas.DataFrame with abundance and expression information
-    '''
-    def define_abundance(self, relation, file, blast = True, file_has_tail = True,
-                         file_has_last_ids = False):
-        name = file.split('/')[-2]                                              # name is supposed to be the folder name containing the file
-        if blast:
-            blast = mtools.parse_blast(file)
-            blast[name] = [float(ide.split('_')[5]) for ide in blast.qseqid]
-            blast['Protein ID'] = [ide.split('|')[1] if ide != '*' else ide for ide in blast.sseqid]
-            blast = blast.groupby('Protein ID')[name].sum().reset_index()[['Protein ID', name]]
-            result = pd.merge(relation, blast, on = 'Protein ID', how = 'outer')
-        else:
-            expressiondf = pd.read_csv(file, sep = '\t')                   
-            if file_has_tail: expressiondf = expressiondf[:-5]                  # remove those last resume lines
-            expressiondf['Protein ID'] = [ide.split('_')[0] if file_has_last_ids 
-                        else ide for ide in expressiondf[0]]
-            expressiondf.columns = ['geneid', name, 'Protein ID']
-            del expressiondf.geneid
-            result = pd.merge(result, expressiondf, on = 'Protein ID')
-        result[name] = result[name].fillna(value = 0)
-        return result
-        
     def run(self):
-        self.gene_calling()
+        self.gene_calling(self.input, self.out_dir + '/Annotation/' + self.mg_name,
+                          self.assembled)
         self.annotation()
-        blast = DIAMOND(out = self.out_dir + '/Annotation/' + self.name + '/aligned.blast').parse_result()
-        ids = list(set([ide.split('|')[1] for ide in blast['sseqid'][blast.sseqid != '*']]))
-        return ids
     
     '''
     Input: 
@@ -551,8 +545,10 @@ class Annotater:
     '''
     def cog_annotation(self, faa, output, cog, cddid, whog, fun):
         self.run_rpsblast(faa, output + '/cdd_aligned.blast', 'DomainIdentification/Cog')
-        if os.path.isdir(output + '/results'):                              # the cdd2cog tool does not overwrite, and fails if results directory already exists
-            shutil.rmtree(output + '/results', ignore_errors=True)          # is not necessary when running the tool once, but better safe then sorry!
+        if os.path.isdir(os.getcwd() + '/results'):                              # the cdd2cog tool does not overwrite, and fails if results directory already exists
+            print('Eliminating ' + os.getcwd() + '/results')
+            shutil.rmtree(os.getcwd() + '/results', ignore_errors=True)          # is not necessary when running the tool once, but better safe then sorry!
+        
         self.annotate_cogs(output + '/cdd_aligned.blast', output,        
                            cddid, fun, whog, 'DomainIdentification/cdd2cog.pl')
         self.write_cogblast(output + '/results/rps-blast_cog.txt', output + '/cogs.xlsx')
@@ -581,7 +577,6 @@ class Annotater:
                                            self.out_dir + '/Annotation/uniprot.info')
         
         # Functional annotation with COG database
-        
         self.cog_annotation(self.out_dir + '/Annotation/fgs.faa', 
                             self.out_dir + '/Annotation', self.cog, 
                             self.cddid, self.whog, self.fun)
@@ -594,49 +589,37 @@ class Annotater:
         
         blast_files = glob.glob(self.out_dir + '/Annotation/*/aligned.blast')
         for file in blast_files:
-            joined = self.define_abundance(joined, file)
-        joined.to_excel(self.out_dir + '/joined_information.xlsx', index=False) # it is written either or not it is used posteriorly
+            mg_name = file.split('/')[-2]
+            joined = mtools.define_abundance(joined, 
+                            readcounts = self.out_dir + '/Assembly/' + mg_name + 
+                            '/quality_control/alignment.readcounts', blast = file)
+        if os.path.isfile(self.out_dir + '/joined_information.xlsx'):
+            os.remove(self.out_dir + '/joined_information.xlsx')
+        joined.to_excel(self.out_dir + '/joined_information.xlsx', index=False) # it is written either or not it is used posteriously
         print('joined was written to ' + self.out_dir + '/joined_information.xlsx')
         return joined
-    
-if __name__ == '__main__':
-    
-    annotater = Annotater()
-    #annotater.recursive_uniprot_information('MOSCAfinal/Annotation/aligned.blast', 'MOSCAfinal/Annotation/uniprot.info')
-    
-    #writer = pd.ExcelWriter('MOSCAfinal/Annotation/all_info.xlsx', engine='xlsxwriter')
-    
-    annotater = Annotater(out_dir = 'SimulatedMGMT',
-                      fun = 'DomainIdentification/fun.txt',
-                      cog = 'Databases/COG/Cog',
-                      cddid = 'Databases/COG/cddid.tbl',
-                      whog = 'Databases/COG/whog',
-                      cdd2cog_executable = 'DomainIdentification/cdd2cog.pl')
 
-    #annotater.global_information()
+    '''
+    UniProt regularly updates its databases. As we are working with MG here, many
+    identifications will sometimes pertain to ORFs or pseudogenes that have been 
+    wrongly predicted to code for proteins. It may also happen that the original
+    authors decided to withdraw their published sequences.
+    Input:
+        uniprotinfo: name of UniProt info file
+    Output:
+        Rows in UniProt info file that lack a species identification will be 
+        updated to include that new information
+    '''
+    def info_from_no_species(self, uniprotinfo):
+        uniprotinfo = pd.read_csv(uniprotinfo, sep = '\t')
+        missing_uniprotinfo = uniprotinfo[uniprotinfo['Taxonomic lineage (SPECIES)'].isnull()]
+        ids = list(set([ide for ide in missing_uniprotinfo['Entry']]))
+        new_uniprotinfo = self.get_uniprot_information(ids)
+        print(missing_uniprotinfo)
+        for entry in new_uniprotinfo['Entry']:
+            missing_uniprotinfo[missing_uniprotinfo['Entry'] == entry] = new_uniprotinfo[new_uniprotinfo['Entry'] == entry]
+        print(missing_uniprotinfo)
+        print(new_uniprotinfo)
+        print(new_uniprotinfo[new_uniprotinfo['Taxonomic lineage (SPECIES)'].notnull()]['Taxonomic lineage (SPECIES)'])
+        new_uniprotinfo.to_csv('test.tsv', sep = '\t', index = False)
     
-    for output in ['MGMP']:
-        Annotater(fun = 'DomainIdentification/fun.txt',
-                  cog = 'Databases/COG/Cog',
-                  cddid = 'Databases/COG/cddid.tbl',
-                  whog = 'Databases/COG/whog',
-                  cdd2cog_executable = 'DomainIdentification/cdd2cog.pl',
-                  out_dir = output).global_information()
-    
-    '''
-    annotater.recursive_uniprot_information('MOSCAfinal/Annotation/aligned.blast',
-                                            'MOSCAfinal/Annotation/uniprot1.info')
-    '''
-    '''
-    if len(report) > 1048576:
-        i = 0
-        k = 0
-        while i + 1048576 < len(report):
-            j = i + 1048576
-            report.iloc[i:j].to_excel(writer, sheet_name = sample + '_' + str(k), index = False)
-            i += 1048576
-            k += 1
-        report.iloc[i:].to_excel(writer, sheet_name = sample + '_' + str(k), index = False)
-    else:
-        report.to_excel(writer, sheet_name = sample, index = False)
-    '''

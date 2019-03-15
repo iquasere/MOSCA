@@ -14,6 +14,143 @@ import subprocess, glob, re, os, sys
 
 class MoscaTools:
     
+    '''
+    Input: 
+        relation: pandas.DataFrame from Annotater.join_reports
+        origin_of_data: 'metagenomics', 'metatranscriptomics', 'compomics'
+        name: name of column to add to relation
+        readcounts: readcounts file from quantification with htseq-count
+        blast: blast annotation file
+        readcounts_has_tail: boolean, if file is htseq-count expression matrix with
+        those last 5 lines of general information
+        readcounts_has_last_ids: boolean, if file still uses the third portion of
+        UniProt IDs (tr|2nd|3rd). I used to use those, I'm sorry
+    Output: 
+        'relation' df will receive additional column with abundance/expression information
+    '''
+    def define_abundance(self, relation, origin_of_data = 'metagenomics', name = None,
+                         readcounts = None, blast = None, readcounts_has_tail = True, 
+                         readcounts_has_last_ids = False):
+        if name is None and not (readcounts is None and blast is None): 
+            name = blast.split('/')[-2] if readcounts is None else readcounts.split('/')[-2]    # name is assumed to be the same as the folder containing the file
+        else:
+            print('Must give an input readcounts or blast!')
+            return
+        print('Adding info on sample ' + name)
+        if readcounts is not None:                                              # necessary for 'metagenomics' and 'metatranscriptomics' (probably will be for all in the future)
+            readcounts = pd.read_csv(readcounts, sep = '\t', header = None)  
+            if readcounts_has_tail: readcounts = readcounts[:-5]                  # remove those last resume lines from htseq-count
+            readcounts['Protein ID'] = ([ide.split('_')[0] for ide in readcounts[0]] 
+                        if readcounts_has_last_ids else readcounts[0])
+            readcounts.columns = ['geneid', name, 'Protein ID']
+            del readcounts['geneid']
+        if origin_of_data == 'metagenomics':
+            blast = mtools.parse_blast(blast)
+            blast['contig'] = [ide.split('_')[:-3] for ide in blast.qseqid]
+            blast['Protein ID'] = [ide.split('|')[1] if ide != '*' else ide for ide in blast.sseqid]
+            blast = blast.groupby('Protein ID')[name].sum().reset_index()[['Protein ID', name]]
+            result = pd.merge(relation, readcounts, on = 'Protein ID', how = 'outer')
+        elif origin_of_data == 'metatranscriptomics':
+            result = pd.merge(relation, readcounts, on = 'Protein ID', how = 'outer')
+        elif origin_of_data == 'compomics':
+            pass
+        result[name] = result[name].astype(int).fillna(value = 0)
+        return result
+    
+    '''
+    Input:
+        fastq: FASTQ reads filename to convert to FASTA
+        output: name of FASTA file to produce
+    Output:
+        A FASTA version of the input will be created named 'output'
+    '''
+    def fastq2fasta(self, fastq, output):
+        self.run_command("paste - - - - < " + fastq + "| cut -f 1,2 | sed " + 
+                         "'s/^@/>/' | tr \"\t" "\n\" > " + output)
+    
+    '''
+    Input:
+        joined: name of final EXCEL file outputed by MOSCA
+        columns: name of columns to normalize (don't put them all at once, one
+        normalization at a time!)
+        output: name of file to output
+    Output:
+        A TXT file will be generated with a single column of numbers, each one
+        corresponding to the normalization factor of each sample by order of
+        column in the readcounts file
+    '''
+    def normalize_readcounts(self, joined, columns, output = None):
+        if output is None: output = joined.replace('.xlsx', '_normalized.xlsx')
+        working_dir = '/'.join(joined.split('/')[:-1])
+        info = pd.read_excel(joined)
+        info[columns] = info[columns].fillna(value=0)
+        info[columns].to_csv(working_dir + '/to_normalize.tsv', sep = '\t', index = False)
+        print('Normalizing ' + joined + ' on columns ' + ','.join(columns))
+        self.run_command('Rscript MOSCA/tmm.R --table ' + working_dir + '/to_normalize.tsv --output '
+                         + working_dir + '/normalization_factors.txt')
+        factors = open(working_dir + '/normalization_factors.txt').read().split('\n')[:-1]      # there is always the \n as last element
+        
+        for i in range(len(columns)):
+            info[columns[i] + '_normalized'] = info[columns[i]] * float(factors[i])
+        info.to_excel(output, index = False)
+    
+    def check_bowtie2_index(self, index_prefix):
+        files = glob.glob(index_prefix + '*.bt2')
+        if len(files) < 6:
+            return False
+        return True
+    
+    '''
+    Input:
+        blast: name of BLAST file
+        reference: name of contigs file from assembly
+        reads: list, [forward reads, reverse reads]
+        output: basename of outputs
+        threads: number of threads to use
+    Output:
+        Will generate a bowtie2 index named contigs.replace(.fasta,_index), 
+        GFF annotation file named blast.replace(.blast,.gff)
+        SAM alignment and READCOUNTS files named output + .sam and .readcounts
+    '''
+    def perform_alignment(self, reference, reads, basename, threads = 6, blast = None):
+        if not self.check_bowtie2_index(reference.replace('.fasta', '_index')):
+            print('INDEX files not found. Generating new ones')
+            self.generate_mg_index(reference, reference.replace('.fasta', '_index'))
+        else:
+            print('INDEX was located at ' + reference.replace('.fasta', '_index'))
+        self.align_reads(reads, reference.replace('.fasta', '_index'), basename + '.sam',
+                         basename + '_bowtie2_report.txt', log = basename + '.log', 
+                         threads = threads)
+        if blast is None:
+            if not os.path.isfile(blast.replace('.blast', '.gff')):
+                print('GFF file not found at ' + reference.replace('.fasta','.gff') + 
+                      '. Generating a new one.')
+                self.build_gff_from_contigs(reference, 
+                                            reference.replace('.fasta','.gff'))
+            else:
+                print('GFF file was located at ' + reference.replace('.fasta','.gff'))
+        else:
+            if not os.path.isfile(blast.replace('.blast', '.gff')):
+                print('GFF file not found at ' + blast.replace('.blast', '.gff') + 
+                      '. Generating a new one.')
+                self.build_gff(blast, blast.replace('.blast', '.gff'))
+            else:
+                print('GFF file was located at ' + blast.replace('.blast', '.gff'))
+        self.run_htseq_count(basename + '.sam', reference.replace('.fasta','.gff')
+                            if blast is None else blast.replace('.blast', '.gff'),
+                            basename + '.readcounts')
+    
+    def generate_mg_index(self, reference, index_prefix):
+        self.run_command('bowtie2-build ' + reference + ' ' + index_prefix)
+    
+    def align_reads(self, reads, index_prefix, sam, report, log = None, threads = 6):  
+        self.run_command('bowtie2 -x ' + index_prefix + ' -1 ' + reads[0] + 
+                         ' -2 ' + reads[1] + ' -S ' + sam + ' -p ' + str(threads)
+                         + ' 1> ' + report + ' 2> ' + log)
+
+    def run_htseq_count(self, sam, gff, output, attribute = 'gene_id'):
+        self.run_command('htseq-count -i ' + ' '.join([attribute, sam, gff]), file = output)
+    
     def sort_alphanumeric(self, alphanumeric_list):
         return sorted(alphanumeric_list, key=lambda item: (int(item.partition(' ')[0])
                 if item[0].isdigit() else float('inf'), item))
@@ -38,7 +175,7 @@ class MoscaTools:
                           'evalue', 'bitscore']
         return result
     
-    def build_gff(self, blast, output):
+    def build_gff(self, blast, output, assembler = 'metaspades'):
         gff = pd.DataFrame()
         diamond = self.parse_blast(blast)
         parts = [qid.split('_') for qid in diamond.qseqid]
@@ -65,6 +202,23 @@ class MoscaTools:
         ids = [ide.split('|')[1] if ide != '*' else ide for ide in diamond.sseqid]
         gff["Name"] = diamond.qseqid
         gff["attributes"] = ['gene_id=' + ids[i] + ';Name=' + diamond.iloc[i]['qseqid'] for i in range(size)]
+        del gff["Name"]
+        gff.to_csv(output, sep = '\t', index=False, header=False)
+        
+    def build_gff_from_contigs(self, contigs, output, assembler = None):
+        gff = pd.DataFrame()
+        contigs = self.parse_fasta(contigs)
+        contigs = [[k,v] for k,v in contigs.items()]
+        gff["seqid"] = [contig[0] for contig in contigs]
+        size = len(contigs)
+        gff["source"] = ['.' if assembler is None else assembler] * size
+        gff["type"] = ['contig'] * size
+        gff["start"] = ['1'] * size
+        gff["end"] = [len(contigs[1] for contigs in contigs]
+        gff["score"] = ['.'] * size
+        gff["strand"] = ['.'] * size
+        gff["phase"] = ['.'] * size
+        gff["attributes"] = ['gene_id=' + contig[0] for contig in contigs]
         gff.to_csv(output, sep = '\t', index=False, header=False)
     
     def count_reads(self, file):
@@ -418,3 +572,29 @@ def get_ids_from_ncbi_gff(gff):
         else:
             ids.append(re.split(';|,', attribute.split('Dbxref=Genbank:')[-1])[0])
     return ids
+
+if __name__ == '__main__':
+    
+    mtools = MoscaTools()
+    
+    mtools.normalize_readcounts('MOSCAfinal/joined_information.xlsx',
+                                'MOSCAfinal/joined_information1.xlsx',
+                                ['4478-DNA-S1613-MiSeqKapa','4478-DNA-S1616-MiSeqKapa',
+                                 '4478-DNA-S1618-MiSeqKapa'])
+    
+    '''
+    for file in ['grinder-reads']:                #['OL6_S3_L001','OLDES6_S4_L001','PAL6_S2_L001']: #'EST6_S1_L001',
+        mtools.perform_alignment('SimulatedMGMT/Annotation/' + file + '/aligned.blast',
+                  'SimulatedMGMT/Assembly/' + file + '/contigs.fasta',
+                  ['SimulatedMGMT/Preprocess/Trimmomatic/quality_trimmed_' + file +
+                  '_' + fr + '_paired.fq' for fr in ['forward','reverse']],
+                  'SimulatedMGMT/Assembly/' + file + '/quality_control/' + file)
+    '''
+    mtools.normalize_readcounts('MOSCAfinal/all_info.xlsx',
+                                    'MOSCAfinal/all_info_normalized.xlsx',
+                                    mgfiles)
+    
+    
+    mtools.normalize_readcounts('MOSCAfinal/all_info_normalized.xlsx',
+                                'MOSCAfinal/all_info_normalized.xlsx',
+                                mtfiles)

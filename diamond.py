@@ -10,6 +10,9 @@ July 2017
 import numpy as np
 import subprocess
 import os
+from MOSCA.mosca_tools import MoscaTools
+
+mtools = MoscaTools()
 
 class DIAMOND:
     
@@ -18,10 +21,7 @@ class DIAMOND:
         
     def set_database(self, db, output):
         bashCommand = os.path.expanduser('~/diamond') + ' makedb --in ' + db + ' -d ' + output
-        print(bashCommand)
-        process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
-        output, error = process.communicate()
-        return output, error
+        mtools.run_command(bashCommand)
     
     def set_argument(self, arg):
         if isinstance(self.__dict__[arg], str):

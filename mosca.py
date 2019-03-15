@@ -18,6 +18,8 @@ from time import gmtime, strftime
 
 import argparse, pathlib, os, glob
 
+mosca_dir = os.path.expanduser('~/MOSCA')
+
 mtools = MoscaTools()
 
 parser = argparse.ArgumentParser(description="Multi Omics Software for Community Analysis",
@@ -73,14 +75,14 @@ for directory in directories:
     path = pathlib.Path(directory)
     path.mkdir(parents=True, exist_ok=True)
 
-already_processed = list()
-expression_names = list()
+mg_processed = list()
+expression_analysed = list()
 
 for experiment in experiments:
     pairs = experiment.split(':')
     mg = pairs[0].split(',')
     
-    if len(mg) == 1 and args.type_of_data == 'paired':                           # if data is interleaved paired end, it will be split up
+    if len(mg) == 1 and args.type_of_data == 'paired':                           # if data is interleaved paired end, it will be split up to forward and reverse files
         (forward, reverse) = (args.output + '/Preprocess/' + mg[0].split('/')[-1].split('.fastq')[0]
                                 + fr for fr in ['_R1.fastq','_R2.fastq'])
         print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Splitting reads at ' 
@@ -90,7 +92,7 @@ for experiment in experiments:
             
     mg_name = mg[0].split('/')[-1].split('_R')[0]
     
-    if mg_name not in already_processed:                                        #several MT samples might correspond to the same MG sample
+    if mg_name not in mg_processed:                                             #several MT samples might correspond to the same MG sample
 
         '''    
         Metagenomics Preprocess        
@@ -99,15 +101,18 @@ for experiment in experiments:
             print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Preprocessing ' + 
                   'metagenomic reads')
             preprocesser = Preprocesser(files = mg,
-                                         paired = 'PE',
-                                         working_dir = args.output,
-                                         data = 'dna',
-                                         name = mg_name)
+                                        paired = 'PE' if args.type_of_data == 'paired' else 'SE',
+                                        working_dir = args.output,
+                                        data = 'dna',
+                                        name = mg_name)
             preprocesser.run()
             
             print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Preprocessing ' + 
           'is finished, and resulting reads are available at ' + args.output + 
           '/Preprocess/' + mg_name)
+            
+            mg = [args.output + '/Preprocess/Trimmomatic/quality_trimmed_' + mg_name + 
+                  '_' + fr + '_paired.fq' for fr in ['forward', 'reverse']]
         
         '''
         Assembly
@@ -118,11 +123,13 @@ for experiment in experiments:
             
             print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Assembling reads')
             
+            mid_name = args.output + '/Preprocess/Trimmomatic/quality_trimmed_'
+            
             assembler = Assembler(out_dir = args.output,
                                  assembler = args.assembler,
                                  name = mg_name,
-                                 forward = args.output + '/Preprocess/Trimmomatic/quality_trimmed_' + mg_name + '_forward_paired.fq',
-                                 reverse = args.output + '/Preprocess/Trimmomatic/quality_trimmed_' + mg_name + '_reverse_paired.fq')
+                                 forward = mg[0],
+                                 reverse = mg[1])
             assembler.run()
             
             print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Assembly is ' + 
@@ -132,7 +139,6 @@ for experiment in experiments:
         '''
         Annotation
         '''
-        
         if not args.no_annotation:
             pathlib.Path(args.output + '/Annotation/' + mg_name).mkdir(parents=True, exist_ok=True)
             assembled = False if args.no_assembly else True
@@ -167,30 +173,35 @@ for experiment in experiments:
                   'finished and results are available at ' + args.output + 
                   '/Binning/' + mg_name)
             
-        already_processed.append(mg)
+        mg_processed.append(mg)
         
     if len(pairs) > 1:
         
         if not args.metaproteomic:
+            
             ''''
             Metatranscriptomics Preprocessing
             '''
             
-            
             mt = pairs[1].split(',')
             
-            mt_name = mt[0].split('/')[-1].split('_R')[0]
-            print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ':Handling ' + mt_name + 
-                  ' analysis')
-            
             if len(mt) == 1 and args.type_of_data == 'paired':                           # if data is interleaved paired end, it will be split up
+            
+                mt_name = mt[0].split('/')[-1].split('.fastq')[0]
+                
                 (forward, reverse) = (args.output + '/Preprocess/' + mt[0].split('/')[-1].split('.fastq')[0]
                                         + fr for fr in ['_R1.fastq','_R2.fastq'])
                 print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Splitting ' + 
                       'reads at ' + mt[0] + ' to ' + forward + ' and ' + reverse + '.')
                 mtools.divide_fq(mt[0], forward, reverse)
                 mt = [forward, reverse]
-            
+                
+            else:
+                mt_name = mt[0].split('/')[-1].split('_R')[0]
+                
+            print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ':Handling ' + mt_name + 
+                  ' analysis')
+                
             print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Preprocessing ' + 
                   'metatranscriptomics reads')
             
@@ -209,26 +220,28 @@ for experiment in experiments:
             '''
             Metatranscriptomics Quantification
             '''
-            print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Quantifying gene ' + 
-                  'expression')
+            print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Quantifying gene expression')
             
-            path = pathlib.Path(args.output + '/MetaTranscriptomics/' + mg_name).mkdir(parents=True, exist_ok=True)
-            path = pathlib.Path(args.output + '/MetaTranscriptomics/' + mt_name).mkdir(parents=True, exist_ok=True)
+            path = pathlib.Path(args.output + '/MetaTranscriptomics/' + 
+                                mg_name).mkdir(parents=True, exist_ok=True)
             
             mta = MetaTranscriptomicsAnalyser(out_dir = args.output + '/MetaTranscriptomics',
-                                              contigs = args.output + '/Assembly/' + mg_name + '/contigs.fasta',
-                                              blast = args.output + '/Annotation/' + mg_name + '/aligned.blast',
-                                              reads_folder = args.output + '/Preprocess/Trimmomatic',
-                                              mg = mg_name,
-                                              mt = mt_name,
-                                              assembler = args.assembler)
+                          contigs = args.output + '/Assembly/' + mg_name + '/contigs.fasta',
+                          blast = args.output + '/Annotation/' + mg_name + '/aligned.blast',
+                          reads_folder = args.output + '/Preprocess/Trimmomatic',
+                          mg = mg_name,
+                          mt = mt_name,
+                          assembler = args.assembler)
             mta.readcounts_file()
             
             print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Gene expression ' + 
                   'quantification is finished and results are available at ' + 
                   args.output + '/MetaTranscriptomics/' + mt_name)
             
+            expression_analysed.append(mt_name)
+            
         else:
+            
             '''
             MetaProteomics Analysis
             '''
@@ -260,11 +273,11 @@ Join all information on one report
 print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Integrating all information.')
 
 annotater = Annotater(out_dir = args.output,
-                      fun = 'DomainIdentification/fun.txt',
-                      cog = 'DomainIdentification/Cog',
-                      cddid = 'DomainIdentification/cddid.tbl',
-                      whog = 'DomainIdentification/whog',
-                      cdd2cog_executable = 'cdd2cog.pl')
+                      fun = mosca_dir + '/Databases/COG/fun.txt',
+                      cog = mosca_dir + '/Databases/COG/Cog',
+                      cddid = mosca_dir + '/Databases/COG//cddid.tbl',
+                      whog = mosca_dir + '/Databases/COG/whog',
+                      cdd2cog_executable = mosca_dir + '/cdd2cog.pl')
 
 joined = annotater.global_information()
 
@@ -276,14 +289,31 @@ if len(experiment.split(':')) > 1:
         readcount_files = glob.glob(args.output + '/MetaTranscriptomics/*/*.readcounts')
         
         for file in readcount_files:
-            joined = annotater.define_abundance(joined, file, blast = False)
+            mt_name = readcount_files.split('/')[-2]
+            joined = annotater.define_abundance(joined, origin_of_data = 'metatranscriptomics',
+                                                name = mt_name, readcounts = file)
         
-        mta.merge_readcounts(args.output + '/MetaTranscriptomics', expression_names, 
+        mta.merge_readcounts(readcount_files, expression_analysed, 
                              args.output + '/MetaTranscriptomics/all_experiments.readcounts')
 
         mta.differential_analysis(args.output + '/MetaTranscriptomics/all_experiments.readcounts',
-                                  args.output + '/MetaTranscriptomics/', args.conditions)
+                                  args.conditions, args.output + '/MetaTranscriptomics/')
         
     else:
         # TODO - the metaproteomics workflow
         pass
+    
+samples = mg_processed + expression_analysed
+
+joined[samples].to_csv(args.output + '/readcounts.table',
+      sep = '\t', index = False)
+
+mtools.normalize_readcounts(args.output + '/readcounts.table', 
+                            args.output + '/normalization_factors.txt')
+
+factors = open(args.output + '/normalization_factors.txt').read().split('\n')[:-1]
+
+for i in range(len(samples)):
+    joined[samples[i] + '_normalized'] = joined[samples[i]] * factors[i]
+    
+joined.to_excel(args.output + '/final.xlsx', index = False)

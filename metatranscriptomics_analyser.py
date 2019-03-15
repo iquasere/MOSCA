@@ -11,7 +11,7 @@ Sep 2017
 from mosca_tools import MoscaTools
 import pandas as pd
 import numpy as np
-import glob, os
+import glob
 from annotation import Annotater
 
 mtools = MoscaTools()
@@ -21,46 +21,24 @@ class MetaTranscriptomicsAnalyser:
     def __init__(self, **kwargs):
         self.__dict__ = kwargs
             
-    def generate_mg_index(self, reference, index_prefix):
-        mtools.run_command('bowtie2-build ' + reference + ' ' + index_prefix)
-    
-    def run_alignment(self, reads, index_prefix, sam):  
-        mtools.run_command('bowtie2 -a -x ' + index_prefix + ' -1 ' + reads[0] + ' -2 ' + reads[1] + ' -S ' + sam)
-
-    def run_htseq_count(self, sam, gff, output):
-        mtools.run_command('htseq-count -i Name ' + sam + ' ' + gff, file = output)
-            
     '''
     generates an expression column file
     '''
     def readcounts_file(self):
-        possible_files = glob.glob(self.out_dir + '/' + self.mg + '_index.*.bt2')
-        if len(possible_files) < 6:
-            print('No index was detected at ' + self.out_dir + '/' + self.mg + 
-                  " or it wasn't complete.\nGenerating one from the contigs at " + 
-                  self.contigs)
-            self.generate_mg_index(self.contigs, self.out_dir + '/' + self.mg + '_index')
-        if not os.path.isfile(self.out_dir + '/' + self.mg + '/' + self.mg + '.gff'):
-            mtools.build_gff(self.blast, self.out_dir + '/' + self.mg + '/' + self.mg + '.gff')
-        self.run_alignment([self.reads_folder + '/quality_trimmed_' + self.mt + '_' 
-                            + fr + '_paired.fq' for fr in ['forward','reverse']],
-                           self.out_dir + '/' + self.mg + '_index', 
-                           self.out_dir + '/' + self.mt + '/' + self.mt + '.sam')
-        self.run_htseq_count(self.out_dir + '/' + self.mt + '/' + self.mt + '.sam', 
-                             self.out_dir + '/' + self.mg + '/' + self.mg + '.gff',
-                             self.out_dir + '/' + self.mt + '/' + self.mt + '.readcounts')
-        
+        mtools.perform_alignment(self.contigs, self.reads, self.out_dir + '/' + self.mt, 
+                                 blast = self.blast)
+
     '''
     input: 
-        directory that contains the .readcounts files from htseq-count (readcounts_dir)
-        names of columns of final file / names of samples (header)
+        readcount_files: files from htseq-count with protein expression for each sample
+        header: names of columns of final file / names of samples
+        output: directory to output results
     output: 
         merged expression matrix name (output)
     '''
-    def merge_readcounts(self, readcounts_dir, header, output):
-        files = glob.glob(readcounts_dir + '/*.readcounts')
+    def merge_readcounts(self, readcount_files, header, output):
         expression_matrix = pd.DataFrame()
-        for file in files:
+        for file in readcount_files:
             df = pd.read_csv(file, sep='\t', index_col = 0, header = None)
             df.columns = [file.split('/')[-1].rstrip('.readcounts')]
             expression_matrix = pd.merge(expression_matrix, df, how = 'outer', 
@@ -128,46 +106,10 @@ class MetaTranscriptomicsAnalyser:
         funcdf = funcdf.groupby(funcdf.columns.tolist()[:-1])['Expression'].sum().reset_index()
         funcdf.to_excel(output + '_functional_krona.xlsx', index = False)
         
-    def differential_analysis(self, expression_matrix, output, conditions):
-        conditions = str(conditions)[1:-1].replace("'",'"')
-        print('conditions:',conditions)
-        commands = ['library(DESeq2)','library(pheatmap)',
-                    'total = read.table("' + output + '/all_experiments.readcounts", h=T, row.names=1)',
-                    'condition <- factor(c(' + conditions + '))','total <- total[ rowSums(total) > 1, ]',
-                    'cd=data.frame(c(' + conditions + '))',
-                    'colnames(cd)[1]="condition"','rownames(cd)=colnames(total)',
-                    'dds <- DESeqDataSetFromMatrix(countData = total,colData = cd, design = ~ condition)',
-                    'dds <- DESeq(dds)',
-                    'res <- results(dds)','resOrdered <- res[order(res$padj),]',
-                    'jpeg("' + output + '/ma.jpeg")',
-                    'plotMA(res, main="DESeq2", ylim=c(-2,2))','dev.off()',
-                    'jpeg("' + output + '/counts.jpeg")', 
-                    'plotCounts(dds, gene=which.min(res$padj), intgroup="condition")',
-                    'dev.off()', 'write.csv(as.data.frame(resOrdered), file="' + output + '/condition_treated_results.csv")',
-                    'vsd <- varianceStabilizingTransformation(dds, blind=FALSE)',
-                    'select=rownames(head(resOrdered,20))','vsd.counts = assay(vsd)[select,]',
-                    'df <- as.data.frame(colData(dds)[,c("condition")])',
-                    'jpeg("' + output + '/gene_expression.jpeg")','pheatmap(vsd.counts)',
-                    'dev.off()','sampleDists <- dist(t(assay(vsd)))',
-                    'sampleDistMatrix <- as.matrix(sampleDists)',
-                    'rownames(sampleDistMatrix) <- dds$condition',
-                    'colnames(sampleDistMatrix) <- NULL','library(RColorBrewer)',
-                    'colors <- colorRampPalette( rev(brewer.pal(9, "Blues")) )(255)',
-                    'jpeg("' + output + '/sample_distances.jpeg")',
-                    'pheatmap(sampleDistMatrix, clustering_distance_rows=sampleDists, clustering_distance_cols=sampleDists, col=colors)',
-                    'dev.off()','jpeg("' + output + '/pca.jpeg")',
-                    'plotPCA(vsd, intgroup=c("condition"))','dev.off()']
-        open(output + '/de_analysis.R', 'w').write('\n'.join(commands))
-        mtools.run_command('Rscript ' + output + '/de_analysis.r')
-        
-if __name__ == '__main__':
-    relation = {'4478-R1-1-MiSeqKapa':'4478-DNA-S1613-MiSeqKapa','4478-R2-1-MiSeqKapa':'4478-DNA-S1613-MiSeqKapa',
-                '4478-R3-1-MiSeqKapa':'4478-DNA-S1616-MiSeqKapa','4478-R4-1-MiSeqKapa':'4478-DNA-S1618-MiSeqKapa'}
-    
-    for mt in ['4478-R1-1-MiSeqKapa', '4478-R3-1-MiSeqKapa']:
-        
-        toolbox = MetaTranscriptomicsAnalyser(assembler = 'metaspades')
-        
-        toolbox.readcounts2krona('MOSCAfinal/Analysis/' + mt + '.readcounts',
-                                 'MOSCAfinal/Annotation/' + relation[mt] + '/uniprot.info',
-                                 'MOSCAfinal/Analysis/' + mt)
+    def differential_analysis(self, readcounts, conditions, output = None):
+        print('Performing differential expression analysis.')
+        print('Readcounts file: ' + readcounts)
+        print('Conditions: ' + ' '.join(conditions))
+        print('Results will be exported to: ' + output)
+        self.run_command('Rscript MOSCA/de_analysis.R --readcounts ' + readcounts +
+                         ' --conditions ' + conditions + ' --output ' + output)
