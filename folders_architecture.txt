@@ -1,0 +1,13 @@
+MOSCA
+	scripts.py
+	Databases
+		COG
+			fun.txt
+			whog
+			cddid.tbl
+			Cog
+		Annotation
+			uniprot.fasta
+			uniprot.dmnd
+		rRNA
+			

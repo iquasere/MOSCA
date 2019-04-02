@@ -419,3 +419,5 @@ if __name__ == '__main__':
     
     clusters.to_csv('Binning/VizBin/' + sample + '/clusters.tsv', sep = '\t')
     '''
+
+#MaxBin2 must be used with run_MaxBin.pl

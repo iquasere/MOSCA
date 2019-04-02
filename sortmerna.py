@@ -8,9 +8,7 @@ March 2017
 '''
 
 from mosca_tools import MoscaTools
-from progressbar import ProgressBar
 from Bio import SeqIO
-import os
 
 mtools = MoscaTools()
 

@@ -11,7 +11,6 @@ Sep 2017
 from mosca_tools import MoscaTools
 import pandas as pd
 import numpy as np
-import glob
 from annotation import Annotater
 
 mtools = MoscaTools()

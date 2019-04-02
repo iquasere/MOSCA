@@ -14,9 +14,6 @@ from annotation import Annotater
 import pandas as pd
 from lxml import etree
 import os, pathlib, shlex, subprocess, glob, shutil
-from tqdm import tqdm
-from Bio import AlignIO
-from Bio.Align import AlignInfo
 
 mtools = MoscaTools()
 

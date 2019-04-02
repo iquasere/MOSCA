@@ -25,13 +25,18 @@ RUN buildDeps='build-essential zlib1g-dev' \
 && conda install diamond \
 && conda install -c conda-forge progressbar33 \
 && conda install -c bioconda htseq \
-&& conda install -c bioconda bowtie2
+&& conda install -c bioconda bowtie2 \
 && git clone -b devel https://github.com/claczny/VizBin.git \
-&& conda install -c r r \
+&& conda install -c bioconda maxbin2 \
 && conda install -c bioconda bioconductor-deseq2 \
+&& conda install -c bioconda bioconductor-genomeinfodbdata \
 && conda install -c bioconda bioconductor-edger \
 && conda install -c bioconda r-pheatmap \
-&& Rscript /MOSCA/install_r_packages.R \
-&& apt-get purge -y --auto-remove $buildDeps \
+&& conda install -c r r-rcolorbrewer \
+&& conda install -c bioconda r-optparse \
+&& conda install -c anaconda pandas \
+&& conda install -c conda-forge tqdm \
+&& conda install scikit-learn \
+&& apt-get purge -y --auto-remove $buildDeps
 
 CMD ['/bin/sh']

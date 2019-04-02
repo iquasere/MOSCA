@@ -7,10 +7,8 @@ By João Sequeira
 July 2017
 '''
 
-import numpy as np
-import subprocess
-import os
 from MOSCA.mosca_tools import MoscaTools
+import subprocess, os
 
 mtools = MoscaTools()
 

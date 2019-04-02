@@ -37,7 +37,7 @@ class Annotater:
         (but with .fasta instead of .fastq)
     '''
     def gene_calling(self, file, output, assembled = True, error_model = 'illumina_10'):
-        bashCommand = 'fraggenescan -genome='
+        bashCommand = 'run_FragGeneScan.pl -genome='
         if assembled:
             bashCommand += file + ' -out=' + output + '/fgs -complete=1 -train=./complete'
         else:

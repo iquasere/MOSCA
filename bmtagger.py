@@ -7,13 +7,6 @@ By João Sequeira
 
 Mar 2017
 """
-
-#../../../../../../../../../home/sequeira/miniconda3/bin/bmtagger.sh
-#human genome database extracted from http://www.ensembl.org/biomart/martview/6f3498f80caaf0f4ca4f16dd0ea0ab38
-
-#bmtool -d bmtagger/human_exome/part0.fasta -o bmtagger/human_exome/part0.bitmask -A 0 -w 18         gives C error involved with bad allocation of memory
-#srprism mkindex -i bmtagger/human_exome/part0.fasta -o bmtagger/human_exome/part0.srprism -M 7168   gives error of very large database
-#makeblastdb -in bmtagger/mart_export.fa -dbtype nucl
                                              
 class BMTagger:
     def __init__ (self, **kwargs):
@@ -80,11 +73,3 @@ class BMTagger:
         process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
         output, error = process.communicate()
         return output, error
-    
-if __name__ == '__main__':
-    bmtagger = BMTagger(reference = 'bmtagger/mart_export.txt',
-                 input_file = 'real_datasets/mgm4440026.3.050.upload.fna',
-                 output = 'bmtagger_output')
-    bmtagger.divide_database('bmtagger/mart_export.txt')
-    #bmtagger.generate_references()
-    #bmtagger.run() 
