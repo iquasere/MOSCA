@@ -29,6 +29,7 @@ RUN buildDeps='build-essential zlib1g-dev' \
 && git clone -b devel https://github.com/claczny/VizBin.git \
 && conda install -c bioconda maxbin2 \
 && conda install -c bioconda bioconductor-deseq2 \
+%% R -e 'BiocManager::install("GenomeInfoDbData", version = "3.8")'
 && conda install -c bioconda bioconductor-genomeinfodbdata \
 && conda install -c bioconda bioconductor-edger \
 && conda install -c bioconda r-pheatmap \
