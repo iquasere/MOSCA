@@ -8,7 +8,6 @@ March 2017
 '''
 
 from mosca_tools import MoscaTools
-from Bio import SeqIO
 
 mtools = MoscaTools()
 
@@ -62,14 +61,6 @@ class SortMeRNA:
         
     def unmerge_pe(self, interleaved, forward, reverse):
         mtools.run_command('bash MOSCA/unmerge-paired-reads.sh ' + interleaved + ' ' + forward + ' ' + reverse)
-    
-    def merge_fastq(fastq_path1, fastq_path2, outpath):
-        outfile = open(outpath,"w")
-        fastq_iter1 = SeqIO.parse(open(fastq_path1),"fastq")
-        fastq_iter2 = SeqIO.parse(open(fastq_path2),"fastq")
-        for rec1, rec2 in zip(fastq_iter1, fastq_iter2):
-            SeqIO.write([rec1,rec2], outfile, "fastq")
-        outfile.close()
         
     def run_tool(self):
         mtools.run_command(self.bash_command())
