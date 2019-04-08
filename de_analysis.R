@@ -11,7 +11,7 @@ option_list = list(
     make_option(c("-r", "--readcounts"), type="character", default=NULL, 
                 help="The expression matrix", metavar="character"),
     make_option(c("-c", "--conditions"), type="list",
-                help="The conditions to define duplicates (e.g. c1 c1 c2 c2)", 
+                help="The conditions to define duplicates (e.g. 'c1 c1 c2 c2')", 
                 metavar="character"),
     make_option(c("-o", "--output"), type="character", default=NULL, 
                 help="Output directory", metavar="character")); 

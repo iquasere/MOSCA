@@ -118,27 +118,3 @@ class MetaQUAST:
         process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
         output, error = process.communicate()
         return output, error
- 
-if __name__ == '__main__':
-
-    files = ['EST6_S1_L001','OL6_S3_L001','OLDES6_S4_L001','PAL6_S2_L001','4478-DNA-S1611-MiSeqKapa','4478-DNA-S1613-MiSeqKapa','4478-DNA-S1616-MiSeqKapa','4478-DNA-S1618-MiSeqKapa']
-    
-    association = {'4478-DNA-S1611-MiSeqKapa':'4478-R1-1-MiSeqKapa',
-                   '4478-DNA-S1613-MiSeqKapa':'4478-R2-1-MiSeqKapa',
-                   '4478-DNA-S1616-MiSeqKapa':'4478-R3-1-MiSeqKapa',
-                   '4478-DNA-S1618-MiSeqKapa':'4478-R4-1-MiSeqKapa'}
-    
-    for file in association.keys():
-
-        input_file = file + '/Assembly/contigs.fasta'
-        
-        metaquast = MetaQUAST(output_dir = 'Assembly/MetaQUAST/MetaSPAdes/' + file,
-                              threads = '6',
-                              input_file = input_file)            
-        
-        metaquast.run()
-    '''      
-    metaquast = MetaQUAST()
-    
-    metaquast.write_report(files, 'MetaSPAdes')
-    '''

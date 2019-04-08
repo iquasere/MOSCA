@@ -9,24 +9,20 @@ March 2017
 
 from mosca_tools import MoscaTools
 from fastqc import FastQC
-import os
+import glob
 
 mtools = MoscaTools()
 
 class Trimmomatic:
     def __init__ (self, **kwargs):
         self.__dict__ = kwargs
-        
-    def update_adapters(self):
-        print('Updating adapters')
-        mtools.run_command('svn export https://github.com/timflutre/trimmomatic/trunk/adapters adapters')
 
     def remove_adapters(self):
         input_files = [file.split('/')[-1].split('.fastq')[0] for file in self.input_files]
         terms_list = ['Adapter','Illumina','Primer']
         
         #Check presence of adapters in input file(s)
-        adapters = ['adapters/' + f for f in os.listdir('adapters') if os.path.isfile(os.path.join('adapters', f))]    
+        adapters = glob.glob('MOSCA/Databases/illumina_adapters/*.fasta')
         print('Available adapter files:', adapters)
         adapter_contaminated = list()
         
@@ -190,7 +186,7 @@ class Trimmomatic:
         self.run()
         
     def bash_command(self):
-        result = os.path.expanduser('~/anaconda3/bin/trimmomatic ') + self.paired
+        result = 'trimmomatic ' + self.paired
         if 'quality_score' in self.__dict__.keys():
             result += " -" + self.quality_score
             self.__dict__.pop('quality_score')
@@ -212,14 +208,3 @@ class Trimmomatic:
     
     def run(self):
         mtools.run_command(self.bash_command())
-        
-if __name__ == '__main__':
-    trimmer = Trimmomatic(input_files = ['MOSCAfinal/Preprocess/Trimmomatic/quality_trimmed_4478-R2-1-MiSeqKapa_forward_paired.fq',
-                                         'MOSCAfinal/Preprocess/Trimmomatic/quality_trimmed_4478-R2-1-MiSeqKapa_reverse_paired.fq'],
-                            paired = 'PE',
-                            working_dir = 'MOSCAfinal',
-                            name = '4478-R2-1-MiSeqKapa',
-                            data = 'dna',
-                            minlen = '100',
-                            output = 'MOSCAfinal/Preprocess/Trimmomatic/RNA2')
-    trimmer.run()

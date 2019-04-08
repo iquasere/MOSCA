@@ -80,7 +80,7 @@ class Preprocesser:
     #SortMeRNA - taxonomic assignment
     def rrna_removal(self, reads):
         print('Beggining rRNA sequences removal')
-        ref = (['Databases/rRNA_databases/SILVA/' + database for database in
+        ref = (['MOSCA/Databases/rRNA_databases/' + database for database in
                     ['silva-arc-16s-id95', 'silva-arc-23s-id98', 'silva-bac-16s-id90', 
                      'silva-bac-23s-id98', 'silva-euk-18s-id95', 'silva-euk-28s-id98']])
         sortmerna = SortMeRNA(ref = ref,

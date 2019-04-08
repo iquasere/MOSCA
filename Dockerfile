@@ -4,21 +4,24 @@ RUN buildDeps='build-essential zlib1g-dev' \
 && apt-get update \
 && apt-get install -y $buildDeps --no-install-recommends \
 && rm -rf /var/lib/apt/lists/* \
-&& cd \home \
+&& cd /home \
 && git clone https://github.com/iquasere/MOSCA.git \
-&& wget http://spades.bioinf.spbau.ru/release3.9.0/SPAdes-3.9.0.tar.gz \
-&& tar -xzf SPAdes-3.9.0.tar.gz \
-&& rm SPAdes-3.9.0.tar.gz \
-&& export PATH=/home/SPAdes-3.9.0:$PATH \
+&& conda install -c bioconda spades \
 && conda config --add channels defaults \
 && conda config --add channels bioconda \
 && conda config --add channels conda-forge \
 && conda install fastqc \
 && conda install -c biocore sortmerna \
-&& wget https://github.com/biocore/sortmerna/raw/master/scripts/merge-paired-reads.sh \
-&& wget https://github.com/biocore/sortmerna/raw/master/scripts/unmerge-paired-reads.sh \
+&& wget https://github.com/biocore/sortmerna/raw/master/scripts/merge-paired-reads.sh -P MOSCA \
+&& wget https://github.com/biocore/sortmerna/raw/master/scripts/unmerge-paired-reads.sh -P MOSCA \
+&& conda install -c anaconda svn \
+&& mkdir -p MOSCA/Databases/rRNA_databases \
+&& svn checkout https://github.com/biocore/sortmerna/trunk/rRNA_databases MOSCA/Databases/rRNA_databases \
+&& find MOSCA/Databases/rRNA_databases/* | grep -v ".fasta" | xargs rm -fr \
 && conda install seqtk \
-&& conda install -c faircloth-lab trimmomatic \
+&& conda install -c bioconda trimmomatic \
+&& mkdir -p MOSCA/Databases/illumina_adapters \
+&& svn export https://github.com/timflutre/trimmomatic/trunk/adapters MOSCA/Databases/illumina_adapters \
 && conda install megahit \
 && conda install quast \
 && conda install fraggenescan \
@@ -29,8 +32,7 @@ RUN buildDeps='build-essential zlib1g-dev' \
 && git clone -b devel https://github.com/claczny/VizBin.git \
 && conda install -c bioconda maxbin2 \
 && conda install -c bioconda bioconductor-deseq2 \
-%% R -e 'BiocManager::install("GenomeInfoDbData", version = "3.8")'
-&& conda install -c bioconda bioconductor-genomeinfodbdata \
+&& R -e 'BiocManager::install("GenomeInfoDbData", version = "3.8")' \
 && conda install -c bioconda bioconductor-edger \
 && conda install -c bioconda r-pheatmap \
 && conda install -c r r-rcolorbrewer \
@@ -38,6 +40,20 @@ RUN buildDeps='build-essential zlib1g-dev' \
 && conda install -c anaconda pandas \
 && conda install -c conda-forge tqdm \
 && conda install scikit-learn \
+&& conda install -c bioconda searchgui \
+&& conda install -c bioconda peptide-shaker \
+&& conda install -c bioconda maxquant \
+&& mkdir -p MOSCA/Databases/COG \
+# COGs involve over 300Mb of data, should be included?
+&& wget ftp://ftp.ncbi.nlm.nih.gov/pub/mmdb/cdd/cddid.tbl.gz -P MOSCA/Databases/COG \
+&& gunzip MOSCA/Databases/COG/cddid.tbl.gz \
+&& wget ftp://ftp.ncbi.nlm.nih.gov/pub/mmdb/cdd/little_endian/Cog_LE.tar.gz -P MOSCA/Databases/COG \
+&& tar -xvzf MOSCA/Databases/COG/Cog_LE.tar.gz -C MOSCA/Databases/COG \
+&& rm MOSCA/Databases/COG/Cog_LE.tar.gz \
+&& wget ftp://ftp.ncbi.nlm.nih.gov/pub/COG/COG/fun.txt -P MOSCA/Databases/COG \
+&& wget ftp://ftp.ncbi.nlm.nih.gov/pub/COG/COG/whog -P MOSCA/Databases/COG \
+&& wget https://github.com/aleimba/bac-genomics-scripts/raw/master/cdd2cog/cdd2cog.pl -P MOSCA \
+&& sed -i '302s#.*#    my $pssm_id = $1 if $line[1] =~ /^gnl\|CDD\|(\d+)/; \# get PSSM-Id from the subject hit#' MOSCA/cdd2cog.pl \
 && apt-get purge -y --auto-remove $buildDeps
 
 CMD ['/bin/sh']

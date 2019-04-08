@@ -400,8 +400,8 @@ class Annotater:
         output folder where to store the resuls folder
     Output: results folder 
     '''
-    def annotate_cogs(self, blast, output, cddid, fun, whog, cdd2cog_executable):
-        mtools.run_command('perl ' + cdd2cog_executable + ' -r ' + blast + ' -c ' + cddid + ' -f ' + fun + ' -w ' + whog)
+    def annotate_cogs(self, blast, output, cddid, fun, whog):
+        mtools.run_command('perl MOSCA/cdd2cog.pl -r ' + blast + ' -c ' + cddid + ' -f ' + fun + ' -w ' + whog)
         os.rename('results', output + '/results')
         
     '''
@@ -550,7 +550,7 @@ class Annotater:
             shutil.rmtree(os.getcwd() + '/results', ignore_errors=True)          # is not necessary when running the tool once, but better safe then sorry!
         
         self.annotate_cogs(output + '/cdd_aligned.blast', output,        
-                           cddid, fun, whog, 'DomainIdentification/cdd2cog.pl')
+                           cddid, fun, whog)
         self.write_cogblast(output + '/results/rps-blast_cog.txt', output + '/cogs.xlsx')
 
     def set_to_uniprotID(self, fasta, aligned, output):

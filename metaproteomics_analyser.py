@@ -103,8 +103,8 @@ class MetaProteomicsAnalyser:
         created, containing interleaved original and decoy sequences
     ''' 
     def create_decoy_database(self, database):
-        bashCommand = ('java -cp ' + os.path.expanduser('~/SearchGUI-3.3.3/SearchGUI-3.3.3.jar') + 
-                       ' eu.isas.searchgui.cmd.FastaCLI -in ' + database + ' -decoy')
+        bashCommand = ('searchgui eu.isas.searchgui.cmd.FastaCLI -in ' 
+                       + database + ' -decoy')
         mtools.run_command(bashCommand)
         
     '''   
@@ -115,10 +115,9 @@ class MetaProteomicsAnalyser:
         a parameters file will be produced for SearchCLI and/or PeptideShakerCLI
     ''' 
     def generate_parameters_file(self, output, database):
-        bashCommand = ('java -cp ' + os.path.expanduser('~/SearchGUI-3.3.3/SearchGUI-3.3.3.jar') + 
-                       ' eu.isas.searchgui.cmd.IdentificationParametersCLI -out ' + 
-                       output + ' -db ' + database + ' -prec_tol 10 -frag_tol 0.02' +
-                       ' -enzyme Trypsin -fixed_mods "Carbamidomethylation of C"' +
+        bashCommand = ('searchgui eu.isas.searchgui.cmd.IdentificationParametersCLI ' + 
+                       '-out ' + output + ' -db ' + database + ' -prec_tol 10 ' + 
+                       '-frag_tol 0.02 -enzyme Trypsin -fixed_mods "Carbamidomethylation of C"' +
                        ' -variable_mods "Oxidation of M" -mc 2')
         print(bashCommand)
         bashCommand_correct = shlex.split(bashCommand)                              #the usual way with MoscaTools is not working here, dunno why
@@ -136,9 +135,9 @@ class MetaProteomicsAnalyser:
     ''' 
     def peptide_spectrum_matching(self, spectra_folder, output, parameters_file,
                                   search_engines = ['xtandem', 'myrimatch', 'msgf']):
-        bashCommand = ('java -cp ' + os.path.expanduser('~/SearchGUI-3.3.3/SearchGUI-3.3.3.jar') + 
-                        ' eu.isas.searchgui.cmd.SearchCLI -spectrum_files ' + spectra_folder + 
-                        ' -output_folder ' + output + ' -id_params ' + parameters_file +
+        bashCommand = ('searchgui eu.isas.searchgui.cmd.SearchCLI -spectrum_files '
+                       + spectra_folder + ' -output_folder ' + output + ' -id_params ' 
+                       + parameters_file +
                        ''.join([' -' + engine + ' 1' for engine in search_engines]))
         mtools.run_command(bashCommand)
         
@@ -159,11 +158,11 @@ class MetaProteomicsAnalyser:
     def browse_identification_results(self, spectra_folder, experiment_name, 
                                       sample_name, replicate_number, parameters_file,
                                       searchcli_output, peptideshaker_output):
-        bashCommand = ('java -cp ' + os.path.expanduser('~/PeptideShaker-1.16.31/PeptideShaker-1.16.31.jar') + 
-                       ' eu.isas.peptideshaker.cmd.PeptideShakerCLI -spectrum_files ' +
-                       spectra_folder + ' -experiment ' + experiment_name + ' -sample ' + 
-                       sample_name + ' -replicate ' + replicate_number + ' -identification_files ' + 
-                       searchcli_output + ' -out ' + peptideshaker_output)
+        bashCommand = ('peptide-shaker eu.isas.peptideshaker.cmd.PeptideShakerCLI ' +
+                       '-spectrum_files ' + spectra_folder + ' -experiment ' + 
+                       experiment_name + ' -sample ' + sample_name + ' -replicate ' + 
+                       replicate_number + ' -identification_files ' + searchcli_output + 
+                       ' -out ' + peptideshaker_output)
         mtools.run_command(bashCommand)
        
     '''   
@@ -180,9 +179,9 @@ class MetaProteomicsAnalyser:
                          reports_list = [str(n) for n in range(12)]):
         print('Created ' + reports_folder)
         pathlib.Path(reports_folder).mkdir(parents=True, exist_ok=True)                 # creates folder for reports
-        bashCommand = ('java -cp ' + os.path.expanduser('~/PeptideShaker-1.16.31/PeptideShaker-1.16.31.jar') + 
-                       ' eu.isas.peptideshaker.cmd.ReportCLI -in ' + peptideshaker_output + 
-                       ' -out_reports ' + reports_folder + ' -reports ' + ','.join(reports_list))
+        bashCommand = ('peptide-shaker eu.isas.peptideshaker.cmd.ReportCLI -in ' + 
+                       peptideshaker_output + ' -out_reports ' + reports_folder + 
+                       ' -reports ' + ','.join(reports_list))
         mtools.run_command(bashCommand)
         
     '''   
@@ -217,8 +216,7 @@ class MetaProteomicsAnalyser:
     def create_mqpar(self, output):
         if os.path.isfile(output):                                              # the create file command will not create a new one if the file already exists
             os.remove(output)                                                   # even if that file already has non-default information in it, messing with the next commands
-        mtools.run_command('mono ' + os.path.expanduser('~/MaxQuant/bin/MaxQuantCmd.exe ' +
-                                                        output + ' --create'))
+        mtools.run_command('maxquant' + output + ' --create')
         
     '''
     input:
@@ -284,7 +282,7 @@ class MetaProteomicsAnalyser:
         for directory in [spectra_folder + '/combined', output_folder + '/combined']:
             if os.path.isdir(directory):
                 shutil.rmtree(directory, ignore_errors=True)
-        mtools.run_command('mono ' + os.path.expanduser('~/MaxQuant/bin/MaxQuantCmd.exe ' + mqpar))        # TODO - get the shell messages from MaxQuant to appear
+        mtools.run_command('maxquant ' + mqpar))        # TODO - get the shell messages from MaxQuant to appear
         #os.rename(spectra_folder + '/combined', output_folder + '/maxquant_results')
         
     def run(self):
@@ -315,69 +313,3 @@ class MetaProteomicsAnalyser:
                                   '_' + self.sample_name + '_' +  self.replicate_number + 
                                   '_Default_Protein_Report.txt'), self.blast,
                                   self.output + '/Spectra_counting.tsv')
-        
-if __name__ == '__main__':
-    #correspondence = pd.DataFrame([['EST6_S1_L001',73, 97],['OL6_S3_L001',49,73],['OLDES6_S4_L001',25,49],['PAL6_S2_L001',1,25]])
-    correspondence = {'EST6_S1_L001':'DNA4','OL6_S3_L001':'DNA5','OLDES6_S4_L001':'DNA6','PAL6_S2_L001':'DNA7'}
-    files=list()
-    '''
-    for k in range(len(correspondence)):
-        files.append(['/HDDStorage/jsequeira/Thesis/Datasets/Proteic/raw/2014_06_19_Andreia_F' + str(n) + '.RAW' if len(str(n)) > 1 
-                 else '/HDDStorage/jsequeira/Thesis/Datasets/Proteic/raw/2014_06_19_Andreia_F0' + str(n) + '.RAW' for n in
-                 range(correspondence.loc[k][1], correspondence.loc[k][2])])
-    correspondence['files'] = files
-    correspondence.columns = ['experiment','start','end','files']
-    correspondence.index = correspondence['experiment']
-
-    correspondence['blanc'] = ['blanc',-1,-1,['/HDDStorage/jsequeira/Thesis/Datasets/Proteic/raw/2014_06_19_Blanc_F0' + n + '.RAW' for n in ['06','07','08','09','10']]]
-    '''
-    for experiment in ['EST6_S1_L001','OL6_S3_L001','OLDES6_S4_L001','PAL6_S2_L001']:
-        mper = MetaProteomicsAnalyser(output = '/HDDStorage/jsequeira/Thesis/MGMP/MetaProteomics/' + experiment,
-                                      experiment_name = experiment,
-                                      spectra_folder = '/HDDStorage/jsequeira/Thesis/Datasets/Proteic/raw/' + correspondence[experiment],
-                                      workflow = 'maxquant',
-                                      crap_database = 'MetaProteomics/crap.fasta',
-                                      faa = '/HDDStorage/jsequeira/Thesis/MGMP/Annotation/' + experiment + '/fgs.faa',
-                                      protease = 'trypsin',
-                                      blast = 'MGMP/Annotation/aligned.blast',
-                                      uniprot = 'MGMP/Annotation/uniprot.info')
-        mper.run()
-    
-    '''
-    for sample in correspondence.keys():
-        
-        pathlib.Path('MGMP/' + sample).mkdir(parents=True, exist_ok=True)
-        
-        analyser = MetaProteomicsAnalyser(faa = 'MGMP/Annotation/' + sample + '/fgs.faa',
-                                          blast = 'MGMP/Annotation/' + sample + '/aligned.blast',
-                                          crap_folder = '/HDDStorage/jsequeira/Thesis/MetaProteomics',
-                                          output = 'MGMP/Analysis/' + sample,
-                                          protease = 'trypsin',
-                                          spectra_folder = 'Datasets/Proteic/' + correspondence[sample],
-                                          experiment_name = 'MGMP',
-                                          sample_name = sample,
-                                          replicate_number = '1')
-        
-        analyser.run()
-    '''
-    '''
-    import glob
-    
-    files = glob.glob('MGMP/Analysis/*/Spectra_counting.tsv')
-    
-    read_spectra = pd.DataFrame()
-    
-    readspectra = pd.read_csv(files[0], sep = '\t', header = None, index_col = 0)
-    print(readspectra.head())
-    readspectra.columns = [files[0].split('/')[-2]]
-    
-    for file in files[1:]:
-        df = pd.read_csv(file, sep = '\t', header = None, index_col = 0)
-        df.columns = [file.split('/')[-2]]
-        readspectra = pd.merge(readspectra, df, left_index = True, right_index = True, how = 'outer')
-    readspectra = readspectra.fillna(value = 0)
-    readspectra.index.name = 'geneid'
-    readspectra.to_csv('MGMP/Analysis/Spectra_counting.tsv',sep='\t')
-    '''
-    
-    

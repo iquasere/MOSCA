@@ -32,7 +32,7 @@ class Assembler:
         
     def metaspades_command(self):
         assembler = self.__dict__.pop('assembler')
-        result = 'python ' + os.path.expanduser('~/SPAdes-3.11.1-Linux/bin/metaspades.py')
+        result = 'metaspades.py'
         result += ' -o ' + self.out_dir + '/Assembly/' + self.name
         out_dir = self.__dict__.pop('out_dir')
         forward, reverse = self.forward, self.reverse
@@ -70,7 +70,7 @@ class Assembler:
     
     def megahit_command(self):
         assembler = self.__dict__.pop('assembler')
-        result = os.path.expanduser('~/megahit/megahit -f')
+        result = 'megahit -f'
         if hasattr(self, 'forward') and hasattr(self, 'reverse'):
             result += ' -1 ' + self.forward + ' -2 ' + self.reverse
             self.__dict__.pop('forward'); self.__dict__.pop('reverse')

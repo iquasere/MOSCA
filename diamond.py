@@ -18,7 +18,7 @@ class DIAMOND:
         self.__dict__ = kwargs
         
     def set_database(self, db, output):
-        bashCommand = os.path.expanduser('~/diamond') + ' makedb --in ' + db + ' -d ' + output
+        bashCommand = 'diamond makedb --in ' + db + ' -d ' + output
         mtools.run_command(bashCommand)
     
     def set_argument(self, arg):

@@ -106,10 +106,9 @@ class Binner:
         new FASTA file with contigs considered on the binning will be generated
         at the output directory, and named over_cutoff_contigs.fasta
     '''
-    def run_vizbin_binning(self, contigs, output, cutoff = 1000, kmer = 5, threads = 2,
-                           vizbin_executable = '~/VizBin/VizBin-dist.jar'):
+    def run_vizbin_binning(self, contigs, output, cutoff = 1000, kmer = 5, threads = 2):
         print('Performing binning with VizBin')
-        bashCommand = ('java -jar ' + os.path.expanduser(vizbin_executable) + ' -i ' 
+        bashCommand = ('java -jar VizBin/VizBin-dist.jar -i ' 
                        + contigs + ' -o ' + output + '/points.txt -c ' + str(cutoff) 
                        + ' -k ' + str(kmer) + ' -t ' + str(threads))
         mtools.run_command(bashCommand)

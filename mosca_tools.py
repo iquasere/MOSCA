@@ -7,10 +7,9 @@ By João Sequeira
 Jun 2017
 '''
 
-from progressbar import ProgressBar
 from io import StringIO
 import pandas as pd
-import subprocess, glob, re, os, sys
+import subprocess, glob, re, os, gzip
 
 class MoscaTools:
     
@@ -45,7 +44,7 @@ class MoscaTools:
             readcounts.columns = ['geneid', name, 'Protein ID']
             del readcounts['geneid']
         if origin_of_data == 'metagenomics':
-            blast = mtools.parse_blast(blast)
+            blast = self.parse_blast(blast)
             blast['contig'] = [ide.split('_')[:-3] for ide in blast.qseqid]
             blast['Protein ID'] = [ide.split('|')[1] if ide != '*' else ide for ide in blast.sseqid]
             blast = blast.groupby('Protein ID')[name].sum().reset_index()[['Protein ID', name]]
@@ -214,7 +213,7 @@ class MoscaTools:
         gff["source"] = ['.' if assembler is None else assembler] * size
         gff["type"] = ['contig'] * size
         gff["start"] = ['1'] * size
-        gff["end"] = [len(contigs[1] for contigs in contigs]
+        gff["end"] = [len(contigs[1]) for contigs in contigs]
         gff["score"] = ['.'] * size
         gff["strand"] = ['.'] * size
         gff["phase"] = ['.'] * size
@@ -251,7 +250,6 @@ class MoscaTools:
         return result
     
     def download_database(self, url):
-        import subprocess
         import os
         adress = url.replace('https','rsync')
         output = 'Databases/DIAMOND/' + url.split('genomes/')[1]
@@ -572,29 +570,3 @@ def get_ids_from_ncbi_gff(gff):
         else:
             ids.append(re.split(';|,', attribute.split('Dbxref=Genbank:')[-1])[0])
     return ids
-
-if __name__ == '__main__':
-    
-    mtools = MoscaTools()
-    
-    mtools.normalize_readcounts('MOSCAfinal/joined_information.xlsx',
-                                'MOSCAfinal/joined_information1.xlsx',
-                                ['4478-DNA-S1613-MiSeqKapa','4478-DNA-S1616-MiSeqKapa',
-                                 '4478-DNA-S1618-MiSeqKapa'])
-    
-    '''
-    for file in ['grinder-reads']:                #['OL6_S3_L001','OLDES6_S4_L001','PAL6_S2_L001']: #'EST6_S1_L001',
-        mtools.perform_alignment('SimulatedMGMT/Annotation/' + file + '/aligned.blast',
-                  'SimulatedMGMT/Assembly/' + file + '/contigs.fasta',
-                  ['SimulatedMGMT/Preprocess/Trimmomatic/quality_trimmed_' + file +
-                  '_' + fr + '_paired.fq' for fr in ['forward','reverse']],
-                  'SimulatedMGMT/Assembly/' + file + '/quality_control/' + file)
-    '''
-    mtools.normalize_readcounts('MOSCAfinal/all_info.xlsx',
-                                    'MOSCAfinal/all_info_normalized.xlsx',
-                                    mgfiles)
-    
-    
-    mtools.normalize_readcounts('MOSCAfinal/all_info_normalized.xlsx',
-                                'MOSCAfinal/all_info_normalized.xlsx',
-                                mtfiles)
