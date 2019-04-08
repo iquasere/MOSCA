@@ -7,7 +7,7 @@ By João Sequeira
 July 2017
 '''
 
-from MOSCA.mosca_tools import MoscaTools
+from mosca_tools import MoscaTools
 import subprocess, os
 
 mtools = MoscaTools()

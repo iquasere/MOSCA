@@ -12,7 +12,6 @@ from sklearn.cluster import DBSCAN
 from mosca_tools import MoscaTools
 from diamond import DIAMOND
 from progressbar import ProgressBar
-import os
 import pandas as pd
 import numpy as np
 import matplotlib

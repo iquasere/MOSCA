@@ -8,8 +8,8 @@ By João Sequeira
 Jun 2017
 """
 
-from MOSCA.diamond import DIAMOND
-from MOSCA.mosca_tools import MoscaTools
+from diamond import DIAMOND
+from mosca_tools import MoscaTools
 from progressbar import ProgressBar
 from io import StringIO
 from tqdm import tqdm
