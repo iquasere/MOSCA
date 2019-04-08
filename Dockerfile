@@ -40,6 +40,7 @@ RUN buildDeps='build-essential zlib1g-dev' \
 && conda install -c anaconda pandas \
 && conda install -c conda-forge tqdm \
 && conda install scikit-learn \
+&& conda install -c anaconda lxml \
 && conda install -c bioconda searchgui \
 && conda install -c bioconda peptide-shaker \
 && conda install -c bioconda maxquant \
