@@ -376,18 +376,14 @@ class MoscaTools:
     
     def validate_arguments(self, parser):
         args = parser.parse_args()
-        nice_arguments = True
         if args.files is None:
             print('Must specify which files to use!')
-            nice_arguments = False
+            parser.print_help()
         if args.output is None:
             print('Must specify which output directory to use!')
-            nice_arguments = False
-        args.output = args.output.rstrip('/')                                   # remove the automatic ending
-        if nice_arguments == False:
             parser.print_help()
-            exit()
         else:
+            args.output = args.output.rstrip('/')                               # remove the automatic ending
             return args
 
     def print_arguments(self, args):
