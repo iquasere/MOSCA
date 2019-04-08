@@ -15,7 +15,6 @@ wget https://github.com/biocore/sortmerna/raw/master/scripts/merge-paired-reads.
 wget https://github.com/biocore/sortmerna/raw/master/scripts/unmerge-paired-reads.sh -P MOSCA
 conda install -y seqtk
 conda install -y -c faircloth-lab trimmomatic
-mkdir -p MOSCA/Databases/illumina_adapters
 svn checkout https://github.com/timflutre/trimmomatic/trunk/adapters MOSCA/Databases/illumina_adapters
 conda install -y megahit
 conda install -y -c bioconda spades
