@@ -39,25 +39,25 @@ MOSCA is prepared to handle experiments input if some of these files is not avai
 * One single-end file
 
 ```
-python main.py --files path/to/file --output-dir output_directory
+python MOSCA/mosca.py --files path/to/file --output-dir output_directory
 ```
 
 * Two single-end files (two different experiments)
 
 ```
-python main.py --files path/to/file1 path/to/file2 --output-dir output_directory
+python MOSCA/mosca.py --files path/to/file1 path/to/file2 --output-dir output_directory
 ```
 
 * Two paired-end files
 
 ```
-python main.py --files path/to/file1,path/to/file2 --output-dir output_directory
+python MOSCA/mosca.py --files path/to/file1,path/to/file2 --output-dir output_directory
 ```
 
 * Four paired-end files with MT data (two different experiments)
 
 ```
-python main.py --files path/to/mg_file1_of_experiment1,path/to/mg_file2_of_experiment1:path/to/mt_file1_of_experiment1,path/to/mt_file2_of_experiment1 path/to/mg_file1_of_experiment2,path/to/mg_file2_of_experiment2:path/to/mt_file1_of_experiment2,path/to/mt_file2_of_experiment2 --output-dir output_directory
+python MOSCA/mosca.py --files path/to/mg_file1_of_experiment1,path/to/mg_file2_of_experiment1:path/to/mt_file1_of_experiment1,path/to/mt_file2_of_experiment1 path/to/mg_file1_of_experiment2,path/to/mg_file2_of_experiment2:path/to/mt_file1_of_experiment2,path/to/mt_file2_of_experiment2 --output-dir output_directory
 ```
 
 
@@ -66,39 +66,42 @@ python main.py --files path/to/mg_file1_of_experiment1,path/to/mg_file2_of_exper
 MOSCA includes the option to chose between MetaSPAdes (default) and Megahit as the tool for assembly. Also, while many functions are developed only for UniProt, another database can be chosen. Since not all steps are always wanted, MOSCA allows to chose whether or not to perform every step of its analysis.
 
 ```
-usage: main.py [-h] [-f [Metagenomic files [Metagenomic files ...]]]
-               [-mt [Metatranscriptomic files [Metatranscriptomic files ...]]]
-               [-data [paired/single]] [-a Assembler] [-db Database]
-               [-o Directory] [-nopp] [-noas] [-noan] [-node]
-               [-of {min,med,max}]
+usage: mosca.py [-h] [-f [FILES [FILES ...]]] [-data {paired,single}]
+                [-a Assembler] [-db Database] [-o Directory] [-nopp] [-noas]
+                [-noan] [-nobin] [-ol {min,med,max}] [-mp]
+                [-c [CONDITIONS [CONDITIONS ...]]]
 
 Multi Omics Software for Community Analysis
 
 optional arguments:
   -h, --help            show this help message and exit
-  -f [Metagenomic files [Metagenomic files ...]], --files [Metagenomic files [Metagenomic files ...]]
-                        Input files for analysis (mg1R1,mg1R2:mt1R1,mt1R2;)
-  -mt [Metatranscriptomic files [Metatranscriptomic files ...]], --metatranscriptomic [Metatranscriptomic files [Metatranscriptomic files ...]]
-                        Input files for metatranscriptomic analysis
-  -data [paired/single], --type-of-data [paired/single]
+  -f [FILES [FILES ...]], --files [FILES [FILES ...]]
+                        Input files for analysis (mg1R1,mg1R2:mt1R1,mt1R2
+                        mg2R1,...)
+  -data {paired,single}, --type-of-data {paired,single}
                         Type of data (paired/single)-ended
   -a Assembler, --assembler Assembler
                         Tool for assembling the reads
   -db Database, --annotation-database Database
                         Database for annotation (.fasta or .dmnd)
-  -o Directory, --output-dir Directory
+  -o Directory, --output Directory
                         Directory for storing the results
   -nopp, --no-preprocessing
                         Don't perform preprocessing
   -noas, --no-assembly  Don't perform assembly
   -noan, --no-annotation
                         Don't perform annotation
-  -node, --no-differential-expression
-                        Don't perform differential expression analysis
-  -of {min,med,max}, --output-files {min,med,max}
+  -nobin, --no-binning  Don't perform binning
+  -ol {min,med,max}, --output-level {min,med,max}
                         Level of file output from MOSCA, min outputs only the
                         analysis results, med removes intermediate files, max
                         outputs all intermediate and final data
+  -mp, --metaproteomic  If data is metagenomic and metaproteomic, if not
+                        specified will be assumed to be metagenomic and
+                        metatranscriptomic
+  -c [CONDITIONS [CONDITIONS ...]], --conditions [CONDITIONS [CONDITIONS ...]]
+                        Different conditions for metatranscriptomic analysis
 
-A tool for performing metagenomics and metatranscriptomics analysis.
+A tool for performing metagenomics, metatranscriptomics and metaproteomics
+analysis.
 ```
