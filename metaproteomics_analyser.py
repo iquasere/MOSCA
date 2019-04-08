@@ -282,7 +282,7 @@ class MetaProteomicsAnalyser:
         for directory in [spectra_folder + '/combined', output_folder + '/combined']:
             if os.path.isdir(directory):
                 shutil.rmtree(directory, ignore_errors=True)
-        mtools.run_command('maxquant ' + mqpar))        # TODO - get the shell messages from MaxQuant to appear
+        mtools.run_command('maxquant ' + mqpar)        # TODO - get the shell messages from MaxQuant to appear
         #os.rename(spectra_folder + '/combined', output_folder + '/maxquant_results')
         
     def run(self):
