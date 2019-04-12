@@ -1,12 +1,17 @@
 FROM continuumio/miniconda:latest
 
+EXPOSE 5000
+
+WORKDIR /MOSCA
+
+
+
 RUN buildDeps='build-essential zlib1g-dev' \
 && apt-get update \
 && apt-get install -y $buildDeps --no-install-recommends \
 && rm -rf /var/lib/apt/lists/* \
 && cd /home \
 && git clone https://github.com/iquasere/MOSCA.git \
-&& conda install -c bioconda spades \
 && conda config --add channels defaults \
 && conda config --add channels bioconda \
 && conda config --add channels conda-forge \
@@ -20,9 +25,9 @@ RUN buildDeps='build-essential zlib1g-dev' \
 && find MOSCA/Databases/rRNA_databases/* | grep -v ".fasta" | xargs rm -fr \
 && conda install seqtk \
 && conda install -c bioconda trimmomatic \
-&& mkdir -p MOSCA/Databases/illumina_adapters \
 && svn export https://github.com/timflutre/trimmomatic/trunk/adapters MOSCA/Databases/illumina_adapters \
 && conda install megahit \
+&& conda install -c bioconda spades \
 && conda install quast \
 && conda install fraggenescan \
 && conda install diamond \
@@ -32,7 +37,6 @@ RUN buildDeps='build-essential zlib1g-dev' \
 && git clone -b devel https://github.com/claczny/VizBin.git \
 && conda install -c bioconda maxbin2 \
 && conda install -c bioconda bioconductor-deseq2 \
-&& R -e 'BiocManager::install("GenomeInfoDbData", version = "3.8")' \
 && conda install -c bioconda bioconductor-edger \
 && conda install -c bioconda r-pheatmap \
 && conda install -c r r-rcolorbrewer \
