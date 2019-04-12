@@ -1,8 +1,9 @@
+#!/usr/bin/env bash
+
 buildDeps='build-essential zlib1g-dev'
 apt-get update
 apt-get install -y $buildDeps --no-install-recommends
 cd ~
-git clone https://github.com/iquasere/MOSCA.git
 conda config --add channels defaults
 conda config --add channels bioconda
 conda config --add channels conda-forge
