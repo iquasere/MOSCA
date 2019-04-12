@@ -275,7 +275,7 @@ print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Integrating all information.'
 annotater = Annotater(out_dir = args.output,
                       fun = mosca_dir + '/Databases/COG/fun.txt',
                       cog = mosca_dir + '/Databases/COG/Cog',
-                      cddid = mosca_dir + '/Databases/COG//cddid.tbl',
+                      cddid = mosca_dir + '/Databases/COG/cddid.tbl',
                       whog = mosca_dir + '/Databases/COG/whog',
                       cdd2cog_executable = mosca_dir + '/cdd2cog.pl')
 

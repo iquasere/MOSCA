@@ -38,13 +38,14 @@ conda install -y -c anaconda pandas
 conda install -y -c conda-forge tqdm
 conda install -y scikit-learn
 conda install -c anaconda lxml
-mkdir MOSCA/databases
-cd MOSCA/databases
+mkdir MOSCA/Databases/annotation_databases
+cd MOSCA/Databases/annotation_databases
 wget ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_trembl.fasta.gz
 wget ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_sprot.fasta.gz
 cat uniprot_trembl.fasta.gz uniprot_sprot.fasta.gz > uniprot.fasta.gz
 rm uniprot_trembl.fasta.gz uniprot_sprot.fasta.gz
 gunzip uniprot.fasta.gz
+cd ~
 mkdir -p MOSCA/Databases/COG
 # COGs involve over 300Mb of data, should be included?
 wget ftp://ftp.ncbi.nlm.nih.gov/pub/mmdb/cdd/cddid.tbl.gz -P MOSCA/Databases/COG
