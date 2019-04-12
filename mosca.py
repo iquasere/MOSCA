@@ -33,7 +33,7 @@ parser.add_argument("-a","--assembler",type=str,choices=["metaspades","megahit"]
                     help="Tool for assembling the reads", nargs = 1,metavar = "Assembler", 
                     default = "metaspades")
 parser.add_argument("-db","--annotation-database",type=str,help="Database for annotation (.fasta or .dmnd)", 
-                    nargs = 1,metavar = "Database", default = "Databases/Annotation/uniprot.dmnd")
+                    nargs = 1,metavar = "Database", default = "Databases/annotation_databases/uniprot.dmnd")
 parser.add_argument("-o","--output",type=str,help="Directory for storing the results",
                     metavar = "Directory")
 parser.add_argument("-nopp","--no-preprocessing",action = "store_true",
