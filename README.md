@@ -1,4 +1,4 @@
-![ScreenShot](mosca_logo.pdf)
+![ScreenShot](mosca_logo.png)
 
 # MOSCA
 
