@@ -1,3 +1,5 @@
+![ScreenShot](mosca_logo.pdf)
+
 # MOSCA
 
 **Meta-Omics Software for Community Analysis**: a pipeline for performing Metagenomics and Metatranscriptomics integrated data analysis, in a local and fully automated workflow
