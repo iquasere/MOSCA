@@ -59,3 +59,4 @@ sed -i '302s#.*#    my $pssm_id = $1 if $line[1] =~ /^gnl\|CDD\|(\d+)/; \# get P
 conda install -y -c bioconda searchgui
 conda install -y -c bioconda peptide-shaker
 conda install -y -c bioconda maxquant
+
