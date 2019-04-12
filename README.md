@@ -1,4 +1,4 @@
-![ScreenShot](mosca_logo.png =250x250)
+![alt text](mosca_logo.png =250x250)
 
 Logo by Sérgio A. Silva
 
