@@ -29,7 +29,14 @@ cd MOSCA
 bash install.bash
 ```
 
-## MOSCA is finally available as a docker image!
+## MOSCA is finally available as a Docker image!
+
+To use MOSCA's Docker version, Docker must first be installed.
+
+```
+sudo apt-get update
+sudo apt-get install docker-ce docker-ce-cli containerd.io
+```
 
 After having docker installed in the system, pull MOSCA's image.
 
