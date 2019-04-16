@@ -1,12 +1,10 @@
 ![ScreenShot](mosca_logo.png)
 
-Logo by `Sérgio A. Silva <https://www.ceb.uminho.pt/People/Details/64888072-5cde-42da-b7e5-691d380cefb2>`_
+Logo by Sérgio A. Silva
 
 # MOSCA
 
 **Meta-Omics Software for Community Analysis**: a pipeline for performing Metagenomics and Metatranscriptomics integrated data analysis, in a local and fully automated workflow
-
-MOSCA was developed in the `Centre of Biological Engineering <https://www.ceb.uminho.pt/>`_.
 
 ## Features
 * **Preprocessing** that starts with an initial quality check (FastQC), before Illumina artificial sequences removal and quality trimming (Trimmomatic, based on FastQC reports) and finally rRNA removal (SortMeRNA)
