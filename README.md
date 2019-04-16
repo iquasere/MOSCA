@@ -29,7 +29,7 @@ cd MOSCA
 bash install.bash
 ```
 
-* MOSCA is finally available as a docker image!
+## MOSCA is finally available as a docker image!
 
 After having docker installed in the system, pull MOSCA's image.
 
