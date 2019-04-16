@@ -29,6 +29,22 @@ cd MOSCA
 bash install.bash
 ```
 
+* MOSCA is finally available as a docker image!
+
+After having docker installed in the system, pull MOSCA's image.
+
+```
+docker pull iquasere/mosca:latest
+```
+
+At this point, MOSCA allows for defining custom databases for annotation, but not for adapters nor rRNA identification (instead, the image already brings the databases from Trimmomatic and SortMeRNA, respectively).
+The database(s) for annotation must be present in FASTA or DMND (diamond binary) format in a specific directory that must be referenced in the mosca command.
+
+```
+docker run -it -v /path/to/folder_of_databases:/MOSCA/Databases/annotation_databases iquasere/mosca [arguments]
+```
+
+"/path/to/folder_of_databases" is the directory where the databases are stored. The rest of the command is to be inputed exactly as presented here, except for the [arguments], which are to be inputed just like if not using docker.
 
 ## Base arguments for running MOSCA
 
