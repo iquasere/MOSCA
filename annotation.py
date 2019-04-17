@@ -595,7 +595,16 @@ class Annotater:
                             '/quality_control/alignment.readcounts', blast = file)
         if os.path.isfile(self.out_dir + '/joined_information.xlsx'):
             os.remove(self.out_dir + '/joined_information.xlsx')
-        joined.to_excel(self.out_dir + '/joined_information.xlsx', index=False) # it is written either or not it is used posteriously
+        joined.to_csv(self.out_dir + '/joined_information.tsv', index=False, sep='\t')
+        print('joined was written to ' + self.out_dir + '/joined_information.tsv')
+        writer = pd.ExcelWriter(self.out_dir + '/joined_information.xlsx', 
+                                engine='xlsxwriter')
+        i = 0
+        j = 1
+        while i + 1048575 < len(joined):
+            joined.iloc[i:(i + 1048575)].to_excel(writer, sheet_name='Sheet ' + str(j))
+            j += 1
+        joined.iloc[i:len(joined)].to_excel(writer, sheet_name='Sheet ' + str(j))
         print('joined was written to ' + self.out_dir + '/joined_information.xlsx')
         return joined
 

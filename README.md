@@ -1,6 +1,6 @@
 ![ScreenShot](mosca_logo.png)
 
-Logo by Sérgio A. Silva
+Logo by [Sérgio A. Silva](https://www.ceb.uminho.pt/People/Details/64888072-5cde-42da-b7e5-691d380cefb2)
 
 # MOSCA
 
@@ -21,11 +21,10 @@ MOSCA files can be retrieved with a git command.
 git clone https://github.com/iquasere/MOSCA.git
 ```
 
-MOSCA already brings a bash script that will install all of its pre-dependencies and databases.
+MOSCA already brings a bash script that will install all of its pre-dependencies and databases. However, it does require Conda previously installed. Instructions on installing Anaconda on an Ubuntu 18.04 may be found [here](https://www.digitalocean.com/community/tutorials/how-to-install-anaconda-on-ubuntu-18-04-quickstart).
 
 ```
-cd MOSCA
-bash install.bash
+bash MOSCA/install.bash
 ```
 
 ## MOSCA is finally available as a Docker image!
