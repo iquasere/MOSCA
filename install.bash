@@ -3,7 +3,6 @@
 buildDeps='build-essential zlib1g-dev'
 apt-get update
 apt-get install -y $buildDeps --no-install-recommends
-cd ~
 conda config --add channels defaults
 conda config --add channels bioconda
 conda config --add channels conda-forge
@@ -45,9 +44,8 @@ wget ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/c
 cat uniprot_trembl.fasta.gz uniprot_sprot.fasta.gz > uniprot.fasta.gz
 rm uniprot_trembl.fasta.gz uniprot_sprot.fasta.gz
 gunzip uniprot.fasta.gz
-cd ~
+cd ../../..
 mkdir -p MOSCA/Databases/COG
-# COGs involve over 300Mb of data, should be included?
 wget ftp://ftp.ncbi.nlm.nih.gov/pub/mmdb/cdd/cddid.tbl.gz -P MOSCA/Databases/COG
 gunzip MOSCA/Databases/COG/cddid.tbl.gz
 wget ftp://ftp.ncbi.nlm.nih.gov/pub/mmdb/cdd/little_endian/Cog_LE.tar.gz -P MOSCA/Databases/COG
