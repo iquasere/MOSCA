@@ -3,20 +3,21 @@
 buildDeps='build-essential zlib1g-dev'
 apt-get update
 apt-get install -y $buildDeps --no-install-recommends
+source ~/anaconda3/etc/profile.d/conda.sh
 conda config --add channels defaults
 conda config --add channels bioconda
 conda config --add channels conda-forge
 conda install -y fastqc
 conda install -y -c biocore sortmerna
-conda install -c anaconda svn
+conda install -y -c anaconda svn
 mkdir -p MOSCA/Databases/rRNA_databases
-svn checkout https://github.com/biocore/sortmerna/trunk/rRNA_databases MOSCA/Databases/rRNA_databases
+svn checkout https://github.com/biocore/sortmerna/trunk/rRNA_databases MOSCA/Databases/rRNA_databases    # TODO - might have problem, svn not found
 find MOSCA/Databases/rRNA_databases/* | grep -v ".fasta" | xargs rm -fr
 wget https://github.com/biocore/sortmerna/raw/master/scripts/merge-paired-reads.sh -P MOSCA
 wget https://github.com/biocore/sortmerna/raw/master/scripts/unmerge-paired-reads.sh -P MOSCA
 conda install -y seqtk
 conda install -y -c faircloth-lab trimmomatic
-svn export https://github.com/timflutre/trimmomatic/trunk/adapters MOSCA/Databases/illumina_adapters
+svn export https://github.com/timflutre/trimmomatic/trunk/adapters MOSCA/Databases/illumina_adapters    # TODO - might have problem, svn not found
 conda install -y megahit
 conda install -y -c bioconda spades
 conda install -y quast

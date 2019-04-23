@@ -632,3 +632,15 @@ class Annotater:
         print(new_uniprotinfo[new_uniprotinfo['Taxonomic lineage (SPECIES)'].notnull()]['Taxonomic lineage (SPECIES)'])
         new_uniprotinfo.to_csv('test.tsv', sep = '\t', index = False)
     
+if __name__ == '__main__':
+    
+    mosca_dir = os.path.dirname(os.path.realpath(__file__))
+    
+    annotater = Annotater(out_dir = 'MOSCAfinal',
+                      fun = mosca_dir + '/Databases/COG/fun.txt',
+                      cog = mosca_dir + '/Databases/COG/Cog',
+                      cddid = mosca_dir + '/Databases/COG/cddid.tbl',
+                      whog = mosca_dir + '/Databases/COG/whog',
+                      cdd2cog_executable = mosca_dir + '/cdd2cog.pl')
+    
+    annotater.global_information()

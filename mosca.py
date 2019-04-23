@@ -18,7 +18,7 @@ from time import gmtime, strftime
 
 import argparse, pathlib, os, glob
 
-mosca_dir = os.path.expanduser('~/MOSCA')
+mosca_dir = os.path.dirname(os.path.realpath(__file__))
 
 mtools = MoscaTools()
 
@@ -144,7 +144,8 @@ for experiment in experiments:
             assembled = False if args.no_assembly else True
             
             print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Annotating sequences')
-            annotater = Annotater(out_dir = args.output,
+            annotater = Annotater(file = args.output + '/Assembly/' + mg_name + '/contigs.fasta',
+                                 out_dir = args.output,
                                  assembler = args.assembler,
                                  db = args.annotation_database,
                                  assembled = assembled,

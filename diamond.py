@@ -27,7 +27,7 @@ class DIAMOND:
         return ' --' + arg.replace('_','-')
     
     def bashCommand(self):
-        result = os.path.expanduser('~/diamond') + ' blastp '
+        result = 'diamond blastp '
         #write code for checking if .dmnd exists!!!
         for arg in self.__dict__.keys():
             result += self.set_argument(arg)
