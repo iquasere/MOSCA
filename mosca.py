@@ -147,7 +147,7 @@ for experiment in experiments:
             annotater = Annotater(file = args.output + '/Assembly/' + mg_name + '/contigs.fasta',
                                  out_dir = args.output,
                                  assembler = args.assembler,
-                                 db = args.annotation_database,
+                                 db = args.annotation_database[0],
                                  assembled = assembled,
                                  error_model = 'illumina_10',
                                  name = mg_name)

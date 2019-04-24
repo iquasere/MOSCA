@@ -10,8 +10,7 @@ conda config --add channels conda-forge
 conda install -y fastqc
 conda install -y -c biocore sortmerna
 conda install -y -c anaconda svn
-mkdir -p MOSCA/Databases/rRNA_databases
-svn checkout https://github.com/biocore/sortmerna/trunk/rRNA_databases MOSCA/Databases/rRNA_databases    # TODO - might have problem, svn not found
+svn export https://github.com/biocore/sortmerna/trunk/rRNA_databases MOSCA/Databases/rRNA_databases    # TODO - might have problem, svn not found
 find MOSCA/Databases/rRNA_databases/* | grep -v ".fasta" | xargs rm -fr
 wget https://github.com/biocore/sortmerna/raw/master/scripts/merge-paired-reads.sh -P MOSCA
 wget https://github.com/biocore/sortmerna/raw/master/scripts/unmerge-paired-reads.sh -P MOSCA
@@ -42,9 +41,9 @@ mkdir MOSCA/Databases/annotation_databases
 cd MOSCA/Databases/annotation_databases
 wget ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_trembl.fasta.gz
 wget ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_sprot.fasta.gz
-cat uniprot_trembl.fasta.gz uniprot_sprot.fasta.gz > uniprot.fasta.gz
-rm uniprot_trembl.fasta.gz uniprot_sprot.fasta.gz
-gunzip uniprot.fasta.gz
+gunzip *.fasta.gz
+cat uniprot_trembl.fasta uniprot_sprot.fasta > uniprot.fasta
+rm uniprot_trembl.fasta uniprot_sprot.fasta
 cd ../../..
 mkdir -p MOSCA/Databases/COG
 wget ftp://ftp.ncbi.nlm.nih.gov/pub/mmdb/cdd/cddid.tbl.gz -P MOSCA/Databases/COG

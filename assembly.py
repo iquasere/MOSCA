@@ -99,7 +99,7 @@ class Assembler:
         return lines[-1].split('%')[0]
     
     def metaquast(self, contigs, out_dir):
-        bashCommand = 'metaquast.py --threads 6 --output-dir ' + out_dir + ' ' + contigs
+        bashCommand = 'metaquast --threads 6 --output-dir ' + out_dir + ' ' + contigs
         mtools.run_command(bashCommand)
      
     def quality_control(self):
@@ -115,7 +115,7 @@ class Assembler:
                       out_dir + '/quality_control/report.tsv')
         
         handler = open(out_dir + '/quality_control/report.tsv', 'a')
-        handler.write('\nReads aligned (%)\t' + percentage_of_reads + '\n')
+        handler.write('Reads aligned (%)\t' + percentage_of_reads + '\n')
         
     def run(self):
         self.run_assembler()

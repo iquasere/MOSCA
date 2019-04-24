@@ -101,11 +101,11 @@ class MoscaTools:
     
     '''
     Input:
-        blast: name of BLAST file
         reference: name of contigs file from assembly
         reads: list, [forward reads, reverse reads]
         output: basename of outputs
         threads: number of threads to use
+        blast: name of BLAST file
     Output:
         Will generate a bowtie2 index named contigs.replace(.fasta,_index), 
         GFF annotation file named blast.replace(.blast,.gff)
@@ -121,7 +121,7 @@ class MoscaTools:
                          basename + '_bowtie2_report.txt', log = basename + '.log', 
                          threads = threads)
         if blast is None:
-            if not os.path.isfile(blast.replace('.blast', '.gff')):
+            if not os.path.isfile(reference.replace('.blast', '.gff')):
                 print('GFF file not found at ' + reference.replace('.fasta','.gff') + 
                       '. Generating a new one.')
                 self.build_gff_from_contigs(reference, 

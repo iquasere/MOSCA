@@ -43,6 +43,23 @@ class Preprocesser:
         adapters = trimmomatic.remove_adapters()
         return adapters
         print('Adapter removal done')
+            
+    #SortMeRNA - taxonomic assignment
+    def rrna_removal(self, reads):
+        print('Beggining rRNA sequences removal')
+        ref = (['MOSCA/Databases/rRNA_databases/' + database for database in
+                    ['silva-arc-16s-id95', 'silva-arc-23s-id98', 'silva-bac-16s-id90', 
+                     'silva-bac-23s-id98', 'silva-euk-18s-id95', 'silva-euk-28s-id98']])
+        sortmerna = SortMeRNA(ref = ref,
+                              reads = reads,
+                              aligned = self.working_dir + '/Preprocess/SortMeRNA/' + self.name + '_accepted',
+                              output_format = ['fastx'],
+                              other = self.working_dir + '/Preprocess/SortMeRNA/' + self.name + '_rejected',
+                              paired = True if self.paired == 'PE' else False,
+                              working_dir = self.working_dir,
+                              name = self.name)
+        sortmerna.run()
+        print('rRNA sequences removal done')
     
     def quality_trimming(self):
         print('Beggining quality trimming')
@@ -76,23 +93,6 @@ class Preprocesser:
                             paired = 'PE')
         bmtagger.run()
         print('Host sequences removal done')
-    
-    #SortMeRNA - taxonomic assignment
-    def rrna_removal(self, reads):
-        print('Beggining rRNA sequences removal')
-        ref = (['MOSCA/Databases/rRNA_databases/' + database for database in
-                    ['silva-arc-16s-id95', 'silva-arc-23s-id98', 'silva-bac-16s-id90', 
-                     'silva-bac-23s-id98', 'silva-euk-18s-id95', 'silva-euk-28s-id98']])
-        sortmerna = SortMeRNA(ref = ref,
-                              reads = reads,
-                              aligned = self.working_dir + '/Preprocess/SortMeRNA/' + self.name + '_accepted',
-                              output_format = ['fastx'],
-                              other = self.working_dir + '/Preprocess/SortMeRNA/' + self.name + '_rejected',
-                              paired = True if self.paired == 'PE' else False,
-                              working_dir = self.working_dir,
-                              name = self.name)
-        sortmerna.run()
-        print('rRNA sequences removal done')
     
     def final_quality_check(self):
         print('Beggining third quality check')

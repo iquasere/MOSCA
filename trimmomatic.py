@@ -9,7 +9,7 @@ March 2017
 
 from mosca_tools import MoscaTools
 from fastqc import FastQC
-import glob
+import glob, os
 
 mtools = MoscaTools()
 
@@ -49,10 +49,11 @@ class Trimmomatic:
                 #trim according to each adapter file
                 if self.paired in adapter:
                     self.illuminaclip = [adapter,'2','30','10']
-                    self.output = self.working_dir + '/Preprocess/Trimmomatic/' + self.name + '_' + adapter.split('/')[1].rstrip('.fa')
+                    name_n_adapter = self.name + '_' + adapter.split('/')[-1].split('.fa')[0]
+                    self.output = self.working_dir + '/Preprocess/Trimmomatic/' + name_n_adapter
                     self.run()
                     #generate fastqc report
-                    files = [self.working_dir + '/Preprocess/Trimmomatic/' + self.name + '_' + adapter.split('/')[1].rstrip('.fa') 
+                    files = [self.working_dir + '/Preprocess/Trimmomatic/' + name_n_adapter
                                 + '_' + fr + '_paired.fq' for fr in ['forward','reverse']]
                     fastqc = FastQC(outdir = self.working_dir + '/Preprocess/FastQC',
                                     extract = True,
@@ -61,9 +62,9 @@ class Trimmomatic:
                     
                     #check presence of adapters in fastqc report
                     for file in adapter_contaminated:
-                        data = self.parse_fastqc_result(self.working_dir + '/Preprocess/FastQC/' + self.name + '_' + adapter.split('/')[1].rstrip('.fa')  + '_forward_paired_fastqc/fastqc_data.txt')
+                        data = self.parse_fastqc_result(self.working_dir + '/Preprocess/FastQC/' + name_n_adapter  + '_forward_paired_fastqc/fastqc_data.txt')
                         if data['Overrepresented sequences'][0] == 'pass':
-                            data = self.parse_fastqc_result(self.working_dir + '/Preprocess/FastQC/' + self.name + '_' + adapter.split('/')[1].rstrip('.fa')  + '_reverse_paired_fastqc/fastqc_data.txt')
+                            data = self.parse_fastqc_result(self.working_dir + '/Preprocess/FastQC/' + name_n_adapter  + '_reverse_paired_fastqc/fastqc_data.txt')
                             if data['Overrepresented sequences'][0] == 'pass':
                                 possible_adapters.append(adapter)
                             else:
@@ -187,7 +188,7 @@ class Trimmomatic:
         self.run()
         
     def bash_command(self):
-        result = 'java -jar ~/anaconda3/jar/trimmomatic.jar ' + self.paired
+        result = 'java -jar ' + os.path.expanduser('~/anaconda3/jar/trimmomatic.jar ') + self.paired
         if 'quality_score' in self.__dict__.keys():
             result += " -" + self.quality_score
             self.__dict__.pop('quality_score')

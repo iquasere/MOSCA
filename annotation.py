@@ -64,7 +64,7 @@ class Annotater:
                 print('DMND database was found. Using it')
         elif self.db[-5:] != '.dmnd':
             print('Database must either be a FASTA (.fasta) or a DMND (.dmnd) file')
-            
+            exit()
         diamond.db = self.db.split('.dmnd')[0] if '.dmnd' in self.db else self.db.split('.fasta')[0]
         
         diamond.run()
@@ -528,8 +528,7 @@ class Annotater:
         return result
     
     def run(self):
-        self.gene_calling(self.input, self.out_dir + '/Annotation/' + self.mg_name,
-                          self.assembled)
+        #self.gene_calling(self.file, self.out_dir + '/Annotation/' + self.name, self.assembled)
         self.annotation()
     
     '''
