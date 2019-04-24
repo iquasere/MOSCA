@@ -108,12 +108,7 @@ class Assembler:
         self.metaquast(contigs, out_dir + '/quality_control')
         mtools.perform_alignment(contigs, [self.forward, self.reverse], 
                                  out_dir + '/quality_control/alignment', threads = 6)
-        percentage_of_reads = self.parse_bowtie2log(out_dir + '/quality_control/alignment.loj')
-        
-        self.bowtie2([self.forward,self.reverse], contigs, 
-                                           out_dir + '/quality_control', 
-                                           out_dir + '/quality_control/library.sam', 
-                                           out_dir + '/quality_control/bowtie.log')
+        percentage_of_reads = self.parse_bowtie2log(out_dir + '/quality_control/alignment.log')
         
         if os.path.isfile(out_dir + '/quality_control/combined_reference/report.tsv'):  #if metaquast finds references to the contigs, it will output results to different folders
             os.rename(out_dir + '/quality_control/combined_reference/report.tsv', 

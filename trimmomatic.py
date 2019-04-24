@@ -22,7 +22,8 @@ class Trimmomatic:
         terms_list = ['Adapter','Illumina','Primer']
         
         #Check presence of adapters in input file(s)
-        adapters = glob.glob('MOSCA/Databases/illumina_adapters/*.fasta')
+        adapters = (glob.glob('MOSCA/Databases/illumina_adapters/*.fa') +       # Trimmomatic's files come as .fa
+                    glob.glob('MOSCA/Databases/illumina_adapters/*.fasta'))
         print('Available adapter files:', adapters)
         adapter_contaminated = list()
         
@@ -186,7 +187,7 @@ class Trimmomatic:
         self.run()
         
     def bash_command(self):
-        result = 'trimmomatic ' + self.paired
+        result = 'java -jar ~/anaconda3/jar/trimmomatic.jar ' + self.paired
         if 'quality_score' in self.__dict__.keys():
             result += " -" + self.quality_score
             self.__dict__.pop('quality_score')
