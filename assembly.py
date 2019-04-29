@@ -17,6 +17,8 @@ class Assembler:
     
     def __init__ (self, **kwargs):
         self.__dict__ = kwargs
+        if hasattr(self, 'memory') and self.assembler == 'megahit':             # Megahit reads max memory in byte, metaspades reads in Gb
+            self.memory *= 1.25e8
         
     def set_argument(self, x):
         if isinstance(self.__dict__[x], str): 
