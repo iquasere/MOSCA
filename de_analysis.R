@@ -40,7 +40,8 @@ dev.off()
 
 write.csv(as.data.frame(resOrdered), file=opt$output + "/condition_treated_results.csv")
 vsd <- varianceStabilizingTransformation(dds, blind=FALSE)
-select=rownames(head(resOrdered,20))','vsd.counts = assay(vsd)[select,]
+select=rownames(head(resOrdered,20))
+vsd.counts = assay(vsd)[select,]
 df <- as.data.frame(colData(dds)[,c("condition")])
 
 jpeg(opt$output + "/gene_expression.jpeg")

@@ -387,8 +387,8 @@ class Annotater:
     Output: annotated file with CDD IDs
     '''
     def run_rpsblast(self, fasta, output, cog, threads = 6):
-        mtools.run_command('rpsblast -i ' + fasta + ' -d ' + cog + ' -o ' + 
-                           output + ' -m 8 -a ' + str(threads))
+        mtools.run_command('rpsblast -query ' + fasta + ' -db ' + cog + ' -out ' + 
+                           output + ' -outfmt 8 -num_threads ' + str(threads))
         
     '''
     Input: 
@@ -566,9 +566,11 @@ class Annotater:
                     
     def global_information(self):
         # Join reports
-        mtools.run_command('cat ' + ' '.join(glob.glob(self.out_dir + '/Annotation/*/fgs.faa')),
+        if not os.path.isfile(self.out_dir + '/Annotation/fgs.faa'):
+            mtools.run_command('cat ' + ' '.join(glob.glob(self.out_dir + '/Annotation/*/fgs.faa')),
                                              self.out_dir + '/Annotation/fgs.faa')
-        mtools.run_command('cat ' + ' '.join(glob.glob(self.out_dir + '/Annotation/*/aligned.blast')), 
+        if not os.path.isfile(self.out_dir + '/Annotation/aligned.blast'):
+            mtools.run_command('cat ' + ' '.join(glob.glob(self.out_dir + '/Annotation/*/aligned.blast')), 
                            file = self.out_dir + '/Annotation/aligned.blast')
         
         # Retrieval of information from UniProt IDs
@@ -635,7 +637,7 @@ if __name__ == '__main__':
     
     mosca_dir = os.path.dirname(os.path.realpath(__file__))
     
-    annotater = Annotater(out_dir = 'MOSCAfinal',
+    annotater = Annotater(out_dir = 'MGMP',
                       fun = mosca_dir + '/Databases/COG/fun.txt',
                       cog = mosca_dir + '/Databases/COG/Cog',
                       cddid = mosca_dir + '/Databases/COG/cddid.tbl',

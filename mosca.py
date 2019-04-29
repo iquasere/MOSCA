@@ -53,7 +53,6 @@ parser.add_argument("-mp", "--metaproteomic", action = "store_true",
                     default = False)
 parser.add_argument("-c","--conditions", type=str, help="Different conditions for metatranscriptomic analysis", 
                     nargs = '*')
-
              
 args = mtools.validate_arguments(parser)
 
@@ -67,8 +66,8 @@ print('Creating directories at ' + args.output)
 directories = ([args.output + '/Preprocess/' + software for software in 
                 ['FastQC', 'Trimmomatic', 'SortMeRNA']] + 
                [args.output + folder for folder in ['/Assembly','/Annotation',
-                '/Metatranscriptomics_analysis' if not args.metaproteomic else
-                '/Metaproteomics_analysis']])
+                '/Metatranscriptomics' if not args.metaproteomic else
+                '/Metaproteomics']])
 
 for directory in directories:
     print('Created ' + directory)
@@ -226,10 +225,13 @@ for experiment in experiments:
             path = pathlib.Path(args.output + '/MetaTranscriptomics/' + 
                                 mg_name).mkdir(parents=True, exist_ok=True)
             
+            mt = [args.output + '/Preprocess/Trimmomatic/quality_trimmed_' + mt_name + 
+                  '_' + fr + '_paired.fq' for fr in ['forward', 'reverse']]
+            
             mta = MetaTranscriptomicsAnalyser(out_dir = args.output + '/MetaTranscriptomics',
                           contigs = args.output + '/Assembly/' + mg_name + '/contigs.fasta',
                           blast = args.output + '/Annotation/' + mg_name + '/aligned.blast',
-                          reads_folder = args.output + '/Preprocess/Trimmomatic',
+                          reads = mt,
                           mg = mg_name,
                           mt = mt_name,
                           assembler = args.assembler)
