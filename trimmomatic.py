@@ -188,24 +188,28 @@ class Trimmomatic:
         self.run()
         
     def bash_command(self):
-        result = 'java -jar ' + os.path.expanduser('~/anaconda3/jar/trimmomatic.jar ') + self.paired
-        if 'quality_score' in self.__dict__.keys():
+        result = ('java -jar ' + os.path.expanduser('~/anaconda3/jar/trimmomatic.jar ') 
+            + self.paired + ' -threads ' + self.threads)
+        if hasattr(self, 'quality_score'): 
             result += " -" + self.quality_score
-            self.__dict__.pop('quality_score')
+            self.__dict__.pop('quality_score') 
         for f in self.input_files:
             result += ' ' + f
-        input_files1 = self.input_files
-        self.__dict__.pop('input_files')
         if self.paired == 'PE':
             result += ' ' + self.output + '_forward_paired.fq ' + self.output + '_forward_unpaired.fq ' + self.output + '_reverse_paired.fq ' + self.output + '_reverse_unpaired.fq'
         elif self.paired == 'SE':
              result += ' ' + self.output + '.fq'
-        name = self.name; data = self.data; working_dir = self.working_dir; paired = self.paired; output = self.output
-        for key in ['paired', 'output', 'working_dir', 'data', 'name']:
+        # The attributes for Trimmomatic's tools work differently from the specified in problem_attributes
+        problem_attributes = ['input_files', 'name', 'data', 'working_dir', 'paired', 'output', 'threads']
+        attributes = dict()
+        for attr in problem_attributes:
+            attributes[attr] = getattr(self, attr)
+        for key in problem_attributes:
             self.__dict__.pop(key)
         for arg in self.__dict__.keys():
             result += self.set_argument(arg)
-        self.name = name; self.data = data; self.working_dir = working_dir; self.paired = paired; self.input_files = input_files1; self.output = output
+        for attr in problem_attributes:
+            setattr(self, attr, attributes[attr])
         return result
     
     def run(self):

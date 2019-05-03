@@ -39,7 +39,10 @@ class Preprocesser:
                                   working_dir = self.working_dir,
                                   output = self.working_dir + '/Preprocess/Trimmomatic/after_adapter_removal_' + self.name,
                                   data = self.data,
-                                  name = self.name)
+                                  name = self.name,
+                                  threads = self.threads)
+        if hasattr(self, 'quality_score'):
+            setattr(trimmomatic, 'quality_score', self.quality_score)
         adapters = trimmomatic.remove_adapters()
         return adapters
         print('Adapter removal done')
@@ -77,12 +80,16 @@ class Preprocesser:
                                   data = self.data,
                                   name = self.name,
                                   output = self.working_dir + '/Preprocess/Trimmomatic/quality_trimmed_' + self.name,
-                                  minlen = '100')
+                                  minlen = '100',
+                                  threads = self.threads)
+        if hasattr(self, 'quality_score'):
+            setattr(trimmomatic, 'quality_score', self.quality_score)
         reports = [self.working_dir + '/Preprocess/FastQC/' + self.name + '_' + fr + '_fastqc/fastqc_data.txt' for fr in ['forward','reverse']]
         trimmomatic.define_by_reports(reports)
         print('Quality trimming done')
         
-    #BMTagger - removal of human sequences
+    #BMTagger - removal of human sequences 
+    # TODO - implement
     def host_sequences_removal(self):        
         print('Beggining host sequences removal')
         bmtagger = BMTagger(script_dir = '~/miniconda3/bin',

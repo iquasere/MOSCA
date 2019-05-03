@@ -44,10 +44,11 @@ class Annotater:
             mtools.fastq2fasta(file, file.replace('fastq', 'fasta'))            # fraggenescan only accepts FASTA input
             bashCommand += (file.replace('fastq', 'fasta') + ' -out=' + output +
                             '/fgs -complete=0 -train=./' + error_model)
+        bashCommand += ' -thread= ' + self.threads
         mtools.run_command(bashCommand)
     
     def annotation(self):
-        diamond = DIAMOND(threads = '6',
+        diamond = DIAMOND(threads = self.threads,
                           db = self.db,
                           out = self.out_dir + '/Annotation/' + self.name + '/aligned.blast',
                           query = self.out_dir + '/Annotation/' + self.name + '/fgs.faa',
@@ -386,9 +387,12 @@ class Annotater:
         name of output file
     Output: annotated file with CDD IDs
     '''
-    def run_rpsblast(self, fasta, output, cog, threads = 6):
-        mtools.run_command('rpsblast -query ' + fasta + ' -db ' + cog + ' -out ' + 
-                           output + ' -outfmt 8 -num_threads ' + str(threads))
+    def run_rpsblast(self, fasta, output, cog):
+        if not os.path.isfile(output):
+            mtools.run_command('rpsblast -query ' + fasta + ' -db ' + cog + ' -out ' + 
+                           output + ' -outfmt 6 -num_threads ' + self.threads)
+        else:
+            print(output + ' already exists!')
         
     '''
     Input: 
@@ -528,7 +532,7 @@ class Annotater:
         return result
     
     def run(self):
-        #self.gene_calling(self.file, self.out_dir + '/Annotation/' + self.name, self.assembled)
+        self.gene_calling(self.file, self.out_dir + '/Annotation/' + self.name, self.assembled)
         self.annotation()
     
     '''
@@ -581,7 +585,7 @@ class Annotater:
         self.cog_annotation(self.out_dir + '/Annotation/fgs.faa', 
                             self.out_dir + '/Annotation', self.cog, 
                             self.cddid, self.whog, self.fun)
-
+        
         # Quantification of each protein presence
         joined = self.join_reports(self.out_dir + '/Annotation/aligned.blast', 
                                self.out_dir + '/Annotation/uniprot.info', 
@@ -634,7 +638,16 @@ class Annotater:
         new_uniprotinfo.to_csv('test.tsv', sep = '\t', index = False)
     
 if __name__ == '__main__':
+    '''
+    ids = DIAMOND(out = 'MOSCAfinal/Annotation/joined/aligned.blast').parse_result()['sseqid']
     
+    ids = [ide.split('|')[1] for ide in ids if ide != '*']
+    '''
+    annotater = Annotater()
+    
+    annotater.recursive_uniprot_information('MOSCAfinal/Annotation/aligned.blast',
+                                            'MOSCAfinal/Annotation/uniprot.info')
+    '''
     mosca_dir = os.path.dirname(os.path.realpath(__file__))
     
     annotater = Annotater(out_dir = 'MGMP',
@@ -645,3 +658,4 @@ if __name__ == '__main__':
                       cdd2cog_executable = mosca_dir + '/cdd2cog.pl')
     
     annotater.global_information()
+    '''

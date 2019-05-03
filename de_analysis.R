@@ -22,44 +22,59 @@ option_list = list(
 opt_parser = OptionParser(option_list=option_list);
 opt = parse_args(opt_parser);
 
-total <- read.table(opt$readcounts, h=T, row.names=1)
+paste("Readcounts:", opt$readcounts, sep=' ')
+paste("Conditions:", opt$conditions, sep=' ')
+paste("Method:", opt$method, sep=' ')
+paste("Output:", opt$output, sep=' ')
+
+opt$conditions <- strsplit(opt$conditions, "[[:space:]]")[[1]]
+
+total <- read.table(opt$readcounts, h=T, row.names=1, sep = '\t')
 condition <- factor(opt$conditions)
 total <- total[ rowSums(total) > 1, ]
 cd = data.frame(opt$conditions)
 colnames(cd)[1]="condition"
 rownames(cd)=colnames(total)
+
 dds <- DESeqDataSetFromMatrix(countData = total, colData = cd, design = ~condition)
 dds <- DESeq(dds)
 res <- results(dds)
-resOrdered <- ifelse(opt$method == "differential", res[order(res$padj),], 
-                                                res[order(-res$baseMean),])
 
-jpeg(opt$output + "/ma.jpeg")
+# Bland–Altman plot
+jpeg(paste(opt$output, "ma.jpeg", sep = '/'))
 plotMA(res, main="DESeq2", ylim=c(-2,2))
 dev.off()
 
-jpeg(opt$output + "/counts.jpeg")
+# Normalized counts
+jpeg(paste(opt$output, "counts.jpeg", sep = '/'))
 plotCounts(dds, gene=which.min(res$padj), intgroup="condition")
 dev.off()
 
-write.csv(as.data.frame(resOrdered), file=opt$output + "/condition_treated_results.csv")
-
+# Protein expressions differential analysis
+if(identical(opt$method, "differential")) {
+    resOrdered <- res[order(res$padj),]
+} else {
+    resOrdered <- res[order(-res$baseMean),]}
+write.csv(as.data.frame(resOrdered), paste(file=opt$output, "condition_treated_results.csv", sep = '/'))
 vsd <- varianceStabilizingTransformation(dds, blind=FALSE)
 select=rownames(head(resOrdered,20))
 vsd.counts = assay(vsd)[select,]
-jpeg(opt$output + "/gene_expression.jpeg")
+jpeg(paste(opt$output, "gene_expression.jpeg", sep = '/'))
 pheatmap(vsd.counts)
 dev.off()
 
+# Sample expressions differential analysis
 sampleDists <- dist(t(assay(vsd)))
 sampleDistMatrix <- as.matrix(sampleDists)
 rownames(sampleDistMatrix) <- dds$condition
 colnames(sampleDistMatrix) <- NULL
 colors <- colorRampPalette( rev(brewer.pal(9, "Blues")) )(255)
-jpeg(opt$output + "/sample_distances.jpeg")
-pheatmap(sampleDistMatrix, clustering_distance_rows=sampleDists, clustering_distance_cols=sampleDists, col=colors)
+jpeg(paste(opt$output, "sample_distances.jpeg", sep = '/'))
+pheatmap(sampleDistMatrix, clustering_distance_rows = sampleDists, 
+         clustering_distance_cols = sampleDists, col = colors)
 dev.off()
 
-jpeg(opt$output + "/pca.jpeg")
-plotPCA(vsd, intgroup=c("condition"))
+# Principal components analysis
+jpeg(paste(opt$output, "pca.jpeg", sep = '/'))
+plotPCA(vsd, intgroup = c("condition"))
 dev.off()

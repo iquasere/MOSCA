@@ -36,7 +36,8 @@ conda install -y -c bioconda r-optparse
 conda install -y -c anaconda pandas
 conda install -y -c conda-forge tqdm
 conda install -y scikit-learn
-conda install -c anaconda lxml
+conda install -y -c anaconda lxml
+conda install -y -c bioconda blast
 mkdir MOSCA/Databases/annotation_databases
 cd MOSCA/Databases/annotation_databases
 wget ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_trembl.fasta.gz

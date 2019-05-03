@@ -111,7 +111,7 @@ class MoscaTools:
         GFF annotation file named blast.replace(.blast,.gff)
         SAM alignment and READCOUNTS files named output + .sam and .readcounts
     '''
-    def perform_alignment(self, reference, reads, basename, threads = 6, blast = None):
+    def perform_alignment(self, reference, reads, basename, threads = 1, blast = None):
         if not self.check_bowtie2_index(reference.replace('.fasta', '_index')):
             print('INDEX files not found. Generating new ones')
             self.generate_mg_index(reference, reference.replace('.fasta', '_index'))

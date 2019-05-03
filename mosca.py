@@ -25,34 +25,40 @@ mtools = MoscaTools()
 parser = argparse.ArgumentParser(description="Multi Omics Software for Community Analysis",
                                  epilog="""A tool for performing metagenomics, metatranscriptomics 
                                  and metaproteomics analysis.""")
-parser.add_argument("-f","--files", type=str, 
-                    help="Input files for analysis (mg1R1,mg1R2:mt1R1,mt1R2 mg2R1,...)", nargs = '*')
+parser.add_argument("files", type=str, nargs = '*', metavar = 'Input files',
+                    help="Input files for analysis (mg1R1,mg1R2:mt1R1,mt1R2 mg2R1,...)")
 parser.add_argument("-data","--type-of-data",default='paired',choices=["paired","single"],
                     action='store',type=str,help='Type of data (paired/single)-ended')
 parser.add_argument("-a","--assembler",type=str,choices=["metaspades","megahit"],
-                    help="Tool for assembling the reads", nargs = 1,metavar = "Assembler", 
-                    default = "metaspades")
-parser.add_argument("-db","--annotation-database",type=str,help="Database for annotation (.fasta or .dmnd)", 
-                    nargs = 1,metavar = "Database", default = "Databases/annotation_databases/uniprot.dmnd")
+                    help="Tool for assembling the reads", metavar = "Assembler", 
+                    nargs = 1, default = "metaspades")
+parser.add_argument("-db","--annotation-database",type=str,nargs = 1,metavar = "Database",
+                    help="Database for annotation (.fasta or .dmnd)", 
+                     default = "Databases/annotation_databases/uniprot.dmnd")
 parser.add_argument("-o","--output",type=str,help="Directory for storing the results",
                     metavar = "Directory")
 parser.add_argument("-nopp","--no-preprocessing",action = "store_true",
                     help="Don't perform preprocessing", default = False)
 parser.add_argument("-noas","--no-assembly",action = "store_true",
                     help="Don't perform assembly", default = False)
-parser.add_argument("-noan","--no-annotation",action = "store_true",help="Don't perform annotation", 
-                    default = False)
-parser.add_argument("-nobin","--no-binning",action = "store_true",help="Don't perform binning", default = False)
+parser.add_argument("-noan","--no-annotation",action = "store_true",default = False,
+                    help="Don't perform annotation")
+parser.add_argument("-nobin","--no-binning",action = "store_true",default = False,
+                    help="Don't perform binning")
 parser.add_argument("-ol","--output-level",default='min',choices=["min","med","max"],
                     action='store',type=str,help=("""Level of file output from MOSCA, 
-                    min outputs only the analysis results, med removes intermediate files, max outputs 
-                    all intermediate and final data"""))
+                    min outputs only the analysis results, med removes intermediate files, 
+                    max outputs all intermediate and final data"""))
 parser.add_argument("-mp", "--metaproteomic", action = "store_true",
                     help = ("""If data is metagenomic and metaproteomic, if not specified
                             will be assumed to be metagenomic and metatranscriptomic"""),
                     default = False)
-parser.add_argument("-c","--conditions", type=str, help="Different conditions for metatranscriptomic analysis", 
-                    nargs = '*')
+parser.add_argument("-c","--conditions", type=str, nargs = '*',
+                    help="Different conditions for metatranscriptomic analysis")
+parser.add_argument("-t","--threads",type=str,metavar = "Threads", default = '1',
+                    help="Number of threads available for MOSCA")
+parser.add_argument("-m","--memory",type=str,metavar = "Memory",
+                    help="Maximum memory (byte) available for MOSCA. Applied only in the assembly")
              
 args = mtools.validate_arguments(parser)
 
@@ -103,7 +109,11 @@ for experiment in experiments:
                                         paired = 'PE' if args.type_of_data == 'paired' else 'SE',
                                         working_dir = args.output,
                                         data = 'dna',
-                                        name = mg_name)
+                                        name = mg_name,
+                                        threads = args.threads)
+            if hasattr(args, 'quality_score'):
+                setattr(preprocesser, 'quality_score', args.quality_score)
+                
             preprocesser.run()
             
             print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Preprocessing ' + 
@@ -128,7 +138,12 @@ for experiment in experiments:
                                  assembler = args.assembler,
                                  name = mg_name,
                                  forward = mg[0],
-                                 reverse = mg[1])
+                                 reverse = mg[1],
+                                 threads = args.threads,
+                                 memory = args.memory)
+            if args.assembler == 'metaspades' and hasattr(args, 'quality_score'):   # Megahit doesn't accept quality score input
+                setattr(assembler, 'phred_offset', args.quality_score)              # --phred-offset is the name of the parameter in MetaSPAdes
+                
             assembler.run()
             
             print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Assembly is ' + 
@@ -149,7 +164,8 @@ for experiment in experiments:
                                  db = args.annotation_database[0],
                                  assembled = assembled,
                                  error_model = 'illumina_10',
-                                 name = mg_name)
+                                 name = mg_name,
+                                 threads = args.threads)
             annotater.run()
             
             print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Annotation is ' + 
@@ -166,7 +182,8 @@ for experiment in experiments:
             binner = Binner(output = args.output + '/Binning/' + mg_name,
                             contigs = args.output + '/Assembly/' + mg_name + '/contigs.fasta',
                             blast = args.output + '/Annotation/' + mg_name + '/aligned.blast',
-                            uniprotinfo = args.output + '/Annotation/' + mg_name + '/uniprot.info')
+                            uniprotinfo = args.output + '/Annotation/' + mg_name + '/uniprot.info',
+                            threads = args.threads)
             binner.run()
             
             print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Binning is ' + 
@@ -208,9 +225,12 @@ for experiment in experiments:
             preprocesser = Preprocesser(files = mt,
                                         paired = 'PE',
                                         working_dir = args.output,
-                                        trimmomatic_dir = os.path.expanduser('~/anaconda3/bin'),
                                         data = 'mrna',
-                                        name = mt_name)
+                                        name = mt_name,
+                                        threads = args.threads)
+            if hasattr(args, 'quality_score'):
+                setattr(preprocesser, 'quality_score', args.quality_score)
+                
             preprocesser.run()
             
             print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Preprocessing ' + 
@@ -234,7 +254,8 @@ for experiment in experiments:
                           reads = mt,
                           mg = mg_name,
                           mt = mt_name,
-                          assembler = args.assembler)
+                          assembler = args.assembler,
+                          threads = args.threads)
             mta.readcounts_file()
             
             print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Gene expression ' + 
@@ -262,7 +283,8 @@ for experiment in experiments:
                           spectra_folder = spectra_folder,
                           experiment_name = args.output,
                           sample_name = mg_name,
-                          replicate_number = '1')
+                          replicate_number = '1',
+                          threads = args.threads)
         
             analyser.standard_run()
             
@@ -280,7 +302,8 @@ annotater = Annotater(out_dir = args.output,
                       cog = mosca_dir + '/Databases/COG/Cog',
                       cddid = mosca_dir + '/Databases/COG/cddid.tbl',
                       whog = mosca_dir + '/Databases/COG/whog',
-                      cdd2cog_executable = mosca_dir + '/cdd2cog.pl')
+                      cdd2cog_executable = mosca_dir + '/cdd2cog.pl',
+                      threads = args.threads)
 
 joined = annotater.global_information()
 

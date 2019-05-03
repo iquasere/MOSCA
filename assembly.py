@@ -17,8 +17,8 @@ class Assembler:
     
     def __init__ (self, **kwargs):
         self.__dict__ = kwargs
-        if hasattr(self, 'memory') and self.assembler == 'megahit':             # Megahit reads max memory in byte, metaspades reads in Gb
-            self.memory *= 1.25e8
+        if hasattr(self, 'memory') and self.assembler == 'metaspades':          # Megahit reads max memory in byte, metaspades reads in Gb
+            self.memory /= 1.25e8
         
     def set_argument(self, x):
         if isinstance(self.__dict__[x], str): 
@@ -101,7 +101,8 @@ class Assembler:
         return lines[-1].split('%')[0]
     
     def metaquast(self, contigs, out_dir):
-        bashCommand = 'metaquast --threads 6 --output-dir ' + out_dir + ' ' + contigs
+        bashCommand = ('metaquast --threads ' + self.threads + ' --output-dir ' + 
+                       out_dir + ' ' + contigs)
         mtools.run_command(bashCommand)
      
     def quality_control(self):
@@ -109,7 +110,8 @@ class Assembler:
         contigs = out_dir + '/contigs.fasta'
         self.metaquast(contigs, out_dir + '/quality_control')
         mtools.perform_alignment(contigs, [self.forward, self.reverse], 
-                                 out_dir + '/quality_control/alignment', threads = 6)
+                                 out_dir + '/quality_control/alignment', 
+                                 threads = self.threads)
         percentage_of_reads = self.parse_bowtie2log(out_dir + '/quality_control/alignment.log')
         
         if os.path.isfile(out_dir + '/quality_control/combined_reference/report.tsv'):  #if metaquast finds references to the contigs, it will output results to different folders

@@ -246,12 +246,12 @@ class MetaProteomicsAnalyser:
         fractions = root.find("fractions")
         ptms = root.find("ptms")
         paramGroupIndices = root.find("paramGroupIndices")
-        print('Experiment = ' + experiment)
+        print('Experiment = ' + experiment_name)
         files = mtools.sort_alphanumeric(glob.glob(spectra_folder + '/*.RAW'))
         for file in files:
             print('Adding file: ' + file)
             etree.SubElement(filePaths, 'string').text = file
-            etree.SubElement(experiments, 'string').text = experiment
+            etree.SubElement(experiments, 'string').text = experiment_name
             etree.SubElement(fractions, 'short').text = '32767'
             etree.SubElement(ptms, 'boolean').text = 'False'
             etree.SubElement(paramGroupIndices, 'int').text = '0'
