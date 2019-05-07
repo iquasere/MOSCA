@@ -567,3 +567,14 @@ def get_ids_from_ncbi_gff(gff):
         else:
             ids.append(re.split(';|,', attribute.split('Dbxref=Genbank:')[-1])[0])
     return ids
+
+if __name__ == '__main__':
+    mtools = MoscaTools()
+    
+    for n in ['1','2','3','4']:
+        reads = ['MOSCAfinal/Preprocess/Trimmomatic/quality_trimmed_4478-R' +
+                 n + '-1-MiSeqKapa_' + fr + '_paired.fq' for fr in ['forward','reverse']]
+        
+        mtools.perform_alignment('MOSCAfinal/Assembly/joined/contigs.fasta', 
+                                 reads, 'MOSCAfinal/Metatranscriptomics/mt' + n, 
+                                 threads = 10)

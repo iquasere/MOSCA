@@ -10,13 +10,13 @@ conda config --add channels conda-forge
 conda install -y fastqc
 conda install -y -c biocore sortmerna
 conda install -y -c anaconda svn
-svn export https://github.com/biocore/sortmerna/trunk/rRNA_databases MOSCA/Databases/rRNA_databases    # TODO - might have problem, svn not found
+svn export https://github.com/biocore/sortmerna/trunk/rRNA_databases MOSCA/Databases/rRNA_databases
 find MOSCA/Databases/rRNA_databases/* | grep -v ".fasta" | xargs rm -fr
 wget https://github.com/biocore/sortmerna/raw/master/scripts/merge-paired-reads.sh -P MOSCA
 wget https://github.com/biocore/sortmerna/raw/master/scripts/unmerge-paired-reads.sh -P MOSCA
 conda install -y seqtk
 conda install -y -c faircloth-lab trimmomatic
-svn export https://github.com/timflutre/trimmomatic/trunk/adapters MOSCA/Databases/illumina_adapters    # TODO - might have problem, svn not found
+svn export https://github.com/timflutre/trimmomatic/trunk/adapters MOSCA/Databases/illumina_adapters
 conda install -y megahit
 conda install -y -c bioconda spades
 conda install -y quast
@@ -25,10 +25,14 @@ conda install -y diamond
 conda install -y -c conda-forge progressbar33
 conda install -y -c bioconda htseq
 conda install -y -c bioconda bowtie2
-git clone -b devel https://github.com/claczny/VizBin.git
+apt-get install ant
+git clone -b devel https://github.com/claczny/VizBin.git                        # TODO - can't get bash VizBin/setupUbuntu.sh to work anymore
+cd VizBin/src/interface/VizBin
+ant jar
+cd ../../../..
 conda install -y -c bioconda maxbin2
 conda install -y -c bioconda bioconductor-deseq2=1.22.1
-conda install -y -c bioconda bioconductor-genomeinfodbdata=1.16.0
+conda installls  -y -c bioconda bioconductor-genomeinfodbdata=1.16.0
 conda install -y -c bioconda bioconductor-edger
 conda install -y -c bioconda r-pheatmap
 conda install -y -c r r-rcolorbrewer

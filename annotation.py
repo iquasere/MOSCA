@@ -44,7 +44,7 @@ class Annotater:
             mtools.fastq2fasta(file, file.replace('fastq', 'fasta'))            # fraggenescan only accepts FASTA input
             bashCommand += (file.replace('fastq', 'fasta') + ' -out=' + output +
                             '/fgs -complete=0 -train=./' + error_model)
-        bashCommand += ' -thread= ' + self.threads
+        bashCommand += ' -thread=' + self.threads
         mtools.run_command(bashCommand)
     
     def annotation(self):
@@ -197,11 +197,11 @@ class Annotater:
                 ids_missing = list(set([ide for ide in pbar(all_ids) if ide not in ids_done]))
                 i += 1
             except:
-                continue
+                print('Failed to retrieve information for some IDs. Retrying request.')
             
         result.to_csv(output, sep = '\t', index = False)
         
-        if i < max_iter:
+        if i < max_iter or len(ids_missing) == 0:
             print('Results for all IDs are available at ' + output)
         else:
             handler = open(ids_unmapped_output, 'w')
@@ -211,15 +211,34 @@ class Annotater:
                   ' at ' + ids_unmapped_output + ' and information obtained is available' +
                   ' at ' + output)
         
-    
+    '''
+    Input:
+        pathway: a String row from UniProt's 'Pathway' column
+    Output:
+        returns List of pathways included in that row
+    '''
     def split(self, pathway):
         pathway = pathway.split('. ')
         return [path for path in pathway if path != '']
     
+    '''
+    Input:
+        ec: a String row from UniProt's 'EC number' column
+    Output:
+        returns List of EC numbers included in that row
+    '''
     def split_ec(self, ec):
         ec = ec.split('; ')
         return [ec_number for ec_number in ec if ec_number != '']
     
+    '''
+    Input:
+        pathway: a String row from UniProt's 'Pathway' column
+    Output:
+        Reeives a pd.DataFrame object and breaks the list elements in the 'Pathway'
+        column, multiplicating the rows with several elements of 'Pathway' into
+        individual 'Pathway' elements, each with its row
+    '''    
     def using_repeat(self, df):
         import numpy as np
         import pandas as pd
@@ -230,6 +249,19 @@ class Annotater:
         dictionary["Pathway"] = np.concatenate(df['Pathway'].values)
         return pd.DataFrame(dictionary) 
     
+    '''
+    Input:
+        uniprotinfo: information from UniProt ID mapping
+        blast: blast file from DIAMOND annotation
+        output: basename for EXCEL files to output
+    Output:
+        Two EXCEL files formated for Krona plotting with taxonomic and functional 
+        information.
+        This function is very useful if wanting to use UniProt 'Pathway' information,
+        as it uses the three previous functions to organize the information from
+        that column into the three functional levels of UniProt Pathways.
+        This function was very cool
+    '''
     def uniprotinfo_to_excel(self, uniprotinfo, blast, output):
         blast = DIAMOND(out = blast).parse_result()
         uniprotdf = pd.read_csv(uniprotinfo, sep = '\t', index_col = 0).drop_duplicates()
@@ -259,17 +291,7 @@ class Annotater:
         funcdf = funcdf.groupby(funcdf.columns.tolist()[:-1])['Coverage'].sum().reset_index()
         funcdf.to_excel(output + '_functional_krona.xlsx', index = False)
         print('Saved pathways')
-            
-    def info_with_coverage(self, ids, blast, uniprotinfo, assembler, mg = '', mg_reverse = ''):
-        if assembler == 'metaspades':
-            self.info_with_coverage_metaspades(blast, uniprotinfo)
-        elif assembler == 'megahit':
-            self.contigs_readcounts(output + '/Assembly/final.contigs.fa', output + '/Analysis/contigs.readcounts', 
-                                    mg, mg_reverse = '')
-            self.info_with_coverage_megahit(blast, output + '/Analysis/contigs.readcounts', output)
-        else:
-            print('Assembler not valid!')
-            
+           
     def info_with_coverage_metaspades(self, blast, output):
         blast = DIAMOND(out = blast).parse_result()
         coverage = pd.Series([float(ide.split('_')[5]) for ide in blast.qseqid])
@@ -501,7 +523,7 @@ class Annotater:
         result = pd.merge(result, cog_blast, on = ['qseqid'], how = 'outer')
         print('Defining best consensus COG for each UniProt ID.')
         cogs_df = pd.DataFrame()
-        tqdm.pandas()        
+        tqdm.pandas()
         cogs_df['cog'] = result.groupby('Entry')['cog'].progress_apply(lambda x:
             x.value_counts().index[0] if len(x.value_counts().index) > 0 else np.nan)
         cogs_relation = result[['COG general functional category','COG functional category',
@@ -643,10 +665,14 @@ if __name__ == '__main__':
     
     ids = [ide.split('|')[1] for ide in ids if ide != '*']
     '''
-    annotater = Annotater()
+    ids = open('ids_missing.txt').readlines()[0].rstrip('\n').split(',')[:1000]
     
-    annotater.recursive_uniprot_information('MOSCAfinal/Annotation/aligned.blast',
-                                            'MOSCAfinal/Annotation/uniprot.info')
+    annotater = Annotater()
+    print(ids)
+    result = annotater.get_uniprot_information(ids)
+    print(result)
+    result.to_csv('uniprot.info',sep='\t',index=False)
+    
     '''
     mosca_dir = os.path.dirname(os.path.realpath(__file__))
     

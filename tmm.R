@@ -2,7 +2,6 @@
 # By João Sequeira
 # Jan 2019
 
-
 library("optparse")
 library("edgeR")
 
@@ -13,7 +12,7 @@ option_list = list(
                 help="output file name [default= %default]", metavar="character"),
     make_option(c("-m", "--method"), type="character", default="TMM", 
                 help="Normalization method to apply (TMM or RLE)", metavar="character"),
-); 
+);
  
 opt_parser = OptionParser(option_list=option_list);
 opt = parse_args(opt_parser);

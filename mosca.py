@@ -139,11 +139,13 @@ for experiment in experiments:
                                  name = mg_name,
                                  forward = mg[0],
                                  reverse = mg[1],
-                                 threads = args.threads,
-                                 memory = args.memory)
+                                 threads = args.threads)
+            
             if args.assembler == 'metaspades' and hasattr(args, 'quality_score'):   # Megahit doesn't accept quality score input
                 setattr(assembler, 'phred_offset', args.quality_score)              # --phred-offset is the name of the parameter in MetaSPAdes
-                
+            if args.memory is not None:
+                setattr(assembler, 'memory', args.memory)
+            
             assembler.run()
             
             print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Assembly is ' + 
