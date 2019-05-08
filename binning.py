@@ -391,6 +391,36 @@ class Binner:
         self.calculate_epsilon(self.contigs, self.output + '/points.txt', 
                                self.blast, self.uniprotinfo, self.output)
         
+    '''
+    *** The following functions concern binning with MaxBin2 ***
+    '''
+    
+    '''
+    Input:
+        contigs: FASTA file with contigs
+        output: basename of output
+        threads: number of threads to use by Maxbin
+        mg1: name of forward reads file used in the assembly
+        mg2: name of reverse reads file used in the assembly
+        abundance: name of abundance file (format is contig\tabundance)
+        marketset: either '107' marker genes present in >95% of bacteria, or
+        '40' marker gene sets that are universal among bacteria and archaea. 
+        '40' may be better suited for environment dominated by archaea; 
+        however it tend to split genomes into more bins.
+
+    Output:
+        
+    '''
+            
+    def run_maxbin(self, contigs, output, threads = 8, mg1 = None, mg2 = None,
+                   abundance = None, markerset = '107'):
+        bashCommand = 'run_MaxBin.pl -contig ' + contigs + ' -out ' + output
+        for parameter in [mg1, mg2, abundance]:
+            if parameter is not None:
+                           
+                           + ' -reads ' + /all_mg_forward.fasta -reads2 MOSCAfinal/Preprocess/Trimmomatic/all_mg_reverse.fasta -thread 12 -markerset 107
+
+        
 if __name__ == '__main__':
     
     binner = Binner(contigs = 'Binning/all_info_contigs.fasta', 

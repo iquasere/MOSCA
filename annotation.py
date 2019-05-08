@@ -131,7 +131,7 @@ class Annotater:
                 j = i + chunk if i + chunk < len(ids) else len(ids)
                 data = self.uniprot_request(ids[i:j], original_database, database_destination,
                                             output_format = output_format)
-                #time.sleep(60)
+                time.sleep(60)
                 if len(data) > 0:
                     result += data
         return result
@@ -412,7 +412,8 @@ class Annotater:
     def run_rpsblast(self, fasta, output, cog):
         if not os.path.isfile(output):
             mtools.run_command('rpsblast -query ' + fasta + ' -db ' + cog + ' -out ' + 
-                           output + ' -outfmt 6 -num_threads ' + self.threads)
+                           output + ' -outfmt 6 -num_threads ' + self.threads + 
+                           ' -max_target_seqs 1')
         else:
             print(output + ' already exists!')
         
@@ -665,13 +666,21 @@ if __name__ == '__main__':
     
     ids = [ide.split('|')[1] for ide in ids if ide != '*']
     '''
-    ids = open('ids_missing.txt').readlines()[0].rstrip('\n').split(',')[:1000]
+    '''
+    print(os.getcwd())
+    ui = pd.read_csv('uniprot.info',sep='\t')
+    found_ids = ui['Entry'].tolist()
     
+    all_ids = open('ids_missing.txt').readlines()[0].rstrip('\n').split(',')
+    missing_ids = [ide for ide in all_ids if ide not in found_ids]
+    print('Found IDs: ' + str(len(found_ids)))
+    print('Missing IDs: ' + str(len(missing_ids)))
+    '''
     annotater = Annotater()
-    print(ids)
-    result = annotater.get_uniprot_information(ids)
-    print(result)
-    result.to_csv('uniprot.info',sep='\t',index=False)
+    result = annotater.recursive_uniprot_information('debugMOSCA/Annotation/4478-DNA-S1613-MiSeqKapa/aligned.blast1',
+                                                     'debugMOSCA/Annotation/4478-DNA-S1613-MiSeqKapa/uniprot.info')
+    #result = pd.concat([result, ui])
+    #result.to_csv('uniprot.info',sep='\t',index=False)
     
     '''
     mosca_dir = os.path.dirname(os.path.realpath(__file__))
