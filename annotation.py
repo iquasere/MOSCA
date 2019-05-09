@@ -10,6 +10,7 @@ Jun 2017
 
 from diamond import DIAMOND
 from mosca_tools import MoscaTools
+from uniprot_mapping import UniprotMapping
 from progressbar import ProgressBar
 from io import StringIO
 from tqdm import tqdm
@@ -18,6 +19,7 @@ import numpy as np
 import time, os, shutil, glob
 
 mtools = MoscaTools()
+upmap = UniprotMapping()
 
 class Annotater:
     
@@ -71,7 +73,7 @@ class Annotater:
         diamond.run()
     
     def uniprot_request(self, ids, original_database = 'ACC+ID', database_destination = '',
-                        output_format = 'tab'):
+                        output_format = 'tab', columns = None, databases = None):
         import requests
          
         BASE_URL = 'https://www.uniprot.org/uniprot/'
@@ -94,13 +96,7 @@ class Annotater:
             'from':original_database,
             'format':output_format,
             'query':'+OR+'.join(['accession:' + acc for acc in ids]),
-            'columns':('id,genes,protein names,ec,comment(FUNCTION),pathway,' + 
-                       'keywords,existence,go,families,lineage(SUPERKINGDOM),' +
-                       'lineage(PHYLUM),lineage(CLASS),lineage(ORDER),' + 
-                       'lineage(FAMILY),lineage(GENUS),lineage(SPECIES),'+
-                       'database(' + '),database('.join(['BioCyc','BRENDA',
-                        'CDD','eggNOG','Ensembl','InterPro','KEGG','KO',
-                        'Pfam','Reactome','RefSeq','UniPathway']) + ')')
+            'columns':upmap.string4mapping(columns = columns, databases = databases)
         }
         if database_destination != '' or original_database != 'ACC+ID':
             params['to'] = 'ACC'
@@ -113,7 +109,8 @@ class Annotater:
                 return ''
             
     def get_uniprot_information(self, ids, original_database = 'ACC+ID', output_format = 'tab',
-                                database_destination = '', chunk = 1000):
+                                database_destination = '', chunk = 1000, sleep = 30,
+                                columns = None, databases = None):
         pbar = ProgressBar()
         print('Retrieving UniProt information from ' + str(len(ids)) + ' IDs.')
         if output_format == 'tab':
@@ -121,7 +118,7 @@ class Annotater:
             for i in pbar(range(0, len(ids), chunk)):
                 j = i + chunk if i + chunk < len(ids) else len(ids)
                 data = self.uniprot_request(ids[i:j], original_database, database_destination)
-                time.sleep(60)
+                time.sleep(sleep)
                 if len(data) > 0:
                     uniprot_info = pd.read_csv(StringIO(data), sep = '\t')
                     result = pd.concat([result, uniprot_info])
@@ -129,9 +126,10 @@ class Annotater:
             result = str()
             for i in pbar(range(0, len(ids), chunk)):
                 j = i + chunk if i + chunk < len(ids) else len(ids)
-                data = self.uniprot_request(ids[i:j], original_database, database_destination,
-                                            output_format = output_format)
-                time.sleep(60)
+                data = self.uniprot_request(ids[i:j], original_database, 
+                            database_destination, output_format = output_format, 
+                            columns = columns, databases = databases)
+                time.sleep(sleep)
                 if len(data) > 0:
                     result += data
         return result
@@ -144,7 +142,6 @@ class Annotater:
             blast = mtools.parse_blast(blast)
             all_ids = list(set([ide.split('|')[1] if ide != '*' else ide 
                                 for ide in blast.sseqid]))
-        all_ids = all_ids
         i = 0
         ids_done = ([ide.split('|')[1] for ide in mtools.parse_fasta(output).keys()]
                     if os.path.isfile(output) else list())
@@ -185,7 +182,11 @@ class Annotater:
         print('Checking which IDs are missing information.')
         pbar = ProgressBar()
         ids_missing = list(set([ide for ide in pbar(all_ids) if ide not in ids_done]))
-        while len(ids_done) < len(all_ids) and i < max_iter:
+        print('ids missing:'+str(len(ids_missing)))
+        print('ids done:'+str(len(ids_done)))
+        print('ids all:'+str(len(all_ids)))
+        
+        while len(ids_missing) > 0 and i < max_iter:
             try:
                 print('Information already gathered for ' + str(len(ids_done)) + 
                       ' ids. Still missing for ' + str(len(ids_missing)) + '.')
@@ -195,13 +196,14 @@ class Annotater:
                 print('Checking which IDs are missing information.')
                 pbar = ProgressBar()
                 ids_missing = list(set([ide for ide in pbar(all_ids) if ide not in ids_done]))
-                i += 1
+                i = 0
             except:
                 print('Failed to retrieve information for some IDs. Retrying request.')
+                i += 1
             
         result.to_csv(output, sep = '\t', index = False)
         
-        if i < max_iter or len(ids_missing) == 0:
+        if len(ids_missing) == 0:
             print('Results for all IDs are available at ' + output)
         else:
             handler = open(ids_unmapped_output, 'w')
@@ -593,6 +595,7 @@ class Annotater:
                     
     def global_information(self):
         # Join reports
+        '''
         if not os.path.isfile(self.out_dir + '/Annotation/fgs.faa'):
             mtools.run_command('cat ' + ' '.join(glob.glob(self.out_dir + '/Annotation/*/fgs.faa')),
                                              self.out_dir + '/Annotation/fgs.faa')
@@ -603,7 +606,7 @@ class Annotater:
         # Retrieval of information from UniProt IDs
         self.recursive_uniprot_information(self.out_dir + '/Annotation/aligned.blast', 
                                            self.out_dir + '/Annotation/uniprot.info')
-        
+        '''
         # Functional annotation with COG database
         self.cog_annotation(self.out_dir + '/Annotation/fgs.faa', 
                             self.out_dir + '/Annotation', self.cog, 
@@ -677,8 +680,8 @@ if __name__ == '__main__':
     print('Missing IDs: ' + str(len(missing_ids)))
     '''
     annotater = Annotater()
-    result = annotater.recursive_uniprot_information('debugMOSCA/Annotation/4478-DNA-S1613-MiSeqKapa/aligned.blast1',
-                                                     'debugMOSCA/Annotation/4478-DNA-S1613-MiSeqKapa/uniprot.info')
+    result = annotater.recursive_uniprot_information('MOSCAfinal/Annotation/aligned.blast',
+                                                     'MOSCAfinal/Annotation/uniprot.info1')
     #result = pd.concat([result, ui])
     #result.to_csv('uniprot.info',sep='\t',index=False)
     

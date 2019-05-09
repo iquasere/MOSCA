@@ -407,19 +407,27 @@ class Binner:
         '40' marker gene sets that are universal among bacteria and archaea. 
         '40' may be better suited for environment dominated by archaea; 
         however it tend to split genomes into more bins.
-
     Output:
+        bins named basename + .n.fasta
+        abundance of each contig in each sample (mg1 and mg2) named basename + .abund1/2
+        abundace of each bin for both samples named basename + .abundance
+        log of workflow named basename + .log
+        markergenes used to compose the bins named basename + .marker
+        contigs not included in any bin named basename + .noclass
         
     '''
             
     def run_maxbin(self, contigs, output, threads = 8, mg1 = None, mg2 = None,
                    abundance = None, markerset = '107'):
         bashCommand = 'run_MaxBin.pl -contig ' + contigs + ' -out ' + output
+        parameter_dictionary = {'mg1':'-reads','mg2':'-reads2','abundance':'-abundance'}
         for parameter in [mg1, mg2, abundance]:
             if parameter is not None:
-                           
-                           + ' -reads ' + /all_mg_forward.fasta -reads2 MOSCAfinal/Preprocess/Trimmomatic/all_mg_reverse.fasta -thread 12 -markerset 107
-
+                bashCommand += ' ' + parameter_dictionary[parameter] + ' ' + parameter
+        bashCommand += ' -thread ' + threads + ' -markerset ' + markerset
+        mtools.run_command(bashCommand)
+        
+        
         
 if __name__ == '__main__':
     
