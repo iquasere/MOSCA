@@ -31,7 +31,6 @@ condition <- factor(opt$conditions)
 total <- total[ rowSums(total) > 1, ]
 cd = data.frame(opt$conditions)
 colnames(cd)[1]="condition"
-colnames(total)
 rownames(cd)=colnames(total)
 library("DESeq2")
 

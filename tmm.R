@@ -6,18 +6,18 @@ library("optparse")
 library("edgeR")
 
 option_list = list(
-    make_option(c("-t", "--table"), type="character", default=NULL, 
+    make_option(c("-r", "--readcounts"), type="character", default=NULL, 
                 help="table with abundance information", metavar="character"),
     make_option(c("-o", "--output"), type="character", default="factors.txt", 
                 help="output file name [default= %default]", metavar="character"),
     make_option(c("-m", "--method"), type="character", default="TMM", 
-                help="Normalization method to apply (TMM or RLE)", metavar="character"),
+                help="Normalization method to apply (TMM or RLE)", metavar="character")
 );
  
 opt_parser = OptionParser(option_list=option_list);
 opt = parse_args(opt_parser);
 
-df <- read.table(opt$table, header = TRUE, sep = "\t")
+df <- read.table(opt$readcounts, header = TRUE, sep = "\t")
 
 if(sapply(df, class)[1] != "numeric" & sapply(df, class)[1] != "integer"){
         df[colnames(df)[1]] <- NULL

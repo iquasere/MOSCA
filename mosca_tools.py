@@ -70,7 +70,7 @@ class MoscaTools:
     
     '''
     Input:
-        joined: name of final EXCEL file outputed by MOSCA
+        joined: name of final TSV file outputed by MOSCA
         columns: name of columns to normalize (don't put them all at once, one
         normalization at a time!)
         output: name of file to output
@@ -80,19 +80,19 @@ class MoscaTools:
         column in the readcounts file
     '''
     def normalize_readcounts(self, joined, columns, output = None):
-        if output is None: output = joined.replace('.xlsx', '_normalized.xlsx')
+        if output is None: output = joined.replace('.tsv', '_normalized.tsv')
         working_dir = '/'.join(joined.split('/')[:-1])
-        info = pd.read_excel(joined)
+        info = pd.read_csv(joined, sep = '\t')
         info[columns] = info[columns].fillna(value=0)
         info[columns].to_csv(working_dir + '/to_normalize.tsv', sep = '\t', index = False)
         print('Normalizing ' + joined + ' on columns ' + ','.join(columns))
-        self.run_command('Rscript MOSCA/tmm.R --table ' + working_dir + '/to_normalize.tsv --output '
+        self.run_command('Rscript MOSCA/tmm.R --readcounts ' + working_dir + '/to_normalize.tsv --output '
                          + working_dir + '/normalization_factors.txt')
         factors = open(working_dir + '/normalization_factors.txt').read().split('\n')[:-1]      # there is always the \n as last element
         
         for i in range(len(columns)):
             info[columns[i] + '_normalized'] = info[columns[i]] * float(factors[i])
-        info.to_excel(output, index = False)
+        return info
     
     def check_bowtie2_index(self, index_prefix):
         files = glob.glob(index_prefix + '*.bt2')

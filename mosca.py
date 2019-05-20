@@ -54,7 +54,7 @@ parser.add_argument("-mp", "--metaproteomic", action = "store_true",
                             will be assumed to be metagenomic and metatranscriptomic"""),
                     default = False)
 parser.add_argument("-c","--conditions", type=str, nargs = '*',
-                    help="Different conditions for metatranscriptomic analysis")
+                    help="Different conditions for metatranscriptomic analysis, separated by comma (,)")
 parser.add_argument("-t","--threads",type=str,metavar = "Threads", default = '1',
                     help="Number of threads available for MOSCA")
 parser.add_argument("-m","--memory",type=str,metavar = "Memory",
@@ -192,7 +192,7 @@ for experiment in experiments:
                   'finished and results are available at ' + args.output + 
                   '/Binning/' + mg_name)
             
-        mg_processed.append(mg)
+        mg_processed.append(mg_name)
         
     if len(pairs) > 1:
         
@@ -244,13 +244,13 @@ for experiment in experiments:
             '''
             print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Quantifying gene expression')
             
-            path = pathlib.Path(args.output + '/MetaTranscriptomics/' + 
+            path = pathlib.Path(args.output + '/Metatranscriptomics/' + 
                                 mg_name).mkdir(parents=True, exist_ok=True)
             
             mt = [args.output + '/Preprocess/Trimmomatic/quality_trimmed_' + mt_name + 
                   '_' + fr + '_paired.fq' for fr in ['forward', 'reverse']]
             
-            mta = MetaTranscriptomicsAnalyser(out_dir = args.output + '/MetaTranscriptomics',
+            mta = MetaTranscriptomicsAnalyser(out_dir = args.output + '/Metatranscriptomics',
                           contigs = args.output + '/Assembly/' + mg_name + '/contigs.fasta',
                           blast = args.output + '/Annotation/' + mg_name + '/aligned.blast',
                           reads = mt,
@@ -262,7 +262,7 @@ for experiment in experiments:
             
             print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Gene expression ' + 
                   'quantification is finished and results are available at ' + 
-                  args.output + '/MetaTranscriptomics/' + mt_name)
+                  args.output + '/Metatranscriptomics/' + mt_name)
             
             expression_analysed.append(mt_name)
             
@@ -309,39 +309,36 @@ annotater = Annotater(out_dir = args.output,
 
 joined = annotater.global_information()
 
+import pandas as pd
+joined = pd.read_csv('debugMOSCA/joined_information.tsv',sep='\t')
 print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Integration is available at '
       + args.output)
 
 if len(experiment.split(':')) > 1:      
     if not args.metaproteomic:
-        readcount_files = glob.glob(args.output + '/MetaTranscriptomics/*/*.readcounts')
+        readcount_files = glob.glob(args.output + '/Metatranscriptomics/*.readcounts')
         
-        for file in readcount_files:
-            mt_name = readcount_files.split('/')[-2]
-            joined = annotater.define_abundance(joined, origin_of_data = 'metatranscriptomics',
-                                                name = mt_name, readcounts = file)
+        for file in readcount_files[:-1]:
+            mt_name = file.split('/')[-1].split('.')[0]
+            joined = mtools.define_abundance(joined, origin_of_data = 'metatranscriptomics',name = mt_name, readcounts = file)
         
-        mta.merge_readcounts(readcount_files, expression_analysed, 
-                             args.output + '/MetaTranscriptomics/all_experiments.readcounts')
+        mta.merge_readcounts(readcount_files, expression_analysed, args.output + '/Metatranscriptomics/all_experiments.readcounts')
 
-        mta.differential_analysis(args.output + '/MetaTranscriptomics/all_experiments.readcounts',
-                                  args.conditions, args.output + '/MetaTranscriptomics/')
+        mta.differential_analysis(args.output + '/Metatranscriptomics/all_experiments.readcounts', args.conditions[0].split(','), args.output + '/Metatranscriptomics/')
         
     else:
         # TODO - the metaproteomics workflow
         pass
     
 samples = mg_processed + expression_analysed
-
+print(samples)
 joined[samples].to_csv(args.output + '/readcounts.table',
       sep = '\t', index = False)
 
-mtools.normalize_readcounts(args.output + '/readcounts.table', 
+joined = mtools.normalize_readcounts(args.output + '/readcounts.table', samples,
                             args.output + '/normalization_factors.txt')
 
-factors = open(args.output + '/normalization_factors.txt').read().split('\n')[:-1]
+joined.to_csv(args.output + '/mosca_resulsts.tsv', sep = '\t', index = False)
+joined.to_excel(args.output + '/mosca_resulsts.xlsx', index = False)
 
-for i in range(len(samples)):
-    joined[samples[i] + '_normalized'] = joined[samples[i]] * factors[i]
-    
-joined.to_excel(args.output + '/final.xlsx', index = False)
+print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Analysis with MOSCA was concluded with success!')
