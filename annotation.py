@@ -411,13 +411,14 @@ class Annotater:
         name of output file
     Output: annotated file with CDD IDs
     '''
-    def run_rpsblast(self, fasta, output, cog):
-        if not os.path.isfile(output):
-            mtools.run_command('rpsblast -query ' + fasta + ' -db ' + cog + ' -out ' + 
-                           output + ' -outfmt 6 -num_threads ' + self.threads + 
-                           ' -max_target_seqs 1')
-        else:
-            print(output + ' already exists!')
+    def run_rpsblast(self, fasta, output, cog, threads = '0'):
+        bashCommand = ('rpsblast -query ' + fasta + ' -db "' + cog + '" -out ' +
+                       output + ' -outfmt 6 -num_threads ' + threads + 
+                       ' -max_target_seqs 1')
+        open('MOSCA/Databases/COG/command.bash', 'w').write(bashCommand + '\n') # subprocess was not handling well running this command, so an intermediate file is written with the command to run
+        print(' '.join(bashCommand.split(',')))
+        mtools.run_command('bash MOSCA/Databases/COG/command.bash')
+        os.remove('MOSCA/Databases/COG/command.bash')
         
     '''
     Input: 
@@ -430,16 +431,21 @@ class Annotater:
     Output: results folder 
     '''
     def annotate_cogs(self, blast, output, cddid, fun, whog):
-        mtools.run_command('perl MOSCA/cdd2cog.pl -r ' + blast + ' -c ' + cddid + ' -f ' + fun + ' -w ' + whog)
+        mtools.run_command('perl MOSCA/cdd2cog.pl -r ' + blast + ' -c ' + cddid + 
+                           ' -f ' + fun + ' -w ' + whog)
+        if os.path.isdir(output + '/results'):
+            shutil.rmtree(output + '/results')
         os.rename('results', output + '/results')
         
     '''
-    Input: the output from cdd2go, a blast file with CDD and COG annotations (cogblast)
-        the fun.txt file available at ftp://ftp.ncbi.nih.gov/pub/COG/COG/fun.txt (fun)
-    Output: a pandas.DataFrame with the functional categories intrisic levels 
+    Input: 
+        cogblast: the output from cdd2go, a blast file with CDD and COG annotations
+        fun: the fun.txt file available at ftp://ftp.ncbi.nih.gov/pub/COG/COG/fun.txt
+    Output: 
+        returns pandas.DataFrame with the functional categories intrisic levels 
         reorganized into corresponding columns
     '''      
-    def organize_cdd_blast(self, cogblast, fun = 'DomainIdentification/fun.txt'):
+    def organize_cdd_blast(self, cogblast, fun = 'MOSCA/Databases/COG/fun.txt'):
         cogblast = self.parse_cogblast(cogblast)
         cogblast = cogblast[cogblast['functional categories'].notnull()]
         cog_relation = self.parse_fun(fun)
@@ -451,12 +457,16 @@ class Annotater:
         return result
     
     '''
-    Input: the output from cdd2go, a blast file with CDD and COG annotations (cogblast)
-        the fun.txt file available at ftp://ftp.ncbi.nih.gov/pub/COG/COG/fun.txt (fun)
-    Output: an Excel with the COG identifications counted for krona plotting
+    Input: 
+        cogblast: the output from cdd2go, a blast file with CDD and COG annotations
+        output: filename of EXCEL file to write
+    Output: 
+        an EXCEL file with the COG identifications counted for krona plotting will
+        be written
     '''      
     def write_cogblast(self, cogblast, output):
         cogblast = self.organize_cdd_blast(cogblast)
+        del cogblast['qseqid']                                                  # TODO - this is something that should be reworked in the future. self.organize_cdd_blast is called twice, and while here the qseqid is not needed, it is needed in the self.join_reports call of self.global_information
         cogblast = cogblast.groupby(cogblast.columns.tolist()).size().reset_index().rename(columns={0:'count'})
         cogblast.to_excel(output, index = False)
         
@@ -568,17 +578,23 @@ class Annotater:
         cddid: name of cddid.tbl file for COG analysis
         whog: name of whog file for COG analysis
         fun: name of fun.txt file for COG analysis
+        databases: LIST, name of databases in format for COG analysis
+        threads: STR, number of threads to use
     Output: 
         pandas.DataFrame with abundance and expression information
     '''
-    def cog_annotation(self, faa, output, cog, cddid, whog, fun):
-        self.run_rpsblast(faa, output + '/cdd_aligned.blast', 'DomainIdentification/Cog')
+    def cog_annotation(self, faa, output, cddid = 'MOSCA/Databases/COG/cddid.tbl',
+                       whog = 'MOSCA/Databases/COG/whog', fun = 'MOSCA/Databases/COG/fun.txt', 
+                       databases = None, threads = '8'):
+        self.create_split_cog_db('MOSCA/Databases/COG', 'MOSCA/Databases/COG/Cog', threads = threads)
+        pns = glob.glob('./MOSCA/Databases/COG/Cog_' + threads + '_*.pn')
+        databases = [pn.split('.pn')[0] for pn in pns]
+        self.run_rpsblast(faa, output + '/cdd_aligned.blast', ' '.join(databases))
         if os.path.isdir(os.getcwd() + '/results'):                              # the cdd2cog tool does not overwrite, and fails if results directory already exists
             print('Eliminating ' + os.getcwd() + '/results')
             shutil.rmtree(os.getcwd() + '/results', ignore_errors=True)          # is not necessary when running the tool once, but better safe then sorry!
         
-        self.annotate_cogs(output + '/cdd_aligned.blast', output,        
-                           cddid, fun, whog)
+        self.annotate_cogs(output + '/cdd_aligned.blast', output, cddid, fun, whog)
         self.write_cogblast(output + '/results/rps-blast_cog.txt', output + '/cogs.xlsx')
 
     def set_to_uniprotID(self, fasta, aligned, output):
@@ -608,9 +624,9 @@ class Annotater:
                                            self.out_dir + '/Annotation/uniprot.info')
         '''
         # Functional annotation with COG database
-        self.cog_annotation(self.out_dir + '/Annotation/fgs.faa', 
-                            self.out_dir + '/Annotation', self.cog, 
-                            self.cddid, self.whog, self.fun)
+        #self.cog_annotation(self.out_dir + '/Annotation/fgs.faa', 
+                            self.out_dir + '/Annotation', self.cddid, self.whog, 
+                            self.fun, threads = self.threads)
         
         # Quantification of each protein presence
         joined = self.join_reports(self.out_dir + '/Annotation/aligned.blast', 
@@ -663,6 +679,59 @@ class Annotater:
         print(new_uniprotinfo[new_uniprotinfo['Taxonomic lineage (SPECIES)'].notnull()]['Taxonomic lineage (SPECIES)'])
         new_uniprotinfo.to_csv('test.tsv', sep = '\t', index = False)
     
+    '''
+    Input:
+        smp_directory: foldername where the SMP files are. These files are
+        obtained from ftp://ftp.ncbi.nih.gov/pub/mmdb/cdd/cdd.tar.gz
+        output: basename for PN and databases
+        threads: STR, number of threads that the workflow will use
+        step: number of SMP files per database
+    Output:
+        threads - 1 databases will be outputed, each with a consecutive part of
+        the list of SMP files available. These databases are formated for RPS-BLAST
+        search
+    '''
+    def create_split_cog_db(self, smp_directory, output, threads = '6', step = None):
+        dbs = (open('MOSCA/Databases/COG/databases.txt').read().split('\n') if
+        os.path.isfile('MOSCA/Databases/COG/databases.txt') else list())
+        if threads in dbs:
+            print('Already built COG database for this number of threads')
+        else:
+            print('Generating COG databases for [' + threads + '] threads.')
+            smp_list = glob.glob(smp_directory + '/COG*.smp')
+            if step is None:
+                step = round(len(smp_list) / float(threads))
+            i = 0
+            pn_files = list()
+            output += '_' + threads + '_'
+            while i + step < len(smp_list):
+                pn_files.append(output + str(int(i / step)) + '.pn')
+                open(output + str(int(i / step)) + '.pn', 'w').write('\n'.join(smp_list[i:i + step]))
+                i += step
+            open(output + str(int(i / step)) + '.pn', 'w').write('\n'.join(smp_list[i:len(smp_list)]))
+            pn_files.append(output + str(int(i / step)) + '.pn')
+            for file in pn_files:
+                mtools.run_command('makeprofiledb -in ' + file + ' -title ' + file.split('.pn')[0] + 
+                                   ' -out ' + file.split('.pn')[0])             # -title and -out options are defaulted as input file name to -in argument; -dbtype default is 'rps'
+            open('MOSCA/Databases/COG/databases.txt','w').write('\n'.join(dbs + [threads]))
+    
+    def kegg_mapper(self, ids, output, step = 50):
+        result = pd.DataFrame()
+        ids_failed = list()
+        for i in range(0, len(ids) - step, step):
+            try:
+                url = 'http://rest.kegg.jp/conv/genes/uniprot:' + '+uniprot:'.join(ids[i:i+step])
+                bashCommand = 'wget ' + url + ' -O ' + output
+                mtools.run_command(bashCommand)
+                result = pd.concat([result, pd.read_csv(output, sep='\t', header=None)])
+                print(str(round(i/len(ids) * 100),2) + '% done')
+                print('Already gathered ' + str(len(result)) + ' ids.')
+            except:
+                ids_failed += ids[i:i+step]
+                print('Mapping failed for some IDs.')
+        return result, ids_failed
+
+    
 if __name__ == '__main__':
     '''
     ids = DIAMOND(out = 'MOSCAfinal/Annotation/joined/aligned.blast').parse_result()['sseqid']
@@ -679,9 +748,11 @@ if __name__ == '__main__':
     print('Found IDs: ' + str(len(found_ids)))
     print('Missing IDs: ' + str(len(missing_ids)))
     '''
+    '''
     annotater = Annotater()
     result = annotater.recursive_uniprot_information('MOSCAfinal/Annotation/aligned.blast',
                                                      'MOSCAfinal/Annotation/uniprot.info1')
+    '''
     #result = pd.concat([result, ui])
     #result.to_csv('uniprot.info',sep='\t',index=False)
     
@@ -697,3 +768,8 @@ if __name__ == '__main__':
     
     annotater.global_information()
     '''
+    
+    annotater = Annotater()
+    
+    annotater.create_split_cog_db('/home/jsequeira/COGsmp', 'MOSCA/Databases/COG/split')
+

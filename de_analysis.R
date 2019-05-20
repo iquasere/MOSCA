@@ -3,9 +3,6 @@
 # Sep 2017
 
 library("optparse")
-library("DESeq2")
-library("pheatmap")
-library("RColorBrewer")
 
 option_list = list(
     make_option(c("-r", "--readcounts"), type="character", default=NULL, 
@@ -36,6 +33,8 @@ cd = data.frame(opt$conditions)
 colnames(cd)[1]="condition"
 rownames(cd)=colnames(total)
 
+library("DESeq2")
+
 dds <- DESeqDataSetFromMatrix(countData = total, colData = cd, design = ~condition)
 dds <- DESeq(dds)
 res <- results(dds)
@@ -49,6 +48,9 @@ dev.off()
 jpeg(paste(opt$output, "counts.jpeg", sep = '/'))
 plotCounts(dds, gene=which.min(res$padj), intgroup="condition")
 dev.off()
+
+library("pheatmap")
+library("RColorBrewer")
 
 # Protein expressions differential analysis
 if(identical(opt$method, "differential")) {

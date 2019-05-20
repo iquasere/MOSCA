@@ -51,6 +51,11 @@ cat uniprot_trembl.fasta uniprot_sprot.fasta > uniprot.fasta
 rm uniprot_trembl.fasta uniprot_sprot.fasta
 cd ../../..
 mkdir -p MOSCA/Databases/COG
+
+wget ftp://ftp.ncbi.nih.gov/pub/mmdb/cdd/cdd.tar.gz -P MOSCA/Databases/COG
+cd MOSCA/Databases/COG
+tar -xzvf cdd.tar.gz --wildcards --no-anchored 'COG*.smp'
+cd ../../..
 wget ftp://ftp.ncbi.nlm.nih.gov/pub/mmdb/cdd/cddid.tbl.gz -P MOSCA/Databases/COG
 gunzip MOSCA/Databases/COG/cddid.tbl.gz
 wget ftp://ftp.ncbi.nlm.nih.gov/pub/mmdb/cdd/little_endian/Cog_LE.tar.gz -P MOSCA/Databases/COG

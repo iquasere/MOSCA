@@ -150,11 +150,6 @@ class Binner:
         uniprotinfo: name of the TSV file containing UniProt information about 
         the IDs identified
         by: if the averages are to be calculated by contig of by cluster (default)
-        I haven't tested if this is the same thing, could be! No one really reads
-        documentation nowadays... I'm watching the test of the Binning.calculate_epsilon
-        function and it is fun to watch! Number of contigs going up and down...
-        Well, betcha this was the most interesting part of documentation you have
-        read today. Nice one, ha? ;)
     Output:
         returns a pd.DataFrame object with the most abundant taxa and its
         relative abundance for each cluster
