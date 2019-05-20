@@ -114,7 +114,7 @@ for experiment in experiments:
             if hasattr(args, 'quality_score'):
                 setattr(preprocesser, 'quality_score', args.quality_score)
                 
-            #preprocesser.run()
+            preprocesser.run()
             
             print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Preprocessing ' + 
           'is finished, and resulting reads are available at ' + args.output + 
@@ -146,7 +146,7 @@ for experiment in experiments:
             if args.memory is not None:
                 setattr(assembler, 'memory', args.memory)
             
-            #assembler.run()
+            assembler.run()
             
             print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Assembly is ' + 
                   'finished. Contigs are available at ' + args.output + '/Assembly/' + 
@@ -168,7 +168,7 @@ for experiment in experiments:
                                  error_model = 'illumina_10',
                                  name = mg_name,
                                  threads = args.threads)
-            #annotater.run()
+            annotater.run()
             
             print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Annotation is ' + 
                   'finished and results are available at ' + args.output +
@@ -186,7 +186,7 @@ for experiment in experiments:
                             blast = args.output + '/Annotation/' + mg_name + '/aligned.blast',
                             uniprotinfo = args.output + '/Annotation/' + mg_name + '/uniprot.info',
                             threads = args.threads)
-            #binner.run()
+            binner.run()
             
             print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Binning is ' + 
                   'finished and results are available at ' + args.output + 
@@ -218,7 +218,7 @@ for experiment in experiments:
             else:
                 mt_name = mt[0].split('/')[-1].split('_R')[0]
                 
-            print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ':Handling ' + mt_name + 
+            print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Performing ' + mt_name + 
                   ' analysis')
                 
             print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Preprocessing ' + 
@@ -233,7 +233,7 @@ for experiment in experiments:
             if hasattr(args, 'quality_score'):
                 setattr(preprocesser, 'quality_score', args.quality_score)
                 
-            #preprocesser.run()
+            preprocesser.run()
             
             print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Preprocessing ' + 
                   'of metatranscriptomics reads is finished and results are ' + 
@@ -258,7 +258,7 @@ for experiment in experiments:
                           mt = mt_name,
                           assembler = args.assembler,
                           threads = args.threads)
-            #mta.readcounts_file()
+            mta.readcounts_file()
             
             print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Gene expression ' + 
                   'quantification is finished and results are available at ' + 

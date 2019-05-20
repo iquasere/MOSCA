@@ -25,16 +25,16 @@ class MoscaTools:
         readcounts_has_last_ids: boolean, if file still uses the third portion of
         UniProt IDs (tr|2nd|3rd). I used to use those, I'm sorry
     Output: 
-        'relation' df will receive additional column with abundance/expression information
+        'relation' df will receive additional column with abundance/expression 
+        information.This column will be named 'name', if no 'name' input is given, 
+        will be named as the folder containing the blast file if input, else as 
+        the folder containing the readcounts file
     '''
     def define_abundance(self, relation, origin_of_data = 'metagenomics', name = None,
                          readcounts = None, blast = None, readcounts_has_tail = True, 
                          readcounts_has_last_ids = False):
         if name is None and not (readcounts is None and blast is None): 
-            name = blast.split('/')[-2] if readcounts is None else readcounts.split('/')[-2]    # name is assumed to be the same as the folder containing the file
-        else:
-            print('Must give an input readcounts or blast!')
-            return
+            name = blast.split('/')[-2] if blast is not None else readcounts.split('/')[-2]    # name is assumed to be the same as the folder containing the file
         print('Adding info on sample ' + name)
         if readcounts is not None:                                              # necessary for 'metagenomics' and 'metatranscriptomics' (probably will be for all in the future)
             readcounts = pd.read_csv(readcounts, sep = '\t', header = None)  
@@ -43,17 +43,18 @@ class MoscaTools:
                         if readcounts_has_last_ids else readcounts[0])
             readcounts.columns = ['geneid', name, 'Protein ID']
             del readcounts['geneid']
-        if origin_of_data == 'metagenomics':
+        if origin_of_data == 'metagenomics':                                    # quantifying 'metagenomics' makes use of quality control SAM file
             blast = self.parse_blast(blast)
-            blast['contig'] = [ide.split('_')[:-3] for ide in blast.qseqid]
+            blast['contig'] = ['_'.join(ide.split('_')[:-3]) for ide in blast.qseqid]
+            blast = pd.merge(blast, readcounts, left_on = 'contig', right_on = 'Protein ID')    # Protein ID are the contigs here. Don't judge me, my eyes are burning
             blast['Protein ID'] = [ide.split('|')[1] if ide != '*' else ide for ide in blast.sseqid]
             blast = blast.groupby('Protein ID')[name].sum().reset_index()[['Protein ID', name]]
-            result = pd.merge(relation, readcounts, on = 'Protein ID', how = 'outer')
+            result = pd.merge(relation, blast, on = 'Protein ID', how = 'outer')
         elif origin_of_data == 'metatranscriptomics':
             result = pd.merge(relation, readcounts, on = 'Protein ID', how = 'outer')
         elif origin_of_data == 'compomics':
             pass
-        result[name] = result[name].astype(int).fillna(value = 0)
+        result[name] = result[name].fillna(value = 0).astype(int)
         return result
     
     '''
@@ -147,8 +148,9 @@ class MoscaTools:
                          ' -2 ' + reads[1] + ' -S ' + sam + ' -p ' + str(threads)
                          + ' 1> ' + report + ' 2> ' + log)
 
-    def run_htseq_count(self, sam, gff, output, attribute = 'gene_id'):
-        self.run_command('htseq-count -i ' + ' '.join([attribute, sam, gff]), file = output)
+    def run_htseq_count(self, sam, gff, output, attribute = 'gene_id', stranded = True):
+        self.run_command('htseq-count -i ' + ' '.join([attribute, sam, gff]) + 
+                         ('' if stranded else ' --stranded=no'), file = output)
     
     def sort_alphanumeric(self, alphanumeric_list):
         return sorted(alphanumeric_list, key=lambda item: (int(item.partition(' ')[0])
@@ -211,7 +213,7 @@ class MoscaTools:
         gff["seqid"] = [contig[0] for contig in contigs]
         size = len(contigs)
         gff["source"] = ['.' if assembler is None else assembler] * size
-        gff["type"] = ['contig'] * size
+        gff["type"] = ['exon'] * size
         gff["start"] = ['1'] * size
         gff["end"] = [len(contigs[1]) for contigs in contigs]
         gff["score"] = ['.'] * size

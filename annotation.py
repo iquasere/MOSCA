@@ -611,7 +611,6 @@ class Annotater:
                     
     def global_information(self):
         # Join reports
-        '''
         if not os.path.isfile(self.out_dir + '/Annotation/fgs.faa'):
             mtools.run_command('cat ' + ' '.join(glob.glob(self.out_dir + '/Annotation/*/fgs.faa')),
                                              self.out_dir + '/Annotation/fgs.faa')
@@ -622,21 +621,27 @@ class Annotater:
         # Retrieval of information from UniProt IDs
         self.recursive_uniprot_information(self.out_dir + '/Annotation/aligned.blast', 
                                            self.out_dir + '/Annotation/uniprot.info')
-        '''
+        
         # Functional annotation with COG database
-        #self.cog_annotation(self.out_dir + '/Annotation/fgs.faa', 
+        self.cog_annotation(self.out_dir + '/Annotation/fgs.faa', 
                             self.out_dir + '/Annotation', self.cddid, self.whog, 
                             self.fun, threads = self.threads)
         
-        # Quantification of each protein presence
+        # Integration of all reports - BLAST, UNIPROTINFO, COG
         joined = self.join_reports(self.out_dir + '/Annotation/aligned.blast', 
                                self.out_dir + '/Annotation/uniprot.info', 
                                self.out_dir + '/Annotation/results/rps-blast_cog.txt', 
                                self.fun)
-        
+
         blast_files = glob.glob(self.out_dir + '/Annotation/*/aligned.blast')
         for file in blast_files:
             mg_name = file.split('/')[-2]
+            mtools.build_gff_from_contigs(self.out_dir + '/Assembly/' + mg_name + '/contigs.fasta', 
+                    self.out_dir + '/Assembly/' + mg_name + '/quality_control/alignment.gff')
+            mtools.run_htseq_count(self.out_dir + '/Assembly/' + mg_name + '/quality_control/alignment.sam', 
+                                   self.out_dir + '/Assembly/' + mg_name + '/quality_control/alignment.gff',
+                                   self.out_dir + '/Assembly/' + mg_name + '/quality_control/alignment.readcounts',
+                                   stranded = False)
             joined = mtools.define_abundance(joined, 
                             readcounts = self.out_dir + '/Assembly/' + mg_name + 
                             '/quality_control/alignment.readcounts', blast = file)
@@ -644,14 +649,15 @@ class Annotater:
             os.remove(self.out_dir + '/joined_information.xlsx')
         joined.to_csv(self.out_dir + '/joined_information.tsv', index=False, sep='\t')
         print('joined was written to ' + self.out_dir + '/joined_information.tsv')
+        
         writer = pd.ExcelWriter(self.out_dir + '/joined_information.xlsx', 
                                 engine='xlsxwriter')
         i = 0
         j = 1
         while i + 1048575 < len(joined):
-            joined.iloc[i:(i + 1048575)].to_excel(writer, sheet_name='Sheet ' + str(j))
+            joined.iloc[i:(i + 1048575)].to_excel(writer, sheet_name='Sheet ' + str(j), index = False)
             j += 1
-        joined.iloc[i:len(joined)].to_excel(writer, sheet_name='Sheet ' + str(j))
+        joined.iloc[i:len(joined)].to_excel(writer, sheet_name='Sheet ' + str(j), index = False)
         print('joined was written to ' + self.out_dir + '/joined_information.xlsx')
         return joined
 
