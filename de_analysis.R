@@ -15,7 +15,7 @@ option_list = list(
                 [differential/abundance]", metavar="character",),
     make_option(c("-o", "--output"), type="character", default=NULL, 
                 help="Output directory", metavar="character"));
-    
+
 opt_parser = OptionParser(option_list=option_list);
 opt = parse_args(opt_parser);
 
@@ -31,8 +31,8 @@ condition <- factor(opt$conditions)
 total <- total[ rowSums(total) > 1, ]
 cd = data.frame(opt$conditions)
 colnames(cd)[1]="condition"
+colnames(total)
 rownames(cd)=colnames(total)
-
 library("DESeq2")
 
 dds <- DESeqDataSetFromMatrix(countData = total, colData = cd, design = ~condition)

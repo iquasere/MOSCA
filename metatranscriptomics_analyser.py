@@ -42,11 +42,11 @@ class MetaTranscriptomicsAnalyser:
             df.columns = [file.split('/')[-1].rstrip('.readcounts')]
             expression_matrix = pd.merge(expression_matrix, df, how = 'outer', 
                                          left_index = True, right_index = True)
-        expression_matrix = expression_matrix[1:-5]                             #remove non identified proteins and the metrics at the end
+        expression_matrix = expression_matrix[1:-5]                             #remove non identified proteins (*) and the metrics at the end
         expression_matrix = expression_matrix.fillna(value=0).astype(int)       #set not identified proteins expression to 0, and convert floats, since DeSEQ2 only accepts integers
         expression_matrix.index.name = 'geneid'
         expression_matrix.columns = header
-        expression_matrix.to_csv(output, sep = ' ')
+        expression_matrix.to_csv(output, sep = '\t')
     
     '''
     input: readcounts file name to change index to just COGs
@@ -108,7 +108,7 @@ class MetaTranscriptomicsAnalyser:
     def differential_analysis(self, readcounts, conditions, output = None):
         print('Performing differential expression analysis.')
         print('Readcounts file: ' + readcounts)
-        print('Conditions: ' + ' '.join(conditions))
+        print('Conditions: ' + ','.join(conditions))
         print('Results will be exported to: ' + output)
-        self.run_command('Rscript MOSCA/de_analysis.R --readcounts ' + readcounts +
-                         ' --conditions ' + conditions + ' --output ' + output)
+        mtools.run_command('Rscript MOSCA/de_analysis.R --readcounts ' + readcounts +
+                         ' --conditions "' + ' '.join(conditions) + '" --output ' + output)

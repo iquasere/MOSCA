@@ -626,7 +626,7 @@ class Annotater:
         self.cog_annotation(self.out_dir + '/Annotation/fgs.faa', 
                             self.out_dir + '/Annotation', self.cddid, self.whog, 
                             self.fun, threads = self.threads)
-        
+
         # Integration of all reports - BLAST, UNIPROTINFO, COG
         joined = self.join_reports(self.out_dir + '/Annotation/aligned.blast', 
                                self.out_dir + '/Annotation/uniprot.info', 
