@@ -2,16 +2,33 @@
 
 Logo by [Sérgio A. Silva](https://www.ceb.uminho.pt/People/Details/64888072-5cde-42da-b7e5-691d380cefb2)
 
-# MOSCA
+# Meta-Omics Software for Community Analysis
 
-**Meta-Omics Software for Community Analysis**: a pipeline for performing Metagenomics and Metatranscriptomics integrated data analysis, in a local and fully automated workflow
+**MOSCA** (portuguese for fly) is a pipeline designed for performing Metagenomics and Metatranscriptomics integrated data analysis, in a mostly local and fully automated workflow.
 
 ## Features
-* **Preprocessing** that starts with an initial quality check (FastQC), before Illumina artificial sequences removal and quality trimming (Trimmomatic, based on FastQC reports) and finally rRNA removal (SortMeRNA)
-* **Assembly** that includes assembly with two optional tools (MetaSPAdes and Megahit) and quality control, with several metrics on the nature of contigs (MetaQUAST) and alignment of reads for estimating percentage of reads used in assembly (Bowtie2)
-* **Annotation** that begins with gene calling (FragGeneScan), then annotation of identified ORFs (DIAMOND)
-* **Analysis** where UniProt ID mapping is performed (if UniProt database was chosen) for retrieving taxonomic and functional information as well as, if MT data was included, differential gene expression and multisample comparison (HTSeq-count and DeSEQ2)
-
+* **Preprocessing** where low quality regions of data are trimmed and reads less interest are removed. FastQC's reports are used to automatically set the parameters for the other tools. It includes:
+    * initial quality check with **FastQC
+    * Illumina artificial sequences removal with **Trimmomatic: based on **FastQC reports, MOSCA will find the adapters file most approprita to the data
+    * rRNA removal with **SortMeRNA: uses Pfam and SILVA databases as reference
+    * quality trimming with **Trimmomatic: 
+        * another **FastQC report will be generated after rRNA removal, and will be used to set the parameters for Trimmomatic's hard trimmers (CROP and HEADCROP). This will ensure that the data will be reported as excellent by FastQC
+        * reads with less than 20 average quality or 100 nuleotides of length will also be removed
+    * final quality check with **FastQC 
+* **Assembly** where metagenomics (MG) trimmed reads will be assembled to partially reconstruct the original genomes in the samples. It includes:
+    * assembly with two possible assemblers - **MetaSPAdes and **Megahit - which will be used in a multi-kmer approach
+    * control over the quality of the contigs, with **MetaQUAST reporting on several classical metrics (such as N50 and L50) and alignment of reads for estimating percentage of reads used in assembly, with **Bowtie2
+* **Annotation** where proteins present in the contigs will be identified. It includes:
+    * gene calling with **FragGeneScan
+    * annotation of identified ORFs with **DIAMOND, using the **UniProt database** as reference - MOSCA only reports on the first annotation
+    * retrieval of biological information with **UniProt ID mapping** API
+    * functional annotation with **Reverse PSI-BLAST**, using the **COG database** as reference
+        * MOSCA automatically **generates new databases by the number of threads specified**, thus allowing for multithread annotation with RPSBLAST
+    * the quantification of each protein in MG data, by alignment of MG reads to the contigs using **Bowtie2 and quantification of reads to protein using **HTSeq-count
+* **MetaTranscriptomics** (MT) analysis, where the expression of each identified protein is quantified. It includes:
+    * alignment of MT reads to the MG contigs with **Bowtie2, and quantification of reads to protein using **HTSeq-count
+    * differential gene expression and multisample comparison using **DeSEQ2
+* **Normalization of protein quantification for the final report using **edgeR
 
 ## Setting up MOSCA
 
@@ -64,25 +81,25 @@ MOSCA is prepared to handle experiments input if some of these files is not avai
 * One single-end file
 
 ```
-python MOSCA/mosca.py --files path/to/file --output-dir output_directory
+python MOSCA/scripts/mosca.py --files path/to/file --output-dir output_directory
 ```
 
 * Two single-end files (two different experiments)
 
 ```
-python MOSCA/mosca.py --files path/to/file1 path/to/file2 --output-dir output_directory
+python MOSCA/scripts/mosca.py --files path/to/file1 path/to/file2 --output-dir output_directory
 ```
 
 * Two paired-end files
 
 ```
-python MOSCA/mosca.py --files path/to/file1,path/to/file2 --output-dir output_directory
+python MOSCA/scripts/mosca.py --files path/to/file1,path/to/file2 --output-dir output_directory
 ```
 
 * Four paired-end files with MT data (two different experiments)
 
 ```
-python MOSCA/mosca.py --files path/to/mg_file1_of_experiment1,path/to/mg_file2_of_experiment1:path/to/mt_file1_of_experiment1,path/to/mt_file2_of_experiment1 path/to/mg_file1_of_experiment2,path/to/mg_file2_of_experiment2:path/to/mt_file1_of_experiment2,path/to/mt_file2_of_experiment2 --output-dir output_directory
+python MOSCA/scripts/mosca.py --files path/to/mg_file1_of_experiment1,path/to/mg_file2_of_experiment1:path/to/mt_file1_of_experiment1,path/to/mt_file2_of_experiment1 path/to/mg_file1_of_experiment2,path/to/mg_file2_of_experiment2:path/to/mt_file1_of_experiment2,path/to/mt_file2_of_experiment2 --output-dir output_directory
 ```
 
 
@@ -91,16 +108,17 @@ python MOSCA/mosca.py --files path/to/mg_file1_of_experiment1,path/to/mg_file2_o
 MOSCA includes the option to chose between MetaSPAdes (default) and Megahit as the tool for assembly. Also, while many functions are developed only for UniProt, another database can be chosen. Since not all steps are always wanted, MOSCA allows to chose whether or not to perform every step of its analysis.
 
 ```
-usage: mosca.py [-h] [-f [FILES [FILES ...]]] [-data {paired,single}]
-                [-a Assembler] [-db Database] [-o Directory] [-nopp] [-noas]
-                [-noan] [-nobin] [-ol {min,med,max}] [-mp]
-                [-c [CONDITIONS [CONDITIONS ...]]]
+usage: mosca.py [-h] [-f [Input files [Input files ...]]]
+                [-data {paired,single}] [-a Assembler] [-db Database]
+                [-o Directory] [-nopp] [-noas] [-noan] [-nobin]
+                [-ol {min,med,max}] [-mp] [-c [CONDITIONS [CONDITIONS ...]]]
+                [-t Threads] [-m Memory]
 
 Multi Omics Software for Community Analysis
 
 optional arguments:
   -h, --help            show this help message and exit
-  -f [FILES [FILES ...]], --files [FILES [FILES ...]]
+  -f [Input files [Input files ...]], --files [Input files [Input files ...]]
                         Input files for analysis (mg1R1,mg1R2:mt1R1,mt1R2
                         mg2R1,...)
   -data {paired,single}, --type-of-data {paired,single}
@@ -125,7 +143,13 @@ optional arguments:
                         specified will be assumed to be metagenomic and
                         metatranscriptomic
   -c [CONDITIONS [CONDITIONS ...]], --conditions [CONDITIONS [CONDITIONS ...]]
-                        Different conditions for metatranscriptomic analysis
+                        Different conditions for metatranscriptomic analysis,
+                        separated by comma (,)
+  -t Threads, --threads Threads
+                        Number of threads available for MOSCA
+  -m Memory, --memory Memory
+                        Maximum memory (byte) available for MOSCA. Applied
+                        only in the assembly
 
 A tool for performing metagenomics, metatranscriptomics and metaproteomics
 analysis.
