@@ -28,7 +28,7 @@ Logo by [Sérgio A. Silva](https://www.ceb.uminho.pt/People/Details/64888072-5cd
 * **MetaTranscriptomics** (MT) analysis, where the expression of each identified protein is quantified. It includes:
     * alignment of MT reads to the MG contigs with **Bowtie2**, and quantification of reads to protein using **HTSeq-count**
     * differential gene expression and multisample comparison using **DeSEQ2**
-* **Normalization of protein quantification for the final report using **edgeR**
+* **Normalization** of protein quantification for the final report using **edgeR**
 
 ## Setting up MOSCA
 
