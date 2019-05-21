@@ -8,27 +8,27 @@ Logo by [Sérgio A. Silva](https://www.ceb.uminho.pt/People/Details/64888072-5cd
 
 ## Features
 * **Preprocessing** where low quality regions of data are trimmed and reads less interest are removed. FastQC's reports are used to automatically set the parameters for the other tools. It includes:
-    * initial quality check with **FastQC
-    * Illumina artificial sequences removal with **Trimmomatic: based on **FastQC reports, MOSCA will find the adapters file most approprita to the data
-    * rRNA removal with **SortMeRNA: uses Pfam and SILVA databases as reference
-    * quality trimming with **Trimmomatic: 
-        * another **FastQC report will be generated after rRNA removal, and will be used to set the parameters for Trimmomatic's hard trimmers (CROP and HEADCROP). This will ensure that the data will be reported as excellent by FastQC
+    * initial quality check with **FastQC**
+    * Illumina artificial sequences removal with **Trimmomatic**: based on **FastQC** reports, MOSCA will find the adapters file most approprita to the data
+    * rRNA removal with **SortMeRNA**: uses Pfam and SILVA databases as reference
+    * quality trimming with **Trimmomatic**: 
+        * another **FastQC** report will be generated after rRNA removal, and will be used to set the parameters for **Trimmomatic**'s hard trimmers (CROP and HEADCROP). This will ensure that the data will be reported as excellent by FastQC
         * reads with less than 20 average quality or 100 nuleotides of length will also be removed
-    * final quality check with **FastQC 
+    * final quality check with **FastQC** 
 * **Assembly** where metagenomics (MG) trimmed reads will be assembled to partially reconstruct the original genomes in the samples. It includes:
-    * assembly with two possible assemblers - **MetaSPAdes and **Megahit - which will be used in a multi-kmer approach
-    * control over the quality of the contigs, with **MetaQUAST reporting on several classical metrics (such as N50 and L50) and alignment of reads for estimating percentage of reads used in assembly, with **Bowtie2
+    * assembly with two possible assemblers - **MetaSPAdes** and **Megahit** - which will be used in a multi-kmer approach
+    * control over the quality of the contigs, with **MetaQUAST** reporting on several classical metrics (such as N50 and L50) and alignment of reads for estimating percentage of reads used in assembly, with **Bowtie2**
 * **Annotation** where proteins present in the contigs will be identified. It includes:
-    * gene calling with **FragGeneScan
-    * annotation of identified ORFs with **DIAMOND, using the **UniProt database** as reference - MOSCA only reports on the first annotation
+    * gene calling with **FragGeneScan**
+    * annotation of identified ORFs with **DIAMOND**, using the **UniProt database** as reference - MOSCA only reports on the first annotation
     * retrieval of biological information with **UniProt ID mapping** API
-    * functional annotation with **Reverse PSI-BLAST**, using the **COG database** as reference
-        * MOSCA automatically **generates new databases by the number of threads specified**, thus allowing for multithread annotation with RPSBLAST
-    * the quantification of each protein in MG data, by alignment of MG reads to the contigs using **Bowtie2 and quantification of reads to protein using **HTSeq-count
+    * functional annotation with **Reverse PSI-BLAST** (RPSBLAST), using the **COG database** as reference
+        * MOSCA automatically **generates new databases by the number of threads specified**, thus allowing for multithread annotation with **RPSBLAST**
+    * the quantification of each protein in MG data, by alignment of MG reads to the contigs using **Bowtie2** and quantification of reads to protein using **HTSeq-count**
 * **MetaTranscriptomics** (MT) analysis, where the expression of each identified protein is quantified. It includes:
-    * alignment of MT reads to the MG contigs with **Bowtie2, and quantification of reads to protein using **HTSeq-count
-    * differential gene expression and multisample comparison using **DeSEQ2
-* **Normalization of protein quantification for the final report using **edgeR
+    * alignment of MT reads to the MG contigs with **Bowtie2**, and quantification of reads to protein using **HTSeq-count**
+    * differential gene expression and multisample comparison using **DeSEQ2**
+* **Normalization of protein quantification for the final report using **edgeR**
 
 ## Setting up MOSCA
 
