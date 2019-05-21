@@ -12,8 +12,8 @@ conda install -y -c biocore sortmerna
 conda install -y -c anaconda svn
 svn export https://github.com/biocore/sortmerna/trunk/rRNA_databases MOSCA/Databases/rRNA_databases
 find MOSCA/Databases/rRNA_databases/* | grep -v ".fasta" | xargs rm -fr
-wget https://github.com/biocore/sortmerna/raw/master/scripts/merge-paired-reads.sh -P MOSCA
-wget https://github.com/biocore/sortmerna/raw/master/scripts/unmerge-paired-reads.sh -P MOSCA
+wget https://github.com/biocore/sortmerna/raw/master/scripts/merge-paired-reads.sh -P MOSCA/scripts
+wget https://github.com/biocore/sortmerna/raw/master/scripts/unmerge-paired-reads.sh -P MOSCA/scripts
 conda install -y seqtk
 conda install -y -c faircloth-lab trimmomatic
 svn export https://github.com/timflutre/trimmomatic/trunk/adapters MOSCA/Databases/illumina_adapters
@@ -63,7 +63,7 @@ tar -xvzf MOSCA/Databases/COG/Cog_LE.tar.gz -C MOSCA/Databases/COG
 rm MOSCA/Databases/COG/Cog_LE.tar.gz
 wget ftp://ftp.ncbi.nlm.nih.gov/pub/COG/COG/fun.txt -P MOSCA/Databases/COG
 wget ftp://ftp.ncbi.nlm.nih.gov/pub/COG/COG/whog -P MOSCA/Databases/COG
-wget https://github.com/aleimba/bac-genomics-scripts/raw/master/cdd2cog/cdd2cog.pl -P MOSCA
+wget https://github.com/aleimba/bac-genomics-scripts/raw/master/cdd2cog/cdd2cog.pl -P MOSCA/scripts
 #sed -i '302s#.*#    my $pssm_id = $1 if $line[1] =~ /^gnl\\|CDD\\|(\\d+)/; \# get PSSM-Id from the subject hit#' MOSCA/cdd2cog.pl      # Sometimes this is needed... will save when use of uninitialized value floods the screen - when they change from CDD:number to gnl|CDD|number
 conda install -y -c bioconda searchgui
 conda install -y -c bioconda peptide-shaker
