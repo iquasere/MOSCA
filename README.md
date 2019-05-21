@@ -25,7 +25,7 @@ Logo by [Sérgio A. Silva](https://www.ceb.uminho.pt/People/Details/64888072-5cd
     * functional annotation with **Reverse PSI-BLAST** (RPSBLAST), using the **COG database** as reference
         * MOSCA automatically **generates new databases by the number of threads specified**, thus allowing for multithread annotation with **RPSBLAST**
     * the quantification of each protein in MG data, by alignment of MG reads to the contigs using **Bowtie2** and quantification of reads to protein using **HTSeq-count**
-* **MetaTranscriptomics (MT) analysis**, where the expression of each identified protein is quantified. It includes:
+* **MetaTranscriptomics (MT) analysis** where the expression of each identified protein is quantified. It includes:
     * alignment of MT reads to the MG contigs with **Bowtie2**, and quantification of reads to protein using **HTSeq-count**
     * differential gene expression and multisample comparison using **DeSEQ2**
 * **Normalization** of protein quantification for the final report using **edgeR**
@@ -43,7 +43,7 @@ MOSCA already brings a bash script that will install all of its pre-dependencies
 ```
 bash MOSCA/install.bash
 ```
-
+<!---
 ## MOSCA is finally available as a Docker image!
 
 To use MOSCA's Docker version, Docker must first be installed.
@@ -67,7 +67,7 @@ docker run -it -v /path/to/folder_of_databases:/MOSCA/Databases/annotation_datab
 ```
 
 "/path/to/folder_of_databases" is the directory where the databases are stored. The rest of the command is to be inputed exactly as presented here, except for the [arguments], which are to be inputed just like if not using docker.
-
+-->
 ## Base arguments for running MOSCA
 
 MOSCA was designed to run with as few arguments as possible. Only the input files and output directory have to be specified. MOSCA considers the input files in the following format, separated by spaces:
