@@ -16,7 +16,7 @@ from metatranscriptomics_analyser import MetaTranscriptomicsAnalyser
 from metaproteomics_analyser import MetaProteomicsAnalyser
 from time import gmtime, strftime
 
-import argparse, pathlib, os, glob
+import argparse, pathlib, os, glob, multiprocessing
 
 mosca_dir = os.path.dirname(os.path.realpath(__file__))
 
@@ -55,7 +55,7 @@ parser.add_argument("-mp", "--metaproteomic", action = "store_true",
                     default = False)
 parser.add_argument("-c","--conditions", type=str, nargs = '*',
                     help="Different conditions for metatranscriptomic analysis, separated by comma (,)")
-parser.add_argument("-t","--threads",type=str,metavar = "Threads", default = '1',
+parser.add_argument("-t","--threads",type=str,metavar = "Threads", default = str(multiprocessing.cpu_count() - 2),
                     help="Number of threads available for MOSCA")
 parser.add_argument("-m","--memory",type=str,metavar = "Memory",
                     help="Maximum memory (byte) available for MOSCA. Applied only in the assembly")
