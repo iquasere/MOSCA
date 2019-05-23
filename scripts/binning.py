@@ -419,6 +419,7 @@ class Binner:
     '''
     def run_maxbin(self, contigs, output, threads = 8, mg1 = None, mg2 = None,
                    abundance = None, markerset = '107'):
+        output = output + '/' + output.split('/')[-1] + '_' + markerset         # takes the foldername as the last directory of output and uses it + markerset as the name of the outputs
         mtools.run_command('run_MaxBin.pl -contig ' + contigs + ' -out ' + output + 
         ' -thread ' + threads + ' -markerset ' + markerset +
         (' -reads ' + mg1 + ' -reads2 ' + mg2 if abundance is None else 
