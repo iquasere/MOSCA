@@ -118,7 +118,7 @@ for experiment in experiments:
             if hasattr(args, 'quality_score'):
                 setattr(preprocesser, 'quality_score', args.quality_score)
                 
-            #preprocesser.run()
+            preprocesser.run()
             
             print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Preprocessing ' + 
           'is finished, and resulting reads are available at ' + args.output + 
@@ -150,7 +150,7 @@ for experiment in experiments:
             if args.memory is not None:
                 setattr(assembler, 'memory', args.memory)
             
-            #assembler.run()
+            assembler.run()
             
             print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Assembly is ' + 
                   'finished. Contigs are available at ' + args.output + '/Assembly/' + 
@@ -172,7 +172,7 @@ for experiment in experiments:
                                  error_model = 'illumina_10',
                                  name = mg_name,
                                  threads = args.threads)
-            #annotater.run()
+            annotater.run()
             
             print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Annotation is ' + 
                   'finished and results are available at ' + args.output +
@@ -194,7 +194,7 @@ for experiment in experiments:
                             mg2 = args.output + '/Preprocess/Trimmomatic/quality_trimmed_' + mg_name + '_reverse_paired.fq',
                             markerset = args.marker_gene_set)
             binner.maxbin_workflow()
-            exit()
+
             print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Binning is ' + 
                   'finished and results are available at ' + args.output + 
                   '/Binning/' + mg_name)
