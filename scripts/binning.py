@@ -380,8 +380,14 @@ class Binner:
             for i in range(len(taxa)):
                 label.legendHandles[i]._sizes = [subtitle_size]
         plt.savefig(output, bbox_inches='tight')
-        
-    def run(self):
+     
+    '''
+    Output:
+        Really whish I can fix this. Twas a nice script. Will be used if binner
+        selected is VizBin. All I need to make it work is make ant build work
+        again...
+    '''
+    def vizbin_workflow(self):
         self.run_vizbin_binning(self.contigs, self.output)
         self.calculate_epsilon(self.contigs, self.output + '/points.txt', 
                                self.blast, self.uniprotinfo, self.output)
@@ -411,18 +417,16 @@ class Binner:
         contigs not included in any bin named basename + .noclass
         
     '''
-            
     def run_maxbin(self, contigs, output, threads = 8, mg1 = None, mg2 = None,
                    abundance = None, markerset = '107'):
-        bashCommand = 'run_MaxBin.pl -contig ' + contigs + ' -out ' + output
-        parameter_dictionary = {'mg1':'-reads','mg2':'-reads2','abundance':'-abundance'}
-        for parameter in [mg1, mg2, abundance]:
-            if parameter is not None:
-                bashCommand += ' ' + parameter_dictionary[parameter] + ' ' + parameter
-        bashCommand += ' -thread ' + threads + ' -markerset ' + markerset
-        mtools.run_command(bashCommand)
+        mtools.run_command('run_MaxBin.pl -contig ' + contigs + ' -out ' + output + 
+        ' -thread ' + threads + ' -markerset ' + markerset +
+        (' -reads ' + mg1 + ' -reads2 ' + mg2 if abundance is None else 
+         ' -abundance ' + abundance))
         
-        
+    def maxbin_workflow(self):
+        self.run_maxbin(self.contigs, self.output, threads = self.threads, mg1 = self.mg1, 
+                        mg2 = self.mg2, markerset = self.markerset)
         
 if __name__ == '__main__':
     

@@ -59,6 +59,10 @@ parser.add_argument("-t","--threads",type=str,metavar = "Threads", default = str
                     help="Number of threads available for MOSCA")
 parser.add_argument("-m","--memory",type=str,metavar = "Memory",
                     help="Maximum memory (byte) available for MOSCA. Applied only in the assembly")
+parser.add_argument("-mark","--marker-gene-set",type=str,metavar = "Marker gene set",
+                    help="""Marker gene set to use for binning with MaxBin2. 
+                    107 if archaea are not to be considered, 40 if data is diverse.""",
+                    default = '40')
              
 args = mtools.validate_arguments(parser)
 
@@ -114,7 +118,7 @@ for experiment in experiments:
             if hasattr(args, 'quality_score'):
                 setattr(preprocesser, 'quality_score', args.quality_score)
                 
-            preprocesser.run()
+            #preprocesser.run()
             
             print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Preprocessing ' + 
           'is finished, and resulting reads are available at ' + args.output + 
@@ -146,7 +150,7 @@ for experiment in experiments:
             if args.memory is not None:
                 setattr(assembler, 'memory', args.memory)
             
-            assembler.run()
+            #assembler.run()
             
             print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Assembly is ' + 
                   'finished. Contigs are available at ' + args.output + '/Assembly/' + 
@@ -168,7 +172,7 @@ for experiment in experiments:
                                  error_model = 'illumina_10',
                                  name = mg_name,
                                  threads = args.threads)
-            annotater.run()
+            #annotater.run()
             
             print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Annotation is ' + 
                   'finished and results are available at ' + args.output +
@@ -185,15 +189,18 @@ for experiment in experiments:
                             contigs = args.output + '/Assembly/' + mg_name + '/contigs.fasta',
                             blast = args.output + '/Annotation/' + mg_name + '/aligned.blast',
                             uniprotinfo = args.output + '/Annotation/' + mg_name + '/uniprot.info',
-                            threads = args.threads)
-            binner.run()
-            
+                            threads = args.threads,
+                            mg1 = args.output + '/Preprocess/Trimmomatic/quality_trimmed_' + mg_name + '_forward_paired.fq',
+                            mg2 = args.output + '/Preprocess/Trimmomatic/quality_trimmed_' + mg_name + '_reverse_paired.fq',
+                            markerset = args.marker_gene_set)
+            binner.maxbin_workflow()
+            exit()
             print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Binning is ' + 
                   'finished and results are available at ' + args.output + 
                   '/Binning/' + mg_name)
             
         mg_processed.append(mg_name)
-        
+
     if len(pairs) > 1:
         
         if not args.metaproteomic:
