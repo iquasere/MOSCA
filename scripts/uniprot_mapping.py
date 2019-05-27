@@ -12,7 +12,7 @@ class UniprotMapping:
     def __init__ (self, **kwargs):
         self.__dict__ = kwargs
         
-        uniprot_columns = {                                                     # From https://www.uniprot.org/help/uniprotkb_column_names
+        self.uniprot_columns = {                                                # From https://www.uniprot.org/help/uniprotkb_column_names
             # Names & Taxonomy
             'Entry':'id',
             'Entry name':'entry name',
@@ -208,7 +208,7 @@ class UniprotMapping:
             # Cross-references
             'db_abbrev':'database(db_abbrev)'}
         
-        uniprot_databases = {'Allergome; a platform for allergen knowledge':'Allergome',
+        self.uniprot_databases = {'Allergome; a platform for allergen knowledge':'Allergome',
                     'ArachnoServer: Spider toxin database':'ArachnoServer',
                     'Arabidopsis Information Portal':'Araport',
                     'Bgee dataBase for Gene Expression Evolution':'Bgee',
@@ -378,28 +378,28 @@ class UniprotMapping:
                     'Xenopus laevis and tropicalis biology and genomics resource':'Xenbase',
                     'Zebrafish Information Network genome database':'ZFIN'}
         
-        def string4mapping(self, columns = None, databases = None):
-            if columns is None and databases is None:                           # Sets to defaults, it's dirty but best way I found
-                columns = ['Entry', 'Gene names', 'Protein names',
-                'EC number', 'Function[CC]', 'Pathway', 'Keywords', 'Protein existence', 
-                'Gene ontology (GO)', 'Protein families', 'Taxonomic lineage (SUPERKINGDOM)', 
-                'Taxonomic lineage (PHYLUM)', 'Taxonomic lineage (CLASS)', 
-                'Taxonomic lineage (ORDER)', 'Taxonomic lineage (FAMILY)', 
-                'Taxonomic lineage (GENUS)', 'Taxonomic lineage (SPECIES)']
-                
-                databases = ['BioCyc Collection of Pathway/Genome Databases',
-                 'BRENDA Comprehensive Enzyme Information System',
-                 'Conserved Domains Database', 
-                 'evolutionary genealogy of genes: Non-supervised Orthologous Groups',
-                 'Ensembl eukaryotic genome annotation project',
-                 'Integrated resource of protein families, domains and functional sites',
-                 'KEGG: Kyoto Encyclopedia of Genes and Genomes',
-                 'KEGG Orthology (KO)', 'Pfam protein domain database',
-                 'Reactome - a knowledgebase of biological pathways and processes',
-                 'NCBI Reference Sequences',
-                 'UniPathway: a resource for the exploration and annotation of metabolic pathways']
-                
-            result = ','.join([uniprot_columns[column] for column in columns])
-            if len(databases) > 0:
-                result += 'database(' + '),database('.join([uniprot_databases(db) for db in databases]) + ')'
-            return result
+    def string4mapping(self, columns = None, databases = None):
+        if columns is None and databases is None:                           # Sets to defaults, it's dirty but best way I found
+            columns = ['Entry', 'Gene names', 'Protein names',
+            'EC number', 'Function[CC]', 'Pathway', 'Keywords', 'Protein existence', 
+            'Gene ontology (GO)', 'Protein families', 'Taxonomic lineage (SUPERKINGDOM)', 
+            'Taxonomic lineage (PHYLUM)', 'Taxonomic lineage (CLASS)', 
+            'Taxonomic lineage (ORDER)', 'Taxonomic lineage (FAMILY)', 
+            'Taxonomic lineage (GENUS)', 'Taxonomic lineage (SPECIES)']
+            
+            databases = ['BioCyc Collection of Pathway/Genome Databases',
+             'BRENDA Comprehensive Enzyme Information System',
+             'Conserved Domains Database', 
+             'evolutionary genealogy of genes: Non-supervised Orthologous Groups',
+             'Ensembl eukaryotic genome annotation project',
+             'Integrated resource of protein families, domains and functional sites',
+             'KEGG: Kyoto Encyclopedia of Genes and Genomes',
+             'KEGG Orthology (KO)', 'Pfam protein domain database',
+             'Reactome - a knowledgebase of biological pathways and processes',
+             'NCBI Reference Sequences',
+             'UniPathway: a resource for the exploration and annotation of metabolic pathways']
+
+        result = ','.join([self.uniprot_columns[column] for column in columns])
+        if len(databases) > 0:
+            result += ',database(' + '),database('.join([self.uniprot_databases[db] for db in databases]) + ')'
+        return result

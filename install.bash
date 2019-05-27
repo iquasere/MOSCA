@@ -25,14 +25,15 @@ conda install -y diamond
 conda install -y -c conda-forge progressbar33
 conda install -y -c bioconda htseq
 conda install -y -c bioconda bowtie2
-apt-get install ant
-git clone -b devel https://github.com/claczny/VizBin.git                        # TODO - can't get bash VizBin/setupUbuntu.sh to work anymore
+git clone -b devel https://github.com/claczny/VizBin.git
+conda install -c bioconda ant 
+conda install -c cyclus java-jdk
 cd VizBin/src/interface/VizBin
 ant jar
 cd ../../../..
 conda install -y -c bioconda maxbin2
 conda install -y -c bioconda bioconductor-deseq2=1.22.1
-conda installls  -y -c bioconda bioconductor-genomeinfodbdata=1.16.0
+conda install -y -c bioconda bioconductor-genomeinfodbdata=1.16.0
 conda install -y -c bioconda bioconductor-edger
 conda install -y -c bioconda r-pheatmap
 conda install -y -c r r-rcolorbrewer

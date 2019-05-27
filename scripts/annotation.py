@@ -16,7 +16,7 @@ from io import StringIO
 from tqdm import tqdm
 import pandas as pd
 import numpy as np
-import time, os, shutil, glob
+import time, os, shutil, glob, urllib.request, urllib.parse, urllib.error,urllib.request,urllib.error,urllib.parse
 
 mtools = MoscaTools()
 upmap = UniprotMapping()
@@ -74,42 +74,26 @@ class Annotater:
     
     def uniprot_request(self, ids, original_database = 'ACC+ID', database_destination = '',
                         output_format = 'tab', columns = None, databases = None):
-        import requests
-         
-        BASE_URL = 'https://www.uniprot.org/uniprot/'
-         
-        def validate_response(response, raw=False):
-            if response.ok:
-                if raw:
-                    return response
-                else:
-                    return response.content
-            else:
-                response.raise_for_status()
-         
-        def http_post(url, params=None, json=None, headers=None, stream=False):
-            response = requests.post(url, data=params, json=json,
-                                     headers=headers, stream=stream)
-            return validate_response(response, stream)
+        
+        base_url = 'https://www.uniprot.org/uploadlists/'
         
         params = {
             'from':original_database,
             'format':output_format,
-            'query':'+OR+'.join(['accession:' + acc for acc in ids]),
+            'query':' '.join(ids),
             'columns':upmap.string4mapping(columns = columns, databases = databases)
         }
-        if database_destination != '' or original_database != 'ACC+ID':
+        
+        if database_destination != '' or original_database == 'ACC+ID':
             params['to'] = 'ACC'
-        try:
-            return http_post(BASE_URL, params=params).decode('utf-8')
-        except:
-            try:
-                return http_post(BASE_URL, params=params).decode('utf-8')
-            except:
-                return ''
-            
+        
+        data = urllib.parse.urlencode(params).encode("utf-8")
+        request = urllib.request.Request(base_url, data)
+        response = urllib.request.urlopen(request)
+        return response.read().decode("utf-8")
+    
     def get_uniprot_information(self, ids, original_database = 'ACC+ID', output_format = 'tab',
-                                database_destination = '', chunk = 1000, sleep = 30,
+                                database_destination = '', chunk = 10000, sleep = 10,
                                 columns = None, databases = None):
         pbar = ProgressBar()
         print('Retrieving UniProt information from ' + str(len(ids)) + ' IDs.')
@@ -118,10 +102,10 @@ class Annotater:
             for i in pbar(range(0, len(ids), chunk)):
                 j = i + chunk if i + chunk < len(ids) else len(ids)
                 data = self.uniprot_request(ids[i:j], original_database, database_destination)
-                time.sleep(sleep)
                 if len(data) > 0:
-                    uniprot_info = pd.read_csv(StringIO(data), sep = '\t')
-                    result = pd.concat([result, uniprot_info])
+                    uniprotinfo = pd.read_csv(StringIO(data), sep = '\t')
+                    result = pd.concat([result, uniprotinfo[uniprotinfo.columns.tolist()[:-1]]])
+                time.sleep(sleep)
         elif output_format == 'fasta':
             result = str()
             for i in pbar(range(0, len(ids), chunk)):
@@ -129,9 +113,9 @@ class Annotater:
                 data = self.uniprot_request(ids[i:j], original_database, 
                             database_destination, output_format = output_format, 
                             columns = columns, databases = databases)
-                time.sleep(sleep)
                 if len(data) > 0:
                     result += data
+                time.sleep(sleep)
         return result
     
     def recursive_uniprot_fasta(self, output, fasta = None, blast = None, max_iter = 5):
@@ -176,7 +160,7 @@ class Annotater:
             print(output + ' not found.')
             ids_done = list()
             result = pd.DataFrame()
-        all_ids = set([ide.split('|')[1] for ide in DIAMOND(out = blast).parse_result()['sseqid'] if ide != '*'])
+        all_ids = set([ide.split('|')[1] for ide in mtools.parse_blast(blast)['sseqid'] if ide != '*'])
         i = 0
         ids_unmapped_output = '/'.join(output.split('/')[:-1]) + '/ids_unmapped.txt'
         print('Checking which IDs are missing information.')
@@ -206,8 +190,7 @@ class Annotater:
         if len(ids_missing) == 0:
             print('Results for all IDs are available at ' + output)
         else:
-            handler = open(ids_unmapped_output, 'w')
-            handler.write('\n'.join(ids_missing))
+            open(ids_unmapped_output, 'w').write('\n'.join(ids_missing))
             print('Maximum iterations were made. Results related to ' + str(len(ids_missing)) + 
                   ' IDs were not obtained. IDs with missing information are available' +
                   ' at ' + ids_unmapped_output + ' and information obtained is available' +
@@ -265,7 +248,7 @@ class Annotater:
         This function was very cool
     '''
     def uniprotinfo_to_excel(self, uniprotinfo, blast, output):
-        blast = DIAMOND(out = blast).parse_result()
+        blast = mtools.parse_blast(blast)
         uniprotdf = pd.read_csv(uniprotinfo, sep = '\t', index_col = 0).drop_duplicates()
         pbar = ProgressBar()
         blast['Coverage'] = [float(ide.split('_')[5]) for ide in pbar(blast.qseqid)]
@@ -295,7 +278,7 @@ class Annotater:
         print('Saved pathways')
            
     def info_with_coverage_metaspades(self, blast, output):
-        blast = DIAMOND(out = blast).parse_result()
+        blast = mtools.parse_blast(blast)
         coverage = pd.Series([float(ide.split('_')[5]) for ide in blast.qseqid])
         blast['coverage'] = coverage.values
         coverage_values = list(set(blast.coverage))
@@ -324,7 +307,7 @@ class Annotater:
         self.run_alignment([[read1, read2]], contigs, output)
         
     def info_with_coverage_megahit(self, blast, readcounts, output, output_others = None):
-        blast = DIAMOND(out = blast).parse_result()
+        blast = mtools.parse_blast(blast)
         blast.qseqid = ['_'.join(qseqide.split('_')[:2]) for qseqide in blast.qseqid]
         readcountsdf = pd.read_csv(readcounts, sep = '\t', header = None)
         readcountsdf.columns = ['contig', 'coverage']
@@ -356,7 +339,7 @@ class Annotater:
 
     def ni_proteins(self, fasta, blast, output, ni_proteins = True):
         proteins = mtools.parse_fasta(fasta)
-        blast = DIAMOND(out = blast).parse_result()
+        blast = mtools.parse_blast(blast)
         blast.index = blast.qseqid
         ids = list(blast[blast.sseqid == '*'].index) if ni_proteins == True else list(blast[blast.sseqid != '*'].index)
         handler = open(output, 'w')
@@ -392,7 +375,7 @@ class Annotater:
         lines for such protein, since several domains might be identified) (output)
     '''        
     def blast2cddblast(self, blast, interproscan, output, correct_interproscan = True):
-        blastdf = DIAMOND(out = blast).parse_result()
+        blastdf = mtools.parse_blast(blast)
         if correct_interproscan: self.correct_interproscan_file(interproscan)
         interproscandf = self.parse_interproscan_output(interproscan)
         interproscandf = interproscandf[interproscandf['Analysis'] == 'CDD']
@@ -599,7 +582,7 @@ class Annotater:
 
     def set_to_uniprotID(self, fasta, aligned, output):
         pbar = ProgressBar()
-        result = DIAMOND(out = aligned).parse_result()
+        result = mtools.parse_blast(aligned)
         sequences = mtools.parse_fasta(fasta)
         print('Changing names of ' + fasta + '\nto identifications in ' + aligned + '\nand outputing to ' + output)
         with open(output,'w') as f:
@@ -776,6 +759,5 @@ if __name__ == '__main__':
     '''
     
     annotater = Annotater()
-    
-    annotater.create_split_cog_db('/home/jsequeira/COGsmp', 'MOSCA/Databases/COG/split')
-
+    result = annotater.recursive_uniprot_information('MOSCAfinal/Annotation/aligned.blast',
+                                                     'MOSCAfinal/Annotation/uniprot.info1')

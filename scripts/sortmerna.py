@@ -57,10 +57,12 @@ class SortMeRNA:
         return result
     
     def merge_pe(self, forward, reverse, interleaved):
-        mtools.run_command('bash MOSCA/merge-paired-reads.sh ' + forward + ' ' + reverse + ' ' + interleaved)
+        mtools.run_command('bash MOSCA/scripts/merge-paired-reads.sh ' + forward + 
+                           ' ' + reverse + ' ' + interleaved)
         
     def unmerge_pe(self, interleaved, forward, reverse):
-        mtools.run_command('bash MOSCA/unmerge-paired-reads.sh ' + interleaved + ' ' + forward + ' ' + reverse)
+        mtools.run_command('bash MOSCA/scripts/unmerge-paired-reads.sh ' + 
+                           interleaved + ' ' + forward + ' ' + reverse)
         
     def run_tool(self):
         mtools.run_command(self.bash_command())

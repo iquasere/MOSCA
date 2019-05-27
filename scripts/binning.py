@@ -429,6 +429,23 @@ class Binner:
         self.run_maxbin(self.contigs, self.output, threads = self.threads, mg1 = self.mg1, 
                         mg2 = self.mg2, markerset = self.markerset)
         
+    '''
+    Input:
+        marker_file: filename of marker gene report from MaxBin2
+    Output:
+        a pd.DataFrame with the information from the marker gene report
+        The header has one extra tab. Until that's fixed, this is how it must be parsed. 
+        Types are changed to int explicitly because there are columns with no NaN that
+        are read as int and where there are NaN, the columns are read as float.
+        This disturbes the shift to the right, since the column that receives int
+        as a float column will turn them all into NaNs
+    '''
+    def parse_maxbin_marker(self, marker_file):
+        result = pd.read_csv(marker_file, sep = '\t').fillna(value=0).astype(
+                int).shift(axis=1)
+        del result['Unnamed: 0']
+        return result
+        
 if __name__ == '__main__':
     
     binner = Binner(contigs = 'Binning/all_info_contigs.fasta', 

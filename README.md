@@ -2,7 +2,7 @@
 
 Logo by [Sérgio A. Silva](https://www.ceb.uminho.pt/People/Details/64888072-5cde-42da-b7e5-691d380cefb2)
 
-# Meta-Omics Software for Community Analysis
+# Meta-Omics Software for Community Analysis (MOSCA)
 
 **MOSCA** (portuguese for fly) is a pipeline designed for performing Metagenomics and Metatranscriptomics integrated data analysis, in a mostly local and fully automated workflow.
 
