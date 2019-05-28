@@ -74,7 +74,6 @@ class Annotater:
     
     def uniprot_request(self, ids, original_database = 'ACC+ID', database_destination = '',
                         output_format = 'tab', columns = None, databases = None):
-        
         base_url = 'https://www.uniprot.org/uploadlists/'
         
         params = {
@@ -93,7 +92,7 @@ class Annotater:
         return response.read().decode("utf-8")
     
     def get_uniprot_information(self, ids, original_database = 'ACC+ID', output_format = 'tab',
-                                database_destination = '', chunk = 10000, sleep = 10,
+                                database_destination = '', chunk = 1000, sleep = 10,
                                 columns = None, databases = None):
         pbar = ProgressBar()
         print('Retrieving UniProt information from ' + str(len(ids)) + ' IDs.')
@@ -111,8 +110,7 @@ class Annotater:
             for i in pbar(range(0, len(ids), chunk)):
                 j = i + chunk if i + chunk < len(ids) else len(ids)
                 data = self.uniprot_request(ids[i:j], original_database, 
-                            database_destination, output_format = output_format, 
-                            columns = columns, databases = databases)
+                            database_destination, output_format = output_format)
                 if len(data) > 0:
                     result += data
                 time.sleep(sleep)
@@ -154,36 +152,36 @@ class Annotater:
         
     def recursive_uniprot_information(self, blast, output, max_iter = 5):
         if os.path.isfile(output):
-            result = pd.read_csv(output, sep = '\t').drop_duplicates()
-            ids_done = set(list(result['Entry']))
+            result = pd.read_csv(output, sep = '\t', low_memory=False).drop_duplicates()
+            ids_done = list(set(result['Entry']))
         else:
             print(output + ' not found.')
             ids_done = list()
             result = pd.DataFrame()
         all_ids = set([ide.split('|')[1] for ide in mtools.parse_blast(blast)['sseqid'] if ide != '*'])
-        i = 0
+        all_ids = set(list(all_ids))
+        tries = 0
         ids_unmapped_output = '/'.join(output.split('/')[:-1]) + '/ids_unmapped.txt'
         print('Checking which IDs are missing information.')
-        pbar = ProgressBar()
-        ids_missing = list(set([ide for ide in pbar(all_ids) if ide not in ids_done]))
+        ids_missing = list(set(all_ids) - set(ids_done))
         print('ids missing:'+str(len(ids_missing)))
         print('ids done:'+str(len(ids_done)))
         print('ids all:'+str(len(all_ids)))
         
-        while len(ids_missing) > 0 and i < max_iter:
+        while len(ids_missing) > 0 and tries < max_iter:
             try:
                 print('Information already gathered for ' + str(len(ids_done)) + 
                       ' ids. Still missing for ' + str(len(ids_missing)) + '.')
                 uniprotinfo = self.get_uniprot_information(ids_missing)
+                ids_done += list(set(uniprotinfo['Entry']))
+                result = result[uniprotinfo.columns]
                 result = pd.concat([result, uniprotinfo])
-                ids_done = set(list(result['Entry']))
-                print('Checking which IDs are missing information.')
-                pbar = ProgressBar()
-                ids_missing = list(set([ide for ide in pbar(all_ids) if ide not in ids_done]))
-                i = 0
+                tries = 0
             except:
                 print('Failed to retrieve information for some IDs. Retrying request.')
-                i += 1
+                tries += 1
+            print('Checking which IDs are missing information.')
+            ids_missing = list(set(all_ids) - set(ids_done))
             
         result.to_csv(output, sep = '\t', index = False)
         
@@ -224,14 +222,14 @@ class Annotater:
         column, multiplicating the rows with several elements of 'Pathway' into
         individual 'Pathway' elements, each with its row
     '''    
-    def using_repeat(self, df):
+    def using_repeat(self, df, column = 'Pathway'):
         import numpy as np
         import pandas as pd
-        lens = [len(item) for item in df['Pathway']]
+        lens = [len(item) for item in df[column]]
         dictionary = dict()
         for column in df.columns:
             dictionary[column] = np.repeat(df[column].values,lens)
-        dictionary["Pathway"] = np.concatenate(df['Pathway'].values)
+        dictionary[column] = np.concatenate(df[column].values)
         return pd.DataFrame(dictionary) 
     
     '''

@@ -12,7 +12,7 @@ class UniprotMapping:
     def __init__ (self, **kwargs):
         self.__dict__ = kwargs
         
-        self.uniprot_columns = {                                                # From https://www.uniprot.org/help/uniprotkb_column_names
+        self.uniprot_columns = {                                                # From https://www.uniprot.org/help/uniprotkb_column_names, as of 23rd of May, 2019
             # Names & Taxonomy
             'Entry':'id',
             'Entry name':'entry name',
