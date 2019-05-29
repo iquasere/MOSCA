@@ -72,6 +72,17 @@ class Annotater:
         
         diamond.run()
     
+    '''
+    Input:
+        ids: list of UniProt IDs to query
+        original_database: database from where the IDs are
+        database_destination: database to where to map (so far, only works with 'ACC'
+        output_format: format of response to get
+        columns: names of UniProt columns to get info on
+        databases: names of databases to cross-reference with
+    Output:
+        Returns the content of the response from UniProt
+    '''
     def uniprot_request(self, ids, original_database = 'ACC+ID', database_destination = '',
                         output_format = 'tab', columns = None, databases = None):
         base_url = 'https://www.uniprot.org/uploadlists/'
@@ -91,8 +102,24 @@ class Annotater:
         response = urllib.request.urlopen(request)
         return response.read().decode("utf-8")
     
+    '''
+    Input:
+        ids: list of UniProt IDs to query
+        original_database: database from where the IDs are
+        output_format: format of response to get
+        database_destination: database to where to map (so far, only works with 'ACC'
+        chunk: INT, number of IDs to send per request
+        sleep: INT, number of seconds to wait between requests
+        columns: names of UniProt columns to get info on
+        databases: names of databases to cross-reference with
+    Output:
+        If output format is 'tab', a pd.DataFrame will be returned with the information
+        about the IDs queried.
+        If output format is 'fasta', a Str containing the fasta sequences and headers
+        of the proteis belonging to the IDs queried will be returned.
+    '''
     def get_uniprot_information(self, ids, original_database = 'ACC+ID', output_format = 'tab',
-                                database_destination = '', chunk = 1000, sleep = 10,
+                                database_destination = '', chunk = 1000, sleep = 30,
                                 columns = None, databases = None):
         pbar = ProgressBar()
         print('Retrieving UniProt information from ' + str(len(ids)) + ' IDs.')
@@ -100,11 +127,14 @@ class Annotater:
             result = pd.DataFrame()
             for i in pbar(range(0, len(ids), chunk)):
                 j = i + chunk if i + chunk < len(ids) else len(ids)
-                data = self.uniprot_request(ids[i:j], original_database, database_destination)
-                if len(data) > 0:
-                    uniprotinfo = pd.read_csv(StringIO(data), sep = '\t')
-                    result = pd.concat([result, uniprotinfo[uniprotinfo.columns.tolist()[:-1]]])
-                time.sleep(sleep)
+                try:
+                    data = self.uniprot_request(ids[i:j], original_database, database_destination)
+                    if len(data) > 0:
+                        uniprotinfo = pd.read_csv(StringIO(data), sep = '\t')
+                        result = pd.concat([result, uniprotinfo[uniprotinfo.columns.tolist()[:-1]]])
+                    time.sleep(sleep)
+                except:
+                    return result
         elif output_format == 'fasta':
             result = str()
             for i in pbar(range(0, len(ids), chunk)):
@@ -162,11 +192,10 @@ class Annotater:
         all_ids = set(list(all_ids))
         tries = 0
         ids_unmapped_output = '/'.join(output.split('/')[:-1]) + '/ids_unmapped.txt'
-        print('Checking which IDs are missing information.')
         ids_missing = list(set(all_ids) - set(ids_done))
-        print('ids missing:'+str(len(ids_missing)))
-        print('ids done:'+str(len(ids_done)))
-        print('ids all:'+str(len(all_ids)))
+        print('IDs present in blast file: ' + str(len(all_ids)))
+        print('IDs present in uniprotinfo file: ' + str(len(ids_done)))
+        print('IDs missing: ' + str(len(ids_missing)))
         
         while len(ids_missing) > 0 and tries < max_iter:
             try:
@@ -182,6 +211,9 @@ class Annotater:
                 tries += 1
             print('Checking which IDs are missing information.')
             ids_missing = list(set(all_ids) - set(ids_done))
+            print('IDs present in blast file: ' + str(len(all_ids)))
+            print('IDs present in uniprotinfo file: ' + str(len(ids_done)))
+            print('IDs missing: ' + str(len(ids_missing)))
             
         result.to_csv(output, sep = '\t', index = False)
         
@@ -300,45 +332,11 @@ class Annotater:
                         f.write(str(value) + ' failed')
                     continue
         result.to_csv(output, sep = '\t', index = False)
-        
-    def contigs_readcounts(self, contigs, output, read1, read2):
-        self.run_alignment([[read1, read2]], contigs, output)
-        
-    def info_with_coverage_megahit(self, blast, readcounts, output, output_others = None):
-        blast = mtools.parse_blast(blast)
-        blast.qseqid = ['_'.join(qseqide.split('_')[:2]) for qseqide in blast.qseqid]
-        readcountsdf = pd.read_csv(readcounts, sep = '\t', header = None)
-        readcountsdf.columns = ['contig', 'coverage']
-        pbar = ProgressBar()
-        for value in pbar(readcountsdf.contig.get_values().tolist()):
-            blast.loc[blast.qseqid == value,'coverage'] = float(readcountsdf[readcountsdf.contig==value]['coverage'])
-        coverage_values = list(set(blast.coverage))
-        result = pd.DataFrame()
-        blast.to_csv('blast.blast', sep = '\t', index = False)
-        for value in coverage_values:
-            print(value)
-            ids = [ide.split('|')[-1] for ide in blast[blast['coverage'] == value]['sseqid']]
-            print(len(ids))
-            try:
-                part = self.get_uniprot_information(ids)
-                part['coverage'] = pd.Series([value for i in range(len(part))]).values
-                result = pd.concat([result, part])
-            except:
-                try:
-                    part = self.get_uniprot_information(ids)
-                    part['coverage'] = pd.Series([value for i in range(len(part))]).values
-                    result = pd.concat([result, part])
-                except:
-                    result.to_csv(output, sep = '\t', index = False)
-                    with open('errors.log', 'a') as f:
-                        f.write(str(value) + ' failed')
-                    continue
-        result.to_csv(output, sep = '\t', index = False)
 
     def ni_proteins(self, fasta, blast, output, ni_proteins = True):
         proteins = mtools.parse_fasta(fasta)
         blast = mtools.parse_blast(blast)
-        blast.index = blast.qseqid
+        blast.index = blast.qseqids
         ids = list(blast[blast.sseqid == '*'].index) if ni_proteins == True else list(blast[blast.sseqid != '*'].index)
         handler = open(output, 'w')
         for ide in ids:

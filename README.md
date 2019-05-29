@@ -30,7 +30,7 @@ Logo by [Sérgio A. Silva](https://www.ceb.uminho.pt/People/Details/64888072-5cd
     * the final bins are reported for their completeness - how many of the marker genes are present in each bin?
 * **MetaTranscriptomics (MT) analysis** where the expression of each identified protein is quantified. It includes:
     * alignment of MT reads to the MG contigs with **Bowtie2**, and quantification of reads to protein using **HTSeq-count**
-    * differential gene expression and multisample comparison using **DeSEQ2**
+    * differential gene expression and multisample comparison using **DESeq2**
 * **Normalization** of protein quantification for the final report using **edgeR**
 
 ## Setting up MOSCA
@@ -46,6 +46,7 @@ MOSCA already brings a bash script that will install all of its pre-dependencies
 ```
 bash MOSCA/install.bash
 ```
+
 <!---
 ## MOSCA is finally available as a Docker image!
 
@@ -66,11 +67,12 @@ At this point, MOSCA allows for defining custom databases for annotation, but no
 The database(s) for annotation must be present in FASTA or DMND (diamond binary) format in a specific directory that must be referenced in the mosca command.
 
 ```
-docker run -it -v /path/to/folder_of_databases:/MOSCA/Databases/annotation_databases iquasere/mosca [arguments]
+docker run -t -v /path/to/folder_of_databases:/MOSCA/Databases/annotation_databases iquasere/mosca [arguments]
 ```
 
 "/path/to/folder_of_databases" is the directory where the databases are stored. The rest of the command is to be inputed exactly as presented here, except for the [arguments], which are to be inputed just like if not using docker.
 -->
+
 ## Base arguments for running MOSCA
 
 MOSCA was designed to run with as few arguments as possible. Only the input files and output directory have to be specified. MOSCA considers the input files in the following format, separated by spaces:
