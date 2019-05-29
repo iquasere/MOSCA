@@ -37,17 +37,14 @@ RUN buildDeps='build-essential zlib1g-dev' \
 && conda install -c anaconda pandas \
 && conda install -c conda-forge tqdm \
 && conda install scikit-learn \
-&& conda install -c anaconda lxml \
 && conda install -y -c bioconda blast \
 && mkdir /MOSCA/Databases/annotation_databases \
 && mkdir -p /MOSCA/Databases/COG \
 && wget ftp://ftp.ncbi.nih.gov/pub/mmdb/cdd/cdd.tar.gz -P /MOSCA/Databases/COG \
 && tar -xzvf /MOSCA/Databases/COG/cdd.tar.gz --wildcards --no-anchored 'COG*.smp' -C /MOSCA/Databases/COG \
+&& rm /MOSCA/Databases/COG/cdd.tar.gz \
 && wget ftp://ftp.ncbi.nlm.nih.gov/pub/mmdb/cdd/cddid.tbl.gz -P /MOSCA/Databases/COG \
 && gunzip /MOSCA/Databases/COG/cddid.tbl.gz \
-&& wget ftp://ftp.ncbi.nlm.nih.gov/pub/mmdb/cdd/little_endian/Cog_LE.tar.gz -P /MOSCA/Databases/COG \
-#&& tar -xvzf MOSCA/Databases/COG/Cog_LE.tar.gz -C MOSCA/Databases/COG \
-#&& rm MOSCA/Databases/COG/Cog_LE.tar.gz \
 && wget ftp://ftp.ncbi.nlm.nih.gov/pub/COG/COG/fun.txt -P MOSCA/Databases/COG \
 && wget ftp://ftp.ncbi.nlm.nih.gov/pub/COG/COG/whog -P MOSCA/Databases/COG \
 && wget https://github.com/aleimba/bac-genomics-scripts/raw/master/cdd2cog/cdd2cog.pl -P MOSCA/scripts \

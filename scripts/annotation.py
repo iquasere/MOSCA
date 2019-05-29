@@ -131,7 +131,7 @@ class Annotater:
                     data = self.uniprot_request(ids[i:j], original_database, database_destination)
                     if len(data) > 0:
                         uniprotinfo = pd.read_csv(StringIO(data), sep = '\t')
-                        result = pd.concat([result, uniprotinfo[uniprotinfo.columns.tolist()[:-1]]])
+                        result = pd.concat([result, uniprotinfo[uniprotinfo.columns.tolist()[:-1]]])    # last column is uniprot_list
                     time.sleep(sleep)
                 except:
                     return result
@@ -198,22 +198,16 @@ class Annotater:
         print('IDs missing: ' + str(len(ids_missing)))
         
         while len(ids_missing) > 0 and tries < max_iter:
-            try:
-                print('Information already gathered for ' + str(len(ids_done)) + 
-                      ' ids. Still missing for ' + str(len(ids_missing)) + '.')
-                uniprotinfo = self.get_uniprot_information(ids_missing)
-                ids_done += list(set(uniprotinfo['Entry']))
-                result = result[uniprotinfo.columns]
-                result = pd.concat([result, uniprotinfo])
-                tries = 0
-            except:
+            print('Information already gathered for ' + str(len(ids_done)) + 
+                  ' ids. Still missing for ' + str(len(ids_missing)) + '.')
+            uniprotinfo = self.get_uniprot_information(ids_missing)
+            ids_done += list(set(uniprotinfo['Entry']))
+            result = result[uniprotinfo.columns]
+            result = pd.concat([result, uniprotinfo])
+            ids_missing = list(set(all_ids) - set(ids_done))
+            if len(ids_missing) > 0:
                 print('Failed to retrieve information for some IDs. Retrying request.')
                 tries += 1
-            print('Checking which IDs are missing information.')
-            ids_missing = list(set(all_ids) - set(ids_done))
-            print('IDs present in blast file: ' + str(len(all_ids)))
-            print('IDs present in uniprotinfo file: ' + str(len(ids_done)))
-            print('IDs missing: ' + str(len(ids_missing)))
             
         result.to_csv(output, sep = '\t', index = False)
         

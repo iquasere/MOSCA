@@ -36,7 +36,7 @@ parser.add_argument("-db","--annotation-database",type=str,nargs = 1,metavar = "
                     help="Database for annotation (.fasta or .dmnd)", 
                      default = "Databases/annotation_databases/uniprot.dmnd")
 parser.add_argument("-o","--output",type=str,help="Directory for storing the results",
-                    metavar = "Directory")
+                    metavar = "Directory", default = "MOSCA_analysis")
 parser.add_argument("-nopp","--no-preprocessing",action = "store_true",
                     help="Don't perform preprocessing", default = False)
 parser.add_argument("-noas","--no-assembly",action = "store_true",
@@ -316,8 +316,6 @@ annotater = Annotater(out_dir = args.output,
 
 joined = annotater.global_information()
 
-import pandas as pd
-joined = pd.read_csv('debugMOSCA/joined_information.tsv',sep='\t')
 print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Integration is available at '
       + args.output)
 
