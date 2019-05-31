@@ -261,9 +261,7 @@ for experiment in experiments:
                           contigs = args.output + '/Assembly/' + mg_name + '/contigs.fasta',
                           blast = args.output + '/Annotation/' + mg_name + '/aligned.blast',
                           reads = mt,
-                          mg = mg_name,
                           mt = mt_name,
-                          assembler = args.assembler,
                           threads = args.threads)
             mta.readcounts_file()
             
@@ -307,11 +305,6 @@ Join all information on one report
 print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Integrating all information.')
 
 annotater = Annotater(out_dir = args.output,
-                      fun = mosca_dir + '/Databases/COG/fun.txt',
-                      cog = mosca_dir + '/Databases/COG/Cog',
-                      cddid = mosca_dir + '/Databases/COG/cddid.tbl',
-                      whog = mosca_dir + '/Databases/COG/whog',
-                      cdd2cog_executable = mosca_dir + '/cdd2cog.pl',
                       threads = args.threads)
 
 joined = annotater.global_information()

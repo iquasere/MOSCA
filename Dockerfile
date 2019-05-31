@@ -53,6 +53,17 @@ RUN buildDeps='build-essential zlib1g-dev' \
 && conda install -c bioconda peptide-shaker \
 && conda install -c bioconda maxquant \
 && conda clean --all \
-&& apt-get purge -y --auto-remove $buildDeps 
+&& apt-get purge -y --auto-remove $buildDeps
+
+ENV files None
+ENV data paired
+ENV assembler metaspades
+ENV annotation_database Databases/annotation_databases/uniprot.fasta
+ENV output MOSCA_analysis
+ENV output_level max
+ENV conditions None
+ENV threads 1
+ENV memory None
+ENV marker_gene_set 40
 
 ENTRYPOINT [ "python", "/MOSCA/mosca.py" ]

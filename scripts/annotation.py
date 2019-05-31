@@ -487,7 +487,8 @@ class Annotater:
     Output: 
         pandas.DataFrame with integration of information from UniProt and COGs
     '''
-    def join_reports(self, blast, uniprotinfo, cog_blast, fun, split_pathways = False):
+    def join_reports(self, blast, uniprotinfo, cog_blast, 
+                     fun = 'MOSCA/Databases/COG/fun.txt', split_pathways = False):
         result = mtools.parse_blast(blast)
         result.index = result.qseqid
         result = result[result.sseqid != '*']
@@ -593,18 +594,16 @@ class Annotater:
         
         # Retrieval of information from UniProt IDs
         self.recursive_uniprot_information(self.out_dir + '/Annotation/aligned.blast', 
-                                           self.out_dir + '/Annotation/uniprot.info')
+                                           self.out_dir + '/Annotation/uniprot_info.tsv')
         
         # Functional annotation with COG database
         self.cog_annotation(self.out_dir + '/Annotation/fgs.faa', 
-                            self.out_dir + '/Annotation', self.cddid, self.whog, 
-                            self.fun, threads = self.threads)
+                            self.out_dir + '/Annotation', threads = self.threads)
 
         # Integration of all reports - BLAST, UNIPROTINFO, COG
         joined = self.join_reports(self.out_dir + '/Annotation/aligned.blast', 
-                               self.out_dir + '/Annotation/uniprot.info', 
-                               self.out_dir + '/Annotation/results/rps-blast_cog.txt', 
-                               self.fun)
+                               self.out_dir + '/Annotation/uniprot_info.tsv', 
+                               self.out_dir + '/Annotation/results/rps-blast_cog.txt')
 
         blast_files = glob.glob(self.out_dir + '/Annotation/*/aligned.blast')
         for file in blast_files:
@@ -748,6 +747,6 @@ if __name__ == '__main__':
     annotater.global_information()
     '''
     
-    annotater = Annotater()
-    result = annotater.recursive_uniprot_information('MOSCAfinal/Annotation/aligned.blast',
-                                                     'MOSCAfinal/Annotation/uniprot.info1')
+    annotater = Annotater(out_dir = 'MOSCAfinal', threads = '12')
+
+    joined = annotater.global_information()
