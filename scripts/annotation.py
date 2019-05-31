@@ -189,10 +189,10 @@ class Annotater:
             ids_done = list()
             result = pd.DataFrame()
         all_ids = set([ide.split('|')[1] for ide in mtools.parse_blast(blast)['sseqid'] if ide != '*'])
-        all_ids = set(list(all_ids))
         tries = 0
         ids_unmapped_output = '/'.join(output.split('/')[:-1]) + '/ids_unmapped.txt'
         ids_missing = list(set(all_ids) - set(ids_done))
+        
         print('IDs present in blast file: ' + str(len(all_ids)))
         print('IDs present in uniprotinfo file: ' + str(len(ids_done)))
         print('IDs missing: ' + str(len(ids_missing)))
