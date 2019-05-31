@@ -188,7 +188,7 @@ for experiment in experiments:
             binner = Binner(output = args.output + '/Binning/' + mg_name,
                             contigs = args.output + '/Assembly/' + mg_name + '/contigs.fasta',
                             blast = args.output + '/Annotation/' + mg_name + '/aligned.blast',
-                            uniprotinfo = args.output + '/Annotation/' + mg_name + '/uniprot.info',
+                            uniprotinfo = args.output + '/Annotation/' + mg_name + '/uniprot_info.tsv',
                             threads = args.threads,
                             mg1 = args.output + '/Preprocess/Trimmomatic/quality_trimmed_' + mg_name + '_forward_paired.fq',
                             mg2 = args.output + '/Preprocess/Trimmomatic/quality_trimmed_' + mg_name + '_reverse_paired.fq',
