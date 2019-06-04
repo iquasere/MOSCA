@@ -159,7 +159,7 @@ After having docker installed in the system, pull MOSCA's image.
 docker pull iquasere/mosca:latest
 ```
 
-At this point, MOSCA allows for defining custom databases for annotation, but not for adapters nor rRNA identification (instead, the image already brings the databases from Trimmomatic and SortMeRNA, respectively).
+MOSCA's docker version allows for defining custom databases for annotation, but not for adapters nor rRNA identification (instead, the image already brings the databases from Trimmomatic and SortMeRNA, respectively).
 The database(s) for annotation must be present in FASTA or DMND (diamond binary) format in a specific directory that must be referenced in the mosca command.
 
 ```
