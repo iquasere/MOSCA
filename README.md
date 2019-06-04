@@ -47,7 +47,103 @@ MOSCA already brings a bash script that will install all of its pre-dependencies
 bash MOSCA/install.bash
 ```
 
-<!---
+## Base arguments for running MOSCA
+
+MOSCA was designed to run with as few arguments as possible. Only the input files and output directory have to be specified. MOSCA considers the input files in the following format, separated by spaces:
+
+```
+path/to/mg_file1,path/to/mg_file2:path/to/mt_file1,path/to/mt_file2
+```
+
+MOSCA is prepared to handle experiments input if some of these files is not available (because the experiment was single-end or metatranscriptomic data was not analyzed). How to format such cases is explained in the next examples. Note that this are the examples for running MOSCA from its directory ('MOSCA'). To run them from other directory, the path to the main script ('main.py') must be specified.
+
+* One single-end file
+
+```
+python MOSCA/scripts/mosca.py --files path/to/file --output output_directory
+```
+
+* Two single-end files (two different experiments)
+
+```
+python MOSCA/scripts/mosca.py --files path/to/file1 path/to/file2 --output output_directory
+```
+
+* Two paired-end files
+
+```
+python MOSCA/scripts/mosca.py --files path/to/file1,path/to/file2 --output output_directory
+```
+
+* Four paired-end files with MT data (two different experiments)
+
+```
+python MOSCA/scripts/mosca.py --files path/to/mg_file1_of_experiment1,path/to/mg_file2_of_experiment1:path/to/mt_file1_of_experiment1,path/to/mt_file2_of_experiment1 path/to/mg_file1_of_experiment2,path/to/mg_file2_of_experiment2:path/to/mt_file1_of_experiment2,path/to/mt_file2_of_experiment2 --output output_directory
+```
+
+
+## Additional parameters
+
+MOSCA includes the option to chose between MetaSPAdes (default) and Megahit as the tool for assembly. Also, while many functions are developed only for UniProt, another database can be chosen. Since not all steps are always wanted, MOSCA allows to chose whether or not to perform every step of its analysis.
+
+```
+usage: mosca.py [-h] [-f [Input files [Input files ...]]]
+                [-st {paired,single}] [-a Assembler] [-db Database]
+                [-o Directory] [-nopp] [-noas] [-noan] [-nobin]
+                [-ol {min,med,max}]
+                [-tod {metatranscriptomics,metaproteomics}]
+                [-c [CONDITIONS [CONDITIONS ...]]] [-t Threads] [-m Memory]
+                [-mark Marker gene set]
+
+Multi Omics Software for Community Analysis
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -f [Input files [Input files ...]], --files [Input files [Input files ...]]
+                        Input files for analysis (mg1R1,mg1R2:mt1R1,mt1R2
+                        mg2R1,...)
+  -st {paired,single}, --sequencing-technology {paired,single}
+                        Type of data (paired/single)-ended
+  -a Assembler, --assembler Assembler
+                        Tool for assembling the reads
+  -db Database, --annotation-database Database
+                        Database for annotation (.fasta or .dmnd)
+  -o Directory, --output Directory
+                        Directory for storing the results
+  -nopp, --no-preprocessing
+                        Don't perform preprocessing
+  -noas, --no-assembly  Don't perform assembly
+  -noan, --no-annotation
+                        Don't perform annotation
+  -nobin, --no-binning  Don't perform binning
+  -ol {min,med,max}, --output-level {min,med,max}
+                        Level of file output from MOSCA, min outputs only the
+                        analysis results, med removes intermediate files, max
+                        outputs all intermediate and final data
+  -tod {metatranscriptomics,metaproteomics}, --type-of-data {metatranscriptomics,metaproteomics}
+                        If data is metagenomics integrated with
+                        metatranscriptomics or metaproteomics, if not
+                        specified will be assumed to be metagenomics and
+                        metatranscriptomics. This option can be ignored with
+                        dealing only with metagenomics data
+  -c [CONDITIONS [CONDITIONS ...]], --conditions [CONDITIONS [CONDITIONS ...]]
+                        Different conditions for
+                        metatranscriptomics/metaproteomics analysis, separated
+                        by comma (,)
+  -t Threads, --threads Threads
+                        Number of threads available for MOSCA
+  -m Memory, --memory Memory
+                        Maximum memory (byte) available for MOSCA. Applied
+                        only in the assembly
+  -mark Marker gene set, --marker-gene-set Marker gene set
+                        Marker gene set to use for binning with MaxBin2. 107
+                        if archaea are not to be considered, 40 if data is
+                        diverse.
+
+A tool for performing metagenomics, metatranscriptomics and metaproteomics
+analysis.
+```
+
 ## MOSCA is finally available as a Docker image!
 
 To use MOSCA's Docker version, Docker must first be installed.
@@ -67,95 +163,17 @@ At this point, MOSCA allows for defining custom databases for annotation, but no
 The database(s) for annotation must be present in FASTA or DMND (diamond binary) format in a specific directory that must be referenced in the mosca command.
 
 ```
-docker run -t -v /path/to/folder_of_databases:/MOSCA/Databases/annotation_databases iquasere/mosca [arguments]
+docker run -v /path/to/folder_of_input/:/input_data -v /path/to/output_folder/:/MOSCA_analysis -v /path/to/folder_of_databases:/MOSCA/Databases/annotation_databases mosca [arguments]
 ```
 
-"/path/to/folder_of_databases" is the directory where the databases are stored. The rest of the command is to be inputed exactly as presented here, except for the [arguments], which are to be inputed just like if not using docker.
--->
+The command is to be inputed as presented here, with some alterations:
+* "/path/to/folder_of_input/" must be replaced with the **absolute path** to the folder containing the files to be analysed by MOSCA
+* "/path/to/output_folder/" must be replaced with the **absolute path** to the folder where to output results from analysis with MOSCA
+* "/path/to/folder_of_databases/" must be replaced with the **absolute path** to the folder containing the databases for annotation with DIAMOND
+* [arguments] is to be replaced with the parameters exactly as would be inputed when using MOSCA outside of docker. **Filenames (option '-f'), however, must be inputed as /input_data/name_of_file!**
 
-## Base arguments for running MOSCA
-
-MOSCA was designed to run with as few arguments as possible. Only the input files and output directory have to be specified. MOSCA considers the input files in the following format, separated by spaces:
-
-```
-path/to/mg_file1,path/to/mg_file2:path/to/mt_file1,path/to/mt_file2
-```
-
-MOSCA is prepared to handle experiments input if some of these files is not available (because the experiment was single-end or metatranscriptomic data was not analyzed). How to format such cases is explained in the next examples. Note that this are the examples for running MOSCA from its directory ('MOSCA'). To run them from other directory, the path to the main script ('main.py') must be specified.
-
-* One single-end file
+An example command for **Two single-end files (two different experiments)**
 
 ```
-python MOSCA/scripts/mosca.py --files path/to/file --output-dir output_directory
-```
-
-* Two single-end files (two different experiments)
-
-```
-python MOSCA/scripts/mosca.py --files path/to/file1 path/to/file2 --output-dir output_directory
-```
-
-* Two paired-end files
-
-```
-python MOSCA/scripts/mosca.py --files path/to/file1,path/to/file2 --output-dir output_directory
-```
-
-* Four paired-end files with MT data (two different experiments)
-
-```
-python MOSCA/scripts/mosca.py --files path/to/mg_file1_of_experiment1,path/to/mg_file2_of_experiment1:path/to/mt_file1_of_experiment1,path/to/mt_file2_of_experiment1 path/to/mg_file1_of_experiment2,path/to/mg_file2_of_experiment2:path/to/mt_file1_of_experiment2,path/to/mt_file2_of_experiment2 --output-dir output_directory
-```
-
-
-## Additional parameters
-
-MOSCA includes the option to chose between MetaSPAdes (default) and Megahit as the tool for assembly. Also, while many functions are developed only for UniProt, another database can be chosen. Since not all steps are always wanted, MOSCA allows to chose whether or not to perform every step of its analysis.
-
-```
-usage: mosca.py [-h] [-f [Input files [Input files ...]]]
-                [-data {paired,single}] [-a Assembler] [-db Database]
-                [-o Directory] [-nopp] [-noas] [-noan] [-nobin]
-                [-ol {min,med,max}] [-mp] [-c [CONDITIONS [CONDITIONS ...]]]
-                [-t Threads] [-m Memory]
-
-Multi Omics Software for Community Analysis
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -f [Input files [Input files ...]], --files [Input files [Input files ...]]
-                        Input files for analysis (mg1R1,mg1R2:mt1R1,mt1R2
-                        mg2R1,...)
-  -data {paired,single}, --type-of-data {paired,single}
-                        Type of data (paired/single)-ended
-  -a Assembler, --assembler Assembler
-                        Tool for assembling the reads
-  -db Database, --annotation-database Database
-                        Database for annotation (.fasta or .dmnd)
-  -o Directory, --output Directory
-                        Directory for storing the results
-  -nopp, --no-preprocessing
-                        Don't perform preprocessing
-  -noas, --no-assembly  Don't perform assembly
-  -noan, --no-annotation
-                        Don't perform annotation
-  -nobin, --no-binning  Don't perform binning
-  -ol {min,med,max}, --output-level {min,med,max}
-                        Level of file output from MOSCA, min outputs only the
-                        analysis results, med removes intermediate files, max
-                        outputs all intermediate and final data
-  -mp, --metaproteomic  If data is metagenomic and metaproteomic, if not
-                        specified will be assumed to be metagenomic and
-                        metatranscriptomic
-  -c [CONDITIONS [CONDITIONS ...]], --conditions [CONDITIONS [CONDITIONS ...]]
-                        Different conditions for metatranscriptomic analysis,
-                        separated by comma (,)
-  -t Threads, --threads Threads
-                        Number of threads available for MOSCA
-  -m Memory, --memory Memory
-                        Maximum memory (byte) available for MOSCA. Applied
-                        only in the assembly
-
-A tool for performing metagenomics, metatranscriptomics and metaproteomics
-analysis.
+docker run -v /path/to/my_data_folder/:/input_data -v /path/to/output_folder/:/MOSCA_analysis -v /path/to/my_data_folder/:/input_data -v /path/to/my_database_folder:/MOSCA/Databases/annotation_databases mosca --files /input_data/mg1_R1.fastq,/input_data/mg1_R2.fastq:/input_data/mt1_R1.fastq,/input_data/mt1_R2.fastq --output 
 ```

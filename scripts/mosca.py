@@ -27,7 +27,7 @@ parser = argparse.ArgumentParser(description="Multi Omics Software for Community
                                  and metaproteomics analysis.""")
 parser.add_argument("-f","--files", type=str, nargs = '*', metavar = 'Input files',
                     help="Input files for analysis (mg1R1,mg1R2:mt1R1,mt1R2 mg2R1,...)")
-parser.add_argument("-data","--type-of-data",default='paired',choices=["paired","single"],
+parser.add_argument("-st","--sequencing-technology",default='paired',choices=["paired","single"],
                     action='store',type=str,help='Type of data (paired/single)-ended')
 parser.add_argument("-a","--assembler",type=str,choices=["metaspades","megahit"],
                     help="Tool for assembling the reads", metavar = "Assembler", 
@@ -36,7 +36,7 @@ parser.add_argument("-db","--annotation-database",type=str,nargs = 1,metavar = "
                     help="Database for annotation (.fasta or .dmnd)", 
                      default = "Databases/annotation_databases/uniprot.dmnd")
 parser.add_argument("-o","--output",type=str,help="Directory for storing the results",
-                    metavar = "Directory", default = "MOSCA_analysis")
+                    metavar = "Directory", default = "/MOSCA_analysis")
 parser.add_argument("-nopp","--no-preprocessing",action = "store_true",
                     help="Don't perform preprocessing", default = False)
 parser.add_argument("-noas","--no-assembly",action = "store_true",
@@ -49,12 +49,15 @@ parser.add_argument("-ol","--output-level",default='min',choices=["min","med","m
                     action='store',type=str,help=("""Level of file output from MOSCA, 
                     min outputs only the analysis results, med removes intermediate files, 
                     max outputs all intermediate and final data"""))
-parser.add_argument("-mp", "--metaproteomic", action = "store_true",
-                    help = ("""If data is metagenomic and metaproteomic, if not specified
-                            will be assumed to be metagenomic and metatranscriptomic"""),
-                    default = False)
+parser.add_argument("-tod", "--type-of-data", default = "metatranscriptomics",
+                    help = ("""If data is metagenomics integrated with metatranscriptomics
+                            or metaproteomics, if not specified will be assumed to be metagenomics
+                            and metatranscriptomics. This option can be ignored with dealing
+                            only with metagenomics data"""), choices=["metatranscriptomics",
+                    "metaproteomics"])
 parser.add_argument("-c","--conditions", type=str, nargs = '*',
-                    help="Different conditions for metatranscriptomic analysis, separated by comma (,)")
+                    help="""Different conditions for metatranscriptomics/metaproteomics 
+                    analysis, separated by comma (,)""")
 parser.add_argument("-t","--threads",type=str,metavar = "Threads", default = str(multiprocessing.cpu_count() - 2),
                     help="Number of threads available for MOSCA")
 parser.add_argument("-m","--memory",type=str,metavar = "Memory",
@@ -76,8 +79,8 @@ print('Creating directories at ' + args.output)
 directories = ([args.output + '/Preprocess/' + software for software in 
                 ['FastQC', 'Trimmomatic', 'SortMeRNA']] + 
                [args.output + folder for folder in ['/Assembly','/Annotation',
-                '/Metatranscriptomics' if not args.metaproteomic else
-                '/Metaproteomics']])
+                '/Metatranscriptomics' if args.type_of_data == 'metatranscriptomics' 
+                else '/Metaproteomics']])
 
 for directory in directories:
     print('Created ' + directory)
@@ -91,7 +94,7 @@ for experiment in experiments:
     pairs = experiment.split(':')
     mg = pairs[0].split(',')
     
-    if len(mg) == 1 and args.type_of_data == 'paired':                           # if data is interleaved paired end, it will be split up to forward and reverse files
+    if len(mg) == 1 and args.sequencing_technology == 'paired':                 # if data is interleaved paired end, it will be split up to forward and reverse files
         (forward, reverse) = (args.output + '/Preprocess/' + mg[0].split('/')[-1].split('.fastq')[0]
                                 + fr for fr in ['_R1.fastq','_R2.fastq'])
         print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Splitting reads at ' 
@@ -110,7 +113,7 @@ for experiment in experiments:
             print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Preprocessing ' + 
                   'metagenomic reads')
             preprocesser = Preprocesser(files = mg,
-                                        paired = 'PE' if args.type_of_data == 'paired' else 'SE',
+                                        paired = 'PE' if args.sequencing_technology == 'paired' else 'SE',
                                         working_dir = args.output,
                                         data = 'dna',
                                         name = mg_name,
@@ -203,7 +206,7 @@ for experiment in experiments:
 
     if len(pairs) > 1:
         
-        if not args.metaproteomic:
+        if args.type_of_data == 'metatranscriptomics':
             
             ''''
             Metatranscriptomics Preprocessing
@@ -211,7 +214,7 @@ for experiment in experiments:
             
             mt = pairs[1].split(',')
             
-            if len(mt) == 1 and args.type_of_data == 'paired':                           # if data is interleaved paired end, it will be split up
+            if len(mt) == 1 and args.sequencing_technology == 'paired':                           # if data is interleaved paired end, it will be split up
             
                 mt_name = mt[0].split('/')[-1].split('.fastq')[0]
                 
@@ -313,7 +316,7 @@ print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Integration is available at '
       + args.output)
 
 if len(experiment.split(':')) > 1:      
-    if not args.metaproteomic:
+    if args.type_of_data == 'metatranscriptomics':
         readcount_files = glob.glob(args.output + '/Metatranscriptomics/*.readcounts')
         
         for file in readcount_files[:-1]:

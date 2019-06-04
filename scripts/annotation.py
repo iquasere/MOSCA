@@ -673,7 +673,7 @@ class Annotater:
         dbs = (open('MOSCA/Databases/COG/databases.txt').read().split('\n') if
         os.path.isfile('MOSCA/Databases/COG/databases.txt') else list())
         if threads in dbs:
-            print('Already built COG database for this number of threads')
+            print('Already built COG database for [' + threads + '] threads.')
         else:
             print('Generating COG databases for [' + threads + '] threads.')
             smp_list = glob.glob(smp_directory + '/COG*.smp')

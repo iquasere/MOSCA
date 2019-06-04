@@ -39,6 +39,7 @@ RUN buildDeps='build-essential zlib1g-dev' \
 && conda install scikit-learn \
 && conda install -y -c bioconda blast \
 && mkdir /MOSCA/Databases/annotation_databases \
+&& mkdir /input_data \
 && mkdir -p /MOSCA/Databases/COG \
 && wget ftp://ftp.ncbi.nih.gov/pub/mmdb/cdd/cdd.tar.gz -P /MOSCA/Databases/COG \
 && tar -xzvf /MOSCA/Databases/COG/cdd.tar.gz --wildcards --no-anchored 'COG*.smp' -C /MOSCA/Databases/COG \
@@ -54,16 +55,5 @@ RUN buildDeps='build-essential zlib1g-dev' \
 && conda install -c bioconda maxquant \
 && conda clean --all \
 && apt-get purge -y --auto-remove $buildDeps
-
-ENV files None
-ENV data paired
-ENV assembler metaspades
-ENV annotation_database Databases/annotation_databases/uniprot.fasta
-ENV output MOSCA_analysis
-ENV output_level max
-ENV conditions None
-ENV threads 1
-ENV memory None
-ENV marker_gene_set 40
 
 ENTRYPOINT [ "python", "/MOSCA/mosca.py" ]
