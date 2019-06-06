@@ -31,8 +31,8 @@ parser.add_argument("-st","--sequencing-technology",default='paired',choices=["p
                     action='store',type=str,help='Type of data (paired/single)-ended')
 parser.add_argument("-a","--assembler",type=str,choices=["metaspades","megahit"],
                     help="Tool for assembling the reads", metavar = "Assembler", 
-                    nargs = 1, default = "metaspades")
-parser.add_argument("-db","--annotation-database",type=str,nargs = 1,metavar = "Database",
+                    default = "metaspades")
+parser.add_argument("-db","--annotation-database",type=str,metavar = "Database",
                     help="Database for annotation (.fasta or .dmnd)", 
                      default = "Databases/annotation_databases/uniprot.dmnd")
 parser.add_argument("-o","--output",type=str,help="Directory for storing the results",
@@ -121,7 +121,7 @@ for experiment in experiments:
             if hasattr(args, 'quality_score'):
                 setattr(preprocesser, 'quality_score', args.quality_score)
                 
-            preprocesser.run()
+            #preprocesser.run()
             
             print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Preprocessing ' + 
           'is finished, and resulting reads are available at ' + args.output + 

@@ -17,12 +17,17 @@ class Assembler:
     
     def __init__ (self, **kwargs):
         self.__dict__ = kwargs
+        self.out_dir += '/Assembly/' + self.name
         if hasattr(self, 'memory') and self.assembler == 'metaspades':          # Megahit reads max memory in byte, metaspades reads in Gb
             self.memory /= 1.25e8
         
-    def set_argument(self, x):
-        if isinstance(self.__dict__[x], str): 
-            return ' --' + x.replace('_','-') + ' ' + self.__dict__[x]
+    def set_argument(self, x, assembler = None):
+        if isinstance(self.__dict__[x], str):
+            if x is not 'threads':
+                return ' --' + x.replace('_','-') + ' ' + self.__dict__[x]
+            else:
+                return (' --threads ' + self.__dict__[x] if assembler == 'metaspades' 
+                        else ' --num-cpu-threads ' + self.__dict__[x])
         elif isinstance(self.__dict__[x], list): 
             result = ' --' + x.replace('_','-') + ' '
             for part in self.__dict__[x]:
@@ -35,7 +40,7 @@ class Assembler:
     def metaspades_command(self):
         assembler = self.__dict__.pop('assembler')
         result = 'metaspades.py'
-        result += ' -o ' + self.out_dir + '/Assembly/' + self.name
+        result += ' -o ' + self.out_dir
         out_dir = self.__dict__.pop('out_dir')
         forward, reverse = self.forward, self.reverse
         name = self.__dict__.pop('name')
@@ -71,7 +76,9 @@ class Assembler:
         return result
     
     def megahit_command(self):
-        assembler = self.__dict__.pop('assembler')
+        args = dict()
+        for arg in ['assembler','name']:
+            args[arg] = self.__dict__.pop(arg)
         result = 'megahit -f'
         if hasattr(self, 'forward') and hasattr(self, 'reverse'):
             result += ' -1 ' + self.forward + ' -2 ' + self.reverse
@@ -82,10 +89,10 @@ class Assembler:
                 result += file + ','
             result.rstrip(',')
             self.__dict__.pop('interleaved')
-            
         for arg in self.__dict__.keys():
             result += self.set_argument(arg)
-        self.__dict__['assembler'] = assembler
+        for arg in ['assembler','name']:
+            self.__dict__[arg] = args[arg]
         return result
     
     def run_assembler(self):
@@ -124,6 +131,6 @@ class Assembler:
     def run(self):
         self.run_assembler()
         if self.assembler == 'megahit':                                         # all contigs files are outputed the metaspades way
-            os.rename(self.out_dir + '/Assembly/' + self.name + '/final.contigs.fa', 
-                      self.out_dir + '/Assembly/' + self.name + '/contigs.fasta')
+            os.rename(self.out_dir + '/final.contigs.fa', 
+                      self.out_dir + '/contigs.fasta')
         self.quality_control()

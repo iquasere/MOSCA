@@ -582,3 +582,14 @@ if __name__ == '__main__':
         mtools.perform_alignment('MOSCAfinal/Assembly/joined/contigs.fasta', 
                                  reads, 'MOSCAfinal/Metatranscriptomics/mt' + n, 
                                  threads = 10)
+        
+        
+for name in ['OLDES6_S4_L001','PAL6_S2_L001']:
+    pbar = ProgressBar()
+    fasta = pd.DataFrame.from_dict(parse_fasta(name + '_database.fasta'), orient = 'index')
+    fasta['qseqid'] = fasta.index
+    fasta.reset_index(inplace = True)
+    data = pd.merge(fasta, blast[['qseqid','id']], on = 'qseqid', how = 'inner')
+    with open(name + '_uniprotids_database.fasta','w') as f:
+        for i in pbar(range(len(data))):
+            f.write('>' + data.iloc[i]['id'] + '\n' +  data.iloc[i][0] + '\n')

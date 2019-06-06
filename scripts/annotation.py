@@ -747,6 +747,6 @@ if __name__ == '__main__':
     annotater.global_information()
     '''
     
-    annotater = Annotater(out_dir = 'MOSCAfinal', threads = '12')
+    annotater = Annotater(out_dir = 'MOSCAfinal', threads = '1')
 
     joined = annotater.global_information()
