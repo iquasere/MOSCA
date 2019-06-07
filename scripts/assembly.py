@@ -82,7 +82,8 @@ class Assembler:
         result = 'megahit -f'
         if hasattr(self, 'forward') and hasattr(self, 'reverse'):
             result += ' -1 ' + self.forward + ' -2 ' + self.reverse
-            self.__dict__.pop('forward'); self.__dict__.pop('reverse')
+            args['forward'] = self.__dict__.pop('forward')
+            args['reverse'] = self.__dict__.pop('reverse')
         if hasattr(self, 'interleaved'):
             result += ' --12 '
             for file in self.files_paired:
@@ -91,7 +92,7 @@ class Assembler:
             self.__dict__.pop('interleaved')
         for arg in self.__dict__.keys():
             result += self.set_argument(arg)
-        for arg in ['assembler','name']:
+        for arg in args.keys():
             self.__dict__[arg] = args[arg]
         return result
     
@@ -102,7 +103,7 @@ class Assembler:
             bashCommand = self.megahit_command()
         mtools.run_command(bashCommand)
         
-    def parse_bowtie2log(self, file):
+    def percentage_of_reads(self, file):
         handler = open(file)
         lines = handler.readlines()
         return lines[-1].split('%')[0]
@@ -113,19 +114,18 @@ class Assembler:
         mtools.run_command(bashCommand)
      
     def quality_control(self):
-        out_dir = self.out_dir + '/Assembly/' + self.name
-        contigs = out_dir + '/contigs.fasta'
-        self.metaquast(contigs, out_dir + '/quality_control')
+        contigs = self.out_dir + '/contigs.fasta'
+        self.metaquast(contigs, self.out_dir + '/quality_control')
         mtools.perform_alignment(contigs, [self.forward, self.reverse], 
-                                 out_dir + '/quality_control/alignment', 
+                                 self.out_dir + '/quality_control/alignment', 
                                  threads = self.threads)
-        percentage_of_reads = self.parse_bowtie2log(out_dir + '/quality_control/alignment.log')
+        percentage_of_reads = self.percentage_of_reads(self.out_dir + '/quality_control/alignment.log')
         
-        if os.path.isfile(out_dir + '/quality_control/combined_reference/report.tsv'):  #if metaquast finds references to the contigs, it will output results to different folders
-            os.rename(out_dir + '/quality_control/combined_reference/report.tsv', 
-                      out_dir + '/quality_control/report.tsv')
+        if os.path.isfile(self.out_dir + '/quality_control/combined_reference/report.tsv'):  #if metaquast finds references to the contigs, it will output results to different folders
+            os.rename(self.out_dir + '/quality_control/combined_reference/report.tsv', 
+                      self.out_dir + '/quality_control/report.tsv')
         
-        handler = open(out_dir + '/quality_control/report.tsv', 'a')
+        handler = open(self.out_dir + '/quality_control/report.tsv', 'a')
         handler.write('Reads aligned (%)\t' + percentage_of_reads + '\n')
         
     def run(self):

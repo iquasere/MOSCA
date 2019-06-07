@@ -122,7 +122,7 @@ class MoscaTools:
                          basename + '_bowtie2_report.txt', log = basename + '.log', 
                          threads = threads)
         if blast is None:
-            if not os.path.isfile(reference.replace('.blast', '.gff')):
+            if not os.path.isfile(reference.replace('.fasta', '.gff')):
                 print('GFF file not found at ' + reference.replace('.fasta','.gff') + 
                       '. Generating a new one.')
                 self.build_gff_from_contigs(reference, 
@@ -138,7 +138,8 @@ class MoscaTools:
                 print('GFF file was located at ' + blast.replace('.blast', '.gff'))
         self.run_htseq_count(basename + '.sam', reference.replace('.fasta','.gff')
                             if blast is None else blast.replace('.blast', '.gff'),
-                            basename + '.readcounts')
+                            basename + '.readcounts', 
+                            stranded = False if blast is None else True)
     
     def generate_mg_index(self, reference, index_prefix):
         self.run_command('bowtie2-build ' + reference + ' ' + index_prefix)
@@ -583,7 +584,7 @@ if __name__ == '__main__':
                                  reads, 'MOSCAfinal/Metatranscriptomics/mt' + n, 
                                  threads = 10)
         
-        
+'''
 for name in ['OLDES6_S4_L001','PAL6_S2_L001']:
     pbar = ProgressBar()
     fasta = pd.DataFrame.from_dict(parse_fasta(name + '_database.fasta'), orient = 'index')
@@ -593,3 +594,4 @@ for name in ['OLDES6_S4_L001','PAL6_S2_L001']:
     with open(name + '_uniprotids_database.fasta','w') as f:
         for i in pbar(range(len(data))):
             f.write('>' + data.iloc[i]['id'] + '\n' +  data.iloc[i][0] + '\n')
+'''
