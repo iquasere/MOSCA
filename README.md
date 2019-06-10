@@ -175,5 +175,5 @@ The command is to be inputed as presented here, with some alterations:
 An example command for **Two single-end files (two different experiments)**
 
 ```
-docker run -v /path/to/my_data_folder/:/input_data -v /path/to/output_folder/:/MOSCA_analysis -v /path/to/my_data_folder/:/input_data -v /path/to/my_database_folder:/MOSCA/Databases/annotation_databases mosca --files /input_data/mg1_R1.fastq,/input_data/mg1_R2.fastq:/input_data/mt1_R1.fastq,/input_data/mt1_R2.fastq --output 
+docker run -v /path/to/my_data_folder/:/input_data -v /path/to/output_folder/:/MOSCA_analysis -v /path/to/my_data_folder/:/input_data -v /path/to/my_database_folder:/MOSCA/Databases/annotation_databases mosca --files /input_data/mg1_R1.fastq,/input_data/mg1_R2.fastq:/input_data/mt1_R1.fastq,/input_data/mt1_R2.fastq [non-mandatory arguments]
 ```
