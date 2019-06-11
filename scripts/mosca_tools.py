@@ -162,13 +162,13 @@ class MoscaTools:
             print('Deleting file', file)
             os.remove(file)
     
-    def run_command(self, bashCommand, file = '', mode = 'w'):
+    def run_command(self, bashCommand, file = '', mode = 'w', sep = ''):
         print(bashCommand)
         if file == '':
-                subprocess.run(bashCommand.split(), stdout=subprocess.PIPE, check = True)       # was subprocess.Popen
+                subprocess.run(bashCommand.split(sep), stdout=subprocess.PIPE, check = True)       # was subprocess.Popen
         else:
             with open(file, mode) as output_file:
-                subprocess.run(bashCommand.split(), stdout=output_file)           # was subprocess.Popen
+                subprocess.run(bashCommand.split(sep), stdout=output_file)           # was subprocess.Popen
         
     def parse_blast(self, blast):
         result = pd.read_csv(blast, sep='\t', header = None)

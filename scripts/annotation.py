@@ -709,6 +709,19 @@ class Annotater:
                 print('Mapping failed for some IDs.')
         return result, ids_failed
 
+    '''
+    Input:
+        tsv: filename of TSV file to be inputed. Must have the format 
+        value\tcategorie1\tcategorie2\t..., with no header
+        output: filename of HTML krona plot to output
+    Output:
+        A krona plot will be created at output if it has been specified, else
+        at tsv.replace('.tsv','.html')
+    '''
+    def create_krona_plot(self, tsv, output = None):
+        if output is None:
+            output = tsv.replace('.tsv','.html')
+        mtools.run_command('ktImportText {} {}'.format(tsv, output))
     
 if __name__ == '__main__':
     '''
@@ -749,4 +762,5 @@ if __name__ == '__main__':
     
     annotater = Annotater(out_dir = 'MOSCAfinal', threads = '1')
 
-    joined = annotater.global_information()
+    annotater.cog_annotation('MOSCAfinal/Annotation/fgs_failed.faa', 'debugCOG', 
+                             threads = '12')
