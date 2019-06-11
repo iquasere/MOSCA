@@ -605,6 +605,7 @@ class Annotater:
                                self.out_dir + '/Annotation/uniprot_info.tsv', 
                                self.out_dir + '/Annotation/results/rps-blast_cog.txt')
 
+        mg_names = list()
         blast_files = glob.glob(self.out_dir + '/Annotation/*/aligned.blast')
         for file in blast_files:
             mg_name = file.split('/')[-2]
@@ -617,6 +618,7 @@ class Annotater:
             joined = mtools.define_abundance(joined, 
                             readcounts = self.out_dir + '/Assembly/' + mg_name + 
                             '/quality_control/alignment.readcounts', blast = file)
+            mg_names.append(mg_name)
         if os.path.isfile(self.out_dir + '/joined_information.xlsx'):
             os.remove(self.out_dir + '/joined_information.xlsx')
         joined.to_csv(self.out_dir + '/joined_information.tsv', index=False, sep='\t')
@@ -631,6 +633,10 @@ class Annotater:
             j += 1
         joined.iloc[i:len(joined)].to_excel(writer, sheet_name='Sheet ' + str(j), index = False)
         print('joined was written to ' + self.out_dir + '/joined_information.xlsx')
+        
+        self.joined2kronas(self.out_dir + '/joined_information.tsv', 
+                           output = self.out_dir + '/Annotation/krona',
+                           mg_columns = mg_names)
         return joined
 
     '''
@@ -722,6 +728,37 @@ class Annotater:
         if output is None:
             output = tsv.replace('.tsv','.html')
         mtools.run_command('ktImportText {} {}'.format(tsv, output))
+        
+    '''
+    Input:
+        tsv: filename of MOSCA result from analysis
+        output: basename for krona plots
+        mg_columns: names of columns with abundances from which to build krona plots
+    Output:
+    '''
+    def joined2kronas(self, joined, output, mg_columns, 
+                      taxonomy_columns = ['Taxonomic lineage (SUPERKINGDOM)',
+                                          'Taxonomic lineage (PHYLUM)',
+                                          'Taxonomic lineage (CLASS)',
+                                          'Taxonomic lineage (ORDER)',
+                                          'Taxonomic lineage (FAMILY)',
+                                          'Taxonomic lineage (GENUS)',
+                                          'Taxonomic lineage (SPECIES)'],
+                      functional_columns = ['COG general functional category',
+                                            'COG functional category',
+                                            'COG protein description']):
+        data = pd.read_csv(joined, sep = '\t')
+        
+        for name in mg_columns:
+            partial = data[[name] + taxonomy_columns]
+            partial.to_csv(output + '_{}_tax.tsv'.format(name), sep = '\t', 
+                           index = False, header = False)
+            self.create_krona_plot(output + '_tax.tsv')
+            
+            partial = data[[name] + functional_columns]
+            partial.to_csv(output + '_{}_fun.tsv'.format(name), sep = '\t', 
+                           index = False, header = False)
+            self.create_krona_plot(output + '_fun.tsv')
     
 if __name__ == '__main__':
     '''
