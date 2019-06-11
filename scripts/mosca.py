@@ -25,16 +25,16 @@ mtools = MoscaTools()
 parser = argparse.ArgumentParser(description="Multi Omics Software for Community Analysis",
                                  epilog="""A tool for performing metagenomics, metatranscriptomics 
                                  and metaproteomics analysis.""")
-parser.add_argument("-f","--files", type=str, nargs = '*', metavar = 'Input files',
+parser.add_argument("-f","--files", type=str, nargs = '*',
                     help="Input files for analysis (mg1R1,mg1R2:mt1R1,mt1R2 mg2R1,...)")
 parser.add_argument("-st","--sequencing-technology",default='paired',choices=["paired","single"],
                     action='store',type=str,help='Type of data (paired/single)-ended')
 parser.add_argument("-a","--assembler",type=str,choices=["metaspades","megahit"],
-                    help="Tool for assembling the reads", metavar = "Assembler", 
+                    help="Tool for assembling the reads",
                     default = "metaspades")
-parser.add_argument("-db","--annotation-database",type=str,metavar = "Database",
+parser.add_argument("-db","--annotation-database",type=str,
                     help="Database for annotation (.fasta or .dmnd)", 
-                     default = "Databases/annotation_databases/uniprot.dmnd")
+                     default = "Databases/annotation_databases/uniprot.fasta")
 parser.add_argument("-o","--output",type=str,help="Directory for storing the results",
                     metavar = "Directory", default = "/MOSCA_analysis")
 parser.add_argument("-nopp","--no-preprocessing",action = "store_true",
@@ -60,12 +60,31 @@ parser.add_argument("-c","--conditions", type=str, nargs = '*',
                     analysis, separated by comma (,)""")
 parser.add_argument("-t","--threads",type=str,metavar = "Threads", default = str(multiprocessing.cpu_count() - 2),
                     help="Number of threads available for MOSCA")
-parser.add_argument("-m","--memory",type=str,metavar = "Memory",
+parser.add_argument("-m","--memory",type=str,
                     help="Maximum memory (byte) available for MOSCA. Applied only in the assembly")
-parser.add_argument("-mark","--marker-gene-set",type=str,metavar = "Marker gene set",
+parser.add_argument("-mark","--marker-gene-set",type=str,
                     help="""Marker gene set to use for binning with MaxBin2. 
                     107 if archaea are not to be considered, 40 if data is diverse.""",
                     default = '40')
+parser.add_argument("-tr","--fgs-train-file",type=str,
+                    help="""File name that contains model parameters of sequencing,
+                    related to sequencing technology and error rate""", default = 'illumina_5', 
+                    choices=["sanger_5","sanger_10","454_10","454_30","illumina_5",
+                             "illumina_10"])
+parser.add_argument("-mt", "--metaquast-threshold", type = str, help="""Minimum 
+                    contig length to be considered in assembly quality control""",
+                    default = '500')
+parser.add_argument("-bp", "--bowtie2-profile", type = str, 
+                    help="""Profile for bowtie2 alignment of reads""", 
+                    choices = ["very-fast", "fast", "sensitive", "very-sensitive",
+                               "very-fast-local", "fast-local", "sensitive-local", 
+                               "very-sensitive-local"])
+parser.add_argument("-kl", "--kmer-list", type = str, 
+                    help="""Kmer sizes for multi-kmer assembly""")
+parser.add_argument("-qs", "--quality-score", type = str, 
+                    help="""Scoring system of quality of reads""")
+parser.add_argument("-bcl", "--binning-contig-legth", type = str, 
+                    help="""Minimum length of contigs to be considered for binning""")
              
 args = mtools.validate_arguments(parser)
 
@@ -121,7 +140,7 @@ for experiment in experiments:
             if hasattr(args, 'quality_score'):
                 setattr(preprocesser, 'quality_score', args.quality_score)
                 
-            #preprocesser.run()
+            preprocesser.run()
             
             print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Preprocessing ' + 
           'is finished, and resulting reads are available at ' + args.output + 
