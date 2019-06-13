@@ -389,9 +389,47 @@ class Annotater:
                        output + ' -outfmt 6 -num_threads ' + threads + 
                        ' -max_target_seqs 1')
         open('MOSCA/Databases/COG/command.bash', 'w').write(bashCommand + '\n') # subprocess was not handling well running this command, so an intermediate file is written with the command to run
-        print(' '.join(bashCommand.split(',')))
+        print(bashCommand)
         mtools.run_command('bash MOSCA/Databases/COG/command.bash')
         os.remove('MOSCA/Databases/COG/command.bash')
+        
+    def run_recursively_rpsblast(self, fasta, output, cog, threads = '0', max_tries = 5):
+        all_mapped = False
+        tries = 0
+        while not all_mapped and tries < max_tries:
+            (f_file, o_file) = (fasta, output) if tries == 0 else (
+                    fasta + '1', output + '1')
+            self.run_rpsblast(f_file, o_file, cog, threads = threads)
+            print('Checking if all IDs were mapped to COG database.')           # rpsblast self-reportedly runs out of memory, and the solution here is to re-annotate with the unmapped proteins
+            blast = mtools.parse_blast(o_file)
+            fastadf = pd.DataFrame.from_dict(mtools.parse_fasta(f_file), 
+                    orient = 'index', columns = ['qseqid', 'sequence'])
+            unmapped_ids = set(fasta['qseqid']) - set(blast['qseqid'])
+            if len(unmapped_ids) > 0:                                           # if some proteins queried are not present in final output
+                fastadf = fastadf[fastadf['qseqid'].isin(unmapped_ids)]
+                fastadf['qseqid'] = '>' + fastadf['qseqid']
+                fastadf.to_csv(fasta + '1', sep = '\n')
+                tries += 1
+            else:
+                all_mapped = True
+            if tries > 0:
+                mtools.run_command('cat {} {}'.format(output, output + '1'), 
+                                   file = output + '2')
+                os.rename(output + '2', output)
+                
+        if os.path.isfile(output + '1'):
+            os.remove(output + '1')
+                
+        if len(set(fasta['qseqid']) - set(blast['qseqid'])) > 0:
+            unmapped_file = fasta.replace('.faa','_unmapped.faa')
+            open(unmapped_file, 'w').write('\n'.join(
+                    set(fasta['qseqid']) - set(blast['qseqid'])))
+            print('PSI-BLAST failed to functionally annotate {} proteins'.format(
+                    str(len(set(fasta['qseqid']) - set(blast['qseqid'])) > 0)))
+            print('Unmapped IDs are available at {} and results for the annotated'
+                  + ' proteins are available at {}'.format(unmapped_file, output))
+        else:
+            print('Results for all IDs are available at {}'.format(output))
         
     '''
     Input: 
@@ -563,7 +601,7 @@ class Annotater:
         self.create_split_cog_db('MOSCA/Databases/COG', 'MOSCA/Databases/COG/Cog', threads = threads)
         pns = glob.glob('./MOSCA/Databases/COG/Cog_' + threads + '_*.pn')
         databases = [pn.split('.pn')[0] for pn in pns]
-        self.run_rpsblast(faa, output + '/cdd_aligned.blast', ' '.join(databases))
+        self.run_recursively_rpsblast(faa, output + '/cdd_aligned.blast', ' '.join(databases))
         if os.path.isdir(os.getcwd() + '/results'):                              # the cdd2cog tool does not overwrite, and fails if results directory already exists
             print('Eliminating ' + os.getcwd() + '/results')
             shutil.rmtree(os.getcwd() + '/results', ignore_errors=True)          # is not necessary when running the tool once, but better safe then sorry!
