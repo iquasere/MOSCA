@@ -86,7 +86,7 @@ class MoscaTools:
         info[columns] = info[columns].fillna(value=0)
         info[columns].to_csv(working_dir + '/to_normalize.tsv', sep = '\t', index = False)
         print('Normalizing ' + joined + ' on columns ' + ','.join(columns))
-        self.run_command('Rscript MOSCA/tmm.R --readcounts ' + working_dir + '/to_normalize.tsv --output '
+        self.run_command('Rscript MOSCA/normalization.R --readcounts ' + working_dir + '/to_normalize.tsv --output '
                          + working_dir + '/normalization_factors.txt')
         factors = open(working_dir + '/normalization_factors.txt').read().split('\n')[:-1]      # there is always the \n as last element
         
