@@ -9,10 +9,21 @@ Jun 2017
 
 from io import StringIO
 import pandas as pd
-import subprocess, glob, re, os, gzip
+import subprocess, glob, re, os, gzip, time
 
 class MoscaTools:
     
+    def __init__(self, **kwargs):
+        self.__dict__ = kwargs
+        self.tools = ['anaconda-project', 'ant', 'bioconductor-deseq2', 
+                      'bioconductor-edger', 'bioconductor-genomeinfodbdata', 
+                      'bioconductor-limma', 'blast', 'bowtie2', 'conda', 
+                      'diamond', 'fastqc', 'flask', 'fraggenescan', 'htseq', 
+                      'maxbin2', 'maxquant', 'megahit', 'numpy', 'pandas', 
+                      'peptide-shaker', 'python', 'progressbar33', 'quast', 
+                      'r', 'r-pheatmap', 'r-rcolorbrewer', 'scikit-learn', 
+                      'searchgui', 'sortmerna', 'spades', 'trimmomatic', 
+                      'urllib3']
     '''
     Input: 
         relation: pandas.DataFrame from Annotater.join_reports
@@ -231,9 +242,6 @@ class MoscaTools:
         handler.close()
         return lines / 4
     	
-    def meta_quast(self, fil,file,k):
-        self.run_command('metaquast.py ' + file + ' -o Assembly/' + fil + '/' + k)
-            
     def parse_metaquast(self, file):
         result = dict()
         handler = open(file)
@@ -251,14 +259,6 @@ class MoscaTools:
                     result[line.split('\t')[0]] = line.split('\t')[1]
         handler.close()
         return result
-    
-    def download_database(self, url):
-        import os
-        adress = url.replace('https','rsync')
-        output = 'Databases/DIAMOND/' + url.split('genomes/')[1]
-        if not os.path.isdir(output):
-            os.makedirs(output)
-        self.run_tool('rsync --copy-links --recursive --times --verbose ' + adress + ' ' + output)
         
     def avaliate_annotation(self, ann, not_ann):
         annlines = len(open(ann).readlines())
@@ -272,98 +272,6 @@ class MoscaTools:
     def divide_fq(self, file, output1, output2):
         self.run_command('bash MOSCA/scripts/unmerge-paired-reads.sh ' + file + 
                          ' ' + output1 + ' ' + output2)
-        
-    def uniprot_request(self, ids, output):
-        import requests, time
-         
-        BASE_URL = 'http://www.uniprot.org/uniprot/'
-         
-        def http_get(url, params=None, stream=False):
-            response = requests.get(url, params=params, stream=stream)
-            return validate_response(response, stream)
-         
-        def validate_response(response, raw=False):
-            if response.ok:
-                if raw:
-                    return response
-                else:
-                    return response.content
-            else:
-                response.raise_for_status()
-         
-        def http_post(url, params=None, json=None, headers=None, stream=False):
-            response = requests.post(url, data=params, json=json,
-                                     headers=headers, stream=stream)
-            return validate_response(response, stream)
-        
-        print('tab')
-        try:
-            params = {
-                'from':'ACC+ID',
-                'format':'tab',
-                'query':'+OR+'.join(['accession:'+acc for acc in ids]),
-                'columns':'id,ec,pathway,protein names'
-            }
-            response = http_post(BASE_URL, params=params)
-            with open(output + '.tab', 'a') as f:
-                f.write(response.decode('utf-8'))
-            time.sleep(3)
-        except:
-            print(ids[0],'to',ids[-1],'tab failed')
-            time.sleep(120)
-            try:
-                params = {
-                    'from':'ACC+ID',
-                    'format':'tab',
-                    'query':'+OR+'.join(['accession:'+acc for acc in ids]),
-                    'columns':'id,ec,lineage(SUPERKINGDOM),lineage(PHYLUM),lineage(CLASS),lineage(ORDER),lineage(FAMILY),lineage(GENUS),lineage(SPECIES),pathway,protein names'
-                }
-                response = http_post(BASE_URL, params=params)
-                with open(output + '.tab', 'a') as f:
-                    f.write(response.decode('utf-8'))
-                time.sleep(3)
-            except:
-                with open(output + '.log','a') as f: f.write(ids[0] + ' to ' + ids[-1] + ' tab failed again\n')
-        
-        for task in ['fasta','gff']:
-            print(task)
-            try:
-                params = {
-                    'from':'ACC+ID',
-                    'format':task,
-                    'query':'+OR+'.join(['accession:'+acc for acc in ids]),
-                }
-                response = http_post(BASE_URL, params=params)
-                with open(output + '.' + task, 'a') as f:
-                    f.write(response.decode('utf-8'))
-                time.sleep(3)
-            except:
-                print(ids[0],'to',ids[-1],task,' failed')
-                time.sleep(120)
-                try:
-                    params = {
-                        'from':'ACC+ID',
-                        'format':task,
-                        'query':'+OR+'.join(['accession:'+acc for acc in ids]),
-                    }
-                    response = http_post(BASE_URL, params=params);print(response)
-                    with open(output + '.' + task, 'a') as f:
-                        f.write(response.decode('utf-8'))
-                    time.sleep(3)
-                except:
-                    with open(output + '.log','a') as f: f.write(ids[0] + ' to ' + ids[-1] + ' ' + task + ' failed again\n')
-
-    def chunky(self, ids, output, chunk):
-        i = 0
-        j = 0
-        while j < len(ids):
-            if i + chunk > len(ids):
-                j = len(ids)
-            else:
-                j = i + chunk
-            self.uniprot_request(ids[i:j], output)
-            i = i + chunk
-    
     def parse_fasta(self, file):
         print('Parsing', file)
         lines = [line.rstrip('\n') for line in open(file)]
@@ -428,150 +336,78 @@ class MoscaTools:
             if '*' not in value:
                 handler.write('>' + key + '\n' + value + '\n')
         os.rename(temp, fasta)
+
+    '''
+    Input:
+        tools: List of Str names of tools to get version of
+    Output:
+        a pd.DataFrame object with tools and corresponding versions in the
+        local default Conda environment
+    '''
+    def get_versions(self, tools = ['anaconda-project', 'ant', 
+                    'bioconductor-deseq2', 'bioconductor-edger', 
+                    'bioconductor-genomeinfodbdata', 'bioconductor-limma', 
+                    'blast', 'bowtie2', 'conda', 'diamond', 'fastqc', 'flask', 
+                    'fraggenescan', 'htseq', 'maxbin2', 'maxquant', 'megahit', 
+                    'numpy', 'pandas', 'peptide-shaker', 'python', 
+                    'progressbar33', 'quast', 'r', 'r-pheatmap', 
+                    'r-rcolorbrewer', 'scikit-learn', 'searchgui', 'sortmerna', 
+                    'spades', 'trimmomatic', 'urllib3']):
+        text = subprocess.check_output('conda list'.split()).decode('utf8').split('\n')[2:]
+        lines = [line.split() for line in text]
+        lines[0] = lines[0][1:]
+        df = pd.DataFrame(lines, columns = lines.pop(0)).set_index('Name')
+        return df.loc[self.tools][['Version']]
         
-def compare_result_with_reality(result, reality):       #result is uniprot tab, reality is tsv taxonomy1\ttaxonomy2\t...\tpercentage
-    import pandas as pd    
-    print('tis a mistery')
-    resultdf = pd.read_csv(result, sep = '\t', header = None)
-    resultdf.columns = ['id','ec','lineage(SUPERKINGDOM)','lineage(PHYLUM)','lineage(CLASS)','lineage(ORDER)','lineage(FAMILY)','lineage(GENUS)','lineage(SPECIES)','pathway','protein names']
-    resultdf = resultdf.groupby(resultdf.columns[2:9].tolist()).size().reset_index().rename(columns={0:'abundance'})
-    realitydf = pd.read_csv(reality, sep = '\t', header = None)
-    realitydf.columns = ['lineage(SUPERKINGDOM)','lineage(PHYLUM)','lineage(CLASS)','lineage(ORDER)',
-                'lineage(FAMILY)','lineage(GENUS)','lineage(SPECIES)','abundance']
-    realitydf['lineage(SPECIES)'] = realitydf['lineage(GENUS)'] + ' ' + realitydf['lineage(SPECIES)']
-    total = float(resultdf['abundance'].sum())
-    print('Total is ' + str(total))
-    resultdf['abundance'] /= (total/100)      #set as percentage
-    totalreal = float(realitydf['abundance'].sum())
-    realitydf['abundance'] /= (totalreal/100)
-    #ammendments on the result because of some uniprot facts
-    resultdf.loc[resultdf['Taxonomic lineage (FAMILY)'].str.contains('Chloroflexaceae'),'Taxonomic lineage (FAMILY)'] = 'Chloroflexaceae'
-    resultdf.loc[resultdf['Taxonomic lineage (SPECIES)'].str.contains('Methanosarcina mazei'),'Taxonomic lineage (SPECIES)'] = 'Methanosarcina mazei'
-    realitydf.loc[realitydf['lineage(GENUS)'].str.contains('Methanosaeta'),'lineage(GENUS)'] = 'Methanothrix'
+    '''
+    Input:
+        versions_df: object from self.get_versions
+        output: file to write softwares and respective versions
+    Output:
+        a file named output will be written with information concerning
+        the softwares used by MOSCA and respective versions. When the software
+        is not present/installed/found, 'Not available' will be written instead
+    '''
+    def write_versions(self, versions_df, output):
+        open(output, 'w').write(versions_df.to_string(justify = 'left', 
+                                             na_rep = 'Not available'))
     
-    for value in realitydf['lineage(SPECIES)'].get_values():
-        print(value)
-        previous_columns = ['lineage(SUPERKINGDOM)','lineage(PHYLUM)','lineage(CLASS)','lineage(ORDER)',
-                            'lineage(FAMILY)','lineage(GENUS)']
-        print(resultdf[resultdf['lineage(SPECIES)'] == value and resultdf[previous_columns] != realitydf[previous_columns]])
     '''
-    for level in ['lineage(SUPERKINGDOM)','lineage(PHYLUM)','lineage(CLASS)','lineage(ORDER)',
-                'lineage(FAMILY)','lineage(GENUS)','lineage(SPECIES)']:
-        print('Level: ' + level)
-        factors = list(realitydf[level].unique())
-        value = 0
-        others = 100
-        for factor in factors:
-            print('Percentage of ' + factor + ': ' + str(float(resultdf[resultdf[level] == factor]['abundance'].sum())) + '%')
-            others -= float(resultdf[resultdf[level] == factor]['abundance'].sum())
-            value += (float(resultdf[resultdf[level] == factor]['abundance'].sum()) - abs(float(resultdf[resultdf[level] == factor]['abundance'].sum()) - realitydf.loc[realitydf[level] == factor]['abundance'].sum()))
-        if level == 'lineage(SUPERKINGDOM)':
-            for factor in ['Eukaryota','Viruses']:
-                print('Percentage of ' + factor + ': ' + str(float(resultdf[resultdf[level] == factor]['abundance'].sum())) + '%')
-                others -= float(resultdf[resultdf[level] == factor]['abundance'].sum())
-        print('Others:' + str(others) + '%')
-        print('Correctness: ' + str(value) + '%')
+    Input:
+        output: file to write softwares and respective versions
+    Output:
+        a file named output will be written with information concerning
+        the softwares used by MOSCA and respective versions
     '''
-
-def compare_result_with_reality_coverage_tax(result, reality):       #result is uniprot tab, reality is tsv taxonomy1\ttaxonomy2\t...\tpercentage
-    import pandas as pd    
-    resultdf = pd.read_csv(result, sep = '\t')
-    resultdf = resultdf[['Taxonomic lineage (SUPERKINGDOM)','Taxonomic lineage (PHYLUM)',
-                         'Taxonomic lineage (CLASS)','Taxonomic lineage (ORDER)',
-                         'Taxonomic lineage (FAMILY)','Taxonomic lineage (GENUS)',
-                         'Taxonomic lineage (SPECIES)','coverage']]
-    resultdf = resultdf.groupby(resultdf.columns.tolist()[:-1])['coverage'].sum().reset_index()
-    realitydf = pd.read_csv(reality, sep = '\t', header = None)
-    realitydf.columns = ['Taxonomic lineage (SUPERKINGDOM)','Taxonomic lineage (PHYLUM)',
-                         'Taxonomic lineage (CLASS)','Taxonomic lineage (ORDER)',
-                         'Taxonomic lineage (FAMILY)','Taxonomic lineage (GENUS)',
-                         'Taxonomic lineage (SPECIES)','abundance']
-    total = float(resultdf['coverage'].sum())
-    print('Total is ' + str(total))
-    resultdf['coverage'] /= (total/100)      #set as percentage
-    totalreal = float(realitydf['abundance'].sum())
-    realitydf['abundance'] /= (totalreal/100)
-    #ammendments on the result because of some uniprot facts
-    resultdf.loc[resultdf['Taxonomic lineage (FAMILY)'].str.contains('Chloroflexaceae'),'Taxonomic lineage (FAMILY)'] = 'Chloroflexaceae'
-    resultdf.loc[resultdf['Taxonomic lineage (SPECIES)'].str.contains('Methanosarcina mazei'),'Taxonomic lineage (SPECIES)'] = 'Methanosarcina mazei'
-    for level in ['Taxonomic lineage (SUPERKINGDOM)','Taxonomic lineage (PHYLUM)','Taxonomic lineage (CLASS)','Taxonomic lineage (ORDER)',
-                'Taxonomic lineage (FAMILY)','Taxonomic lineage (GENUS)','Taxonomic lineage (SPECIES)']:
-        print('Level: ' + level)
-        factors = list(realitydf[level].unique())
-        value = 0
-        others = 100
-        for factor in factors:
-            print('Percentage of ' + factor + ': ' + str(float(resultdf[resultdf[level] == factor]['coverage'].sum())) + '%')
-            others -= float(resultdf[resultdf[level] == factor]['coverage'].sum())
-            value += (float(resultdf[resultdf[level] == factor]['coverage'].sum()) - abs(float(resultdf[resultdf[level] == factor]['coverage'].sum()) - realitydf.loc[realitydf[level] == factor]['abundance'].sum()))
-        if level == 'Taxonomic lineage (SUPERKINGDOM)':
-            for factor in ['Eukaryota','Viruses']:
-                print('Percentage of ' + factor + ': ' + str(float(resultdf[resultdf[level] == factor]['coverage'].sum())) + '%')
-                others -= float(resultdf[resultdf[level] == factor]['coverage'].sum())
-        print('Others:' + str(others) + '%')
-        print('Correctness: ' + str(value) + '%')
+    def write_technical_report(self, output):
+        df = self.get_versions()
+        self.write_versions(df, output)
         
-def taxonomy_of_others(result, reality, output):
-    import pandas as pd    
-    resultdf = pd.read_csv(result, sep = '\t')
-    taxcolumns = ['Taxonomic lineage (SUPERKINGDOM)','Taxonomic lineage (PHYLUM)','Taxonomic lineage (CLASS)','Taxonomic lineage (ORDER)','Taxonomic lineage (FAMILY)','Taxonomic lineage (GENUS)','Taxonomic lineage (SPECIES)','coverage']
-    resultdf = resultdf[taxcolumns]
-    resultdf = resultdf.groupby(resultdf.columns.tolist()[:-1])['coverage'].sum().reset_index()
-    realitydf = pd.read_csv(reality, sep = '\t', header = None)
-    realitydf.columns = ['Taxonomic lineage (SUPERKINGDOM)','Taxonomic lineage (PHYLUM)','Taxonomic lineage (CLASS)',
-                         'Taxonomic lineage (ORDER)','Taxonomic lineage (FAMILY)','Taxonomic lineage (GENUS)',
-                         'Taxonomic lineage (SPECIES)','abundance']
-    realitydf['Taxonomic lineage (SPECIES)'] = realitydf['Taxonomic lineage (GENUS)'] + ' ' + realitydf['Taxonomic lineage (SPECIES)']
-    #ammendments on the result because of some uniprot facts
-    resultdf.loc[resultdf['Taxonomic lineage (FAMILY)'].str.contains('Chloroflexaceae'),'Taxonomic lineage (FAMILY)'] = 'Chloroflexaceae'
-    resultdf.loc[resultdf['Taxonomic lineage (SPECIES)'].str.contains('Methanosarcina mazei'),'Taxonomic lineage (SPECIES)'] = 'Methanosarcina mazei'
-    resultdf.loc[resultdf['Taxonomic lineage (GENUS)'].str.contains('Methanothrix'),'Taxonomic lineage (GENUS)'] = 'Methanosaeta'
-    simulatedspecies = realitydf['Taxonomic lineage (SPECIES)'].tolist()
-    othersdf = resultdf[~resultdf['Taxonomic lineage (SPECIES)'].isin(simulatedspecies)]
-    othersdf.to_excel(output)
+    '''
+    Input:
+        message: a message to be printed
+    Output:
+        will print the message with the time in human readable format
+    '''
+    def timed_message(message = None):
+        print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ': ' + message)
+            
+    '''
+    Input:
+        task: Str, task that has finished ['preprocessing','assembly','annotation',
+        'binning','expression']
+    Output:
+        will print the message with the time in human readable format
+    '''
+    def task_is_finished(task = None, file = None, task_output = None):
+        print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + 
+              ': {} has finished and results are available at {}'.format(
+                task, task_output))
+        with(open(monitorization_file), 'a') as f:
+            if task in ['Metatranscriptomics analysis', 'Metaproteomics analysis']:
+                task = 'Expression'
+            f.write(task.lower() + '\n')
         
-def split(pathway):
-    pathway = pathway.split('. ')
-    return [path for path in pathway if path != '']
-
-def using_repeat(df):
-    import numpy as np
-    import pandas as pd
-    lens = [len(item) for item in df['Pathway']]
-    dictionary = dict()
-    for column in df.columns:
-        dictionary[column] = np.repeat(df[column].values,lens)
-    dictionary["Pathway"] = np.concatenate(df['Pathway'].values)
-    return pd.DataFrame(dictionary)
-
-def organize_pathway(result):
-    import pandas as pd    
-    import numpy as np
-    #resultdf = pd.read_csv(result, sep = '\t')
-    resultdf = result[result.Pathway.notnull()]
-    resultdf.Pathway = resultdf.Pathway.apply(split)
-    resultdf = using_repeat(resultdf)
-    pathways = pd.DataFrame([(path.split('; ') + [np.nan] * (3 - len(path.split('; ')))) for path in resultdf.Pathway], index = resultdf.index)
-    resultdf = resultdf[['coverage']]
-    pathways.columns = ['superpathway','pathway','subpathway']
-    resultdf = pd.concat([pathways, resultdf], axis = 1)
-    resultdf = resultdf.groupby(resultdf.columns.tolist()[:-1])['coverage'].sum().reset_index()
-    return resultdf     #.set_index(resultdf.columns.tolist()[:-1])
-
-def get_ids_from_ncbi_gff(gff):
-    'RefSeq:'
-    lines = [line.rstrip('\n') for line in open(gff).readlines() if 'CDS' in line]
-    df = pd.read_csv(StringIO('\n'.join(lines)), sep = '\t', header=None)
-    df.columns = ["seqid","source","type","start","end","score","strand","phase","attributes"]
-    ids = list()
-    for attribute in df.attributes:
-        if 'RefSeq:' in attribute:
-            ids.append(re.split(';|,', attribute.split('RefSeq:')[-1])[0])
-        elif 'Genbank:' in attribute:
-            ids.append(re.split(';|,', attribute.split('Genbank:')[-1])[0])
-        else:
-            ids.append(re.split(';|,', attribute.split('Dbxref=Genbank:')[-1])[0])
-    return ids
 
 if __name__ == '__main__':
     mtools = MoscaTools()

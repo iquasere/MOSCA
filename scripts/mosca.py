@@ -45,10 +45,11 @@ parser.add_argument("-noan","--no-annotation",action = "store_true",default = Fa
                     help="Don't perform annotation")
 parser.add_argument("-nobin","--no-binning",action = "store_true",default = False,
                     help="Don't perform binning")
-parser.add_argument("-ol","--output-level",default='min',choices=["min","med","max"],
-                    action='store',type=str,help=("""Level of file output from MOSCA, 
-                    min outputs only the analysis results, med removes intermediate files, 
-                    max outputs all intermediate and final data"""))
+parser.add_argument("-ol","--output-level", default = 'maximum', type = str,
+                    choices = ["minimum","medium","maximum"], action = 'store',
+                    help=("""Level of file output from MOSCA, minimum outputs 
+                          only the analysis results, medium removes intermediate 
+                          files, maximum outputs all intermediate and final data"""))
 parser.add_argument("-tod", "--type-of-data", default = "metatranscriptomics",
                     help = ("""If data is metagenomics integrated with metatranscriptomics
                             or metaproteomics, if not specified will be assumed to be metagenomics
@@ -89,10 +90,11 @@ parser.add_argument("-bcl", "--binning-contig-legth", type = str,
 args = mtools.validate_arguments(parser)
 
 mtools.print_arguments(args)            # TODO - refine this function
+monitorization_file = args.output + '/monitorization_report.txt'
 
 experiments = [experiment for experiment in args.files]
 
-print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Analysis has started')
+mtools.timed_message('MOSCA analysis has started')
 
 print('Creating directories at ' + args.output)
 directories = ([args.output + '/Preprocess/' + software for software in 
@@ -116,8 +118,8 @@ for experiment in experiments:
     if len(mg) == 1 and args.sequencing_technology == 'paired':                 # if data is interleaved paired end, it will be split up to forward and reverse files
         (forward, reverse) = (args.output + '/Preprocess/' + mg[0].split('/')[-1].split('.fastq')[0]
                                 + fr for fr in ['_R1.fastq','_R2.fastq'])
-        print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Splitting reads at ' 
-              + mg[0] + ' to ' + forward + ' and ' + reverse)
+        mtools.timed_message('Splitting reads from {} to {} and {}'.format(
+                mg[0], forward, reverse))
         mtools.divide_fq(mg[0], forward, reverse)
         mg = [forward, reverse]
             
@@ -129,8 +131,7 @@ for experiment in experiments:
         Metagenomics Preprocess        
         '''
         if not args.no_preprocessing:
-            print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Preprocessing ' + 
-                  'metagenomic reads')
+            mtools.timed_message('Preprocessing metagenomic reads')
             preprocesser = Preprocesser(files = mg,
                                         paired = 'PE' if args.sequencing_technology == 'paired' else 'SE',
                                         working_dir = args.output,
@@ -142,9 +143,9 @@ for experiment in experiments:
                 
             preprocesser.run()
             
-            print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Preprocessing ' + 
-          'is finished, and resulting reads are available at ' + args.output + 
-          '/Preprocess/' + mg_name)
+            mtools.task_is_finished(task = 'Preprocessing',
+                    file = monitorization_file, 
+                    task_output = args.output + '/Preprocess')
             
             mg = [args.output + '/Preprocess/Trimmomatic/quality_trimmed_' + mg_name + 
                   '_' + fr + '_paired.fq' for fr in ['forward', 'reverse']]
@@ -156,7 +157,7 @@ for experiment in experiments:
         if not args.no_assembly:
             pathlib.Path(args.output + '/Assembly/' + mg_name).mkdir(parents=True, exist_ok=True)
             
-            print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Assembling reads')
+            mtools.timed_message('Assembling reads')
             
             mid_name = args.output + '/Preprocess/Trimmomatic/quality_trimmed_'
             
@@ -174,9 +175,9 @@ for experiment in experiments:
             
             assembler.run()
             
-            print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Assembly is ' + 
-                  'finished. Contigs are available at ' + args.output + '/Assembly/' + 
-                  mg_name + '/contigs.fasta')
+            mtools.task_is_finished(task = 'Assembly',
+                    file = monitorization_file, 
+                    task_output = args.output + '/Assembly/' + mg_name)
         
         '''
         Annotation
@@ -185,7 +186,7 @@ for experiment in experiments:
             pathlib.Path(args.output + '/Annotation/' + mg_name).mkdir(parents=True, exist_ok=True)
             assembled = False if args.no_assembly else True
             
-            print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Annotating sequences')
+            mtools.timed_message('Annotating sequences')
             annotater = Annotater(file = args.output + '/Assembly/' + mg_name + '/contigs.fasta',
                                  out_dir = args.output,
                                  assembler = args.assembler,
@@ -196,15 +197,16 @@ for experiment in experiments:
                                  threads = args.threads)
             annotater.run()
             
-            print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Annotation is ' + 
-                  'finished and results are available at ' + args.output +
-                  '/Annotation/' + mg_name)
+            mtools.task_is_finished(task = 'Annotation',
+                    file = monitorization_file, 
+                    task_output = args.output + '/Annotation/' + mg_name)
             
         '''
         Binning
         '''
         if not args.no_binning:
-            print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Binning has begun')
+            mtools.timed_message('Binning has begun')
+            
             pathlib.Path(args.output + '/Binning/' + mg_name).mkdir(parents=True, exist_ok=True)
             
             binner = Binner(output = args.output + '/Binning/' + mg_name,
@@ -217,9 +219,9 @@ for experiment in experiments:
                             markerset = args.marker_gene_set)
             binner.maxbin_workflow()
 
-            print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Binning is ' + 
-                  'finished and results are available at ' + args.output + 
-                  '/Binning/' + mg_name)
+            mtools.task_is_finished(task = 'Binning',
+                    file = monitorization_file, 
+                    task_output = args.output + '/Binning/' + mg_name)
             
         mg_processed.append(mg_name)
 
@@ -247,12 +249,8 @@ for experiment in experiments:
             else:
                 mt_name = mt[0].split('/')[-1].split('_R')[0]
                 
-            print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Performing ' + mt_name + 
-                  ' analysis')
+            mtools.timed_message('Analysis ' + mt_name + ' sample data')
                 
-            print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Preprocessing ' + 
-                  'metatranscriptomics reads')
-            
             preprocesser = Preprocesser(files = mt,
                                         paired = 'PE',
                                         working_dir = args.output,
@@ -264,14 +262,10 @@ for experiment in experiments:
                 
             preprocesser.run()
             
-            print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Preprocessing ' + 
-                  'of metatranscriptomics reads is finished and results are ' + 
-                  'available at ' + args.output + '/Preprocess/' + mt_name)
-            
             '''
             Metatranscriptomics Quantification
             '''
-            print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Quantifying gene expression')
+            mtools.timed_message('Analysing gene expression with metatranscriptomics')
             
             path = pathlib.Path(args.output + '/Metatranscriptomics/' + 
                                 mg_name).mkdir(parents=True, exist_ok=True)
@@ -287,9 +281,9 @@ for experiment in experiments:
                           threads = args.threads)
             mta.readcounts_file()
             
-            print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Gene expression ' + 
-                  'quantification is finished and results are available at ' + 
-                  args.output + '/Metatranscriptomics/' + mt_name)
+            mtools.task_is_finished(task = 'Metatranscriptomics analysis',
+                  file = monitorization_file, 
+                  task_output = args.output + '/Metatranscriptomics/' + mt_name)
             
             expression_analysed.append(mt_name)
             
@@ -298,16 +292,15 @@ for experiment in experiments:
             '''
             MetaProteomics Analysis
             '''
-            print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Analysing ' + 
-                  'protein expression')
+            mtools.timed_message('Analysing gene expression with metaproteomics')
             
-            path = pathlib.Path(args.output + '/MetaProteomics/' + mt_name).mkdir(parents=True, exist_ok=True)   
+            path = pathlib.Path(args.output + '/Metaproteomics/' + mt_name).mkdir(parents=True, exist_ok=True)   
             
             spectra_folder = pairs[1]
             analyser = MetaProteomicsAnalyser(faa = args.output + '/Annotation/' + mg_name + '/fgs.faa',
                           blast = args.output + '/Annotation/' + mg_name + '/aligned.blast',
-                          crap_folder = '/HDDStorage/jsequeira/Thesis/MetaProteomics',
-                          output = args.output + '/MetaProteomics/' + mg_name,
+                          crap_folder = '/HDDStorage/jsequeira/Thesis/Metaproteomics',
+                          output = args.output + '/Metaproteomics/' + mg_name,
                           protease = 'trypsin',
                           spectra_folder = spectra_folder,
                           experiment_name = args.output,
@@ -317,22 +310,21 @@ for experiment in experiments:
         
             analyser.standard_run()
             
-            print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Gene expression ' + 
-                  'quantification is finished and results are available at ' + 
-                  args.output + '/MetaProteomics/' + mt_name)
+            mtools.task_is_finished(task = 'Metaproteomics analysis',
+                    file = monitorization_file, 
+                    task_output = args.output + '/Metaproteomics/' + mt_name)
             
 '''
 Join all information on one report
 '''
-print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Integrating all information.')
+mtools.timed_message('Integrating all information.')
 
 annotater = Annotater(out_dir = args.output,
                       threads = args.threads)
 
 joined = annotater.global_information()
 
-print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Integration is available at '
-      + args.output)
+mtools.timed_message('Integration is available at ' + args.output)
 
 if len(experiment.split(':')) > 1:      
     if args.type_of_data == 'metatranscriptomics':
@@ -361,4 +353,7 @@ joined = mtools.normalize_readcounts(args.output + '/readcounts.table', samples,
 joined.to_csv(args.output + '/mosca_resulsts.tsv', sep = '\t', index = False)
 joined.to_excel(args.output + '/mosca_resulsts.xlsx', index = False)
 
-print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Analysis with MOSCA was concluded with success!')
+mtools.timed_message('Analysis with MOSCA was concluded with success!')
+
+mtools.write_technical_report(args.output + 'technical_report.txt')
+print('Versions of the tools used is available at {}/technical_report.txt'.format(args.output))

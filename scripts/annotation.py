@@ -401,31 +401,34 @@ class Annotater:
                     fasta + '1', output + '1')
             self.run_rpsblast(f_file, o_file, cog, threads = threads)
             print('Checking if all IDs were mapped to COG database.')           # rpsblast self-reportedly runs out of memory, and the solution here is to re-annotate with the unmapped proteins
-            blast = mtools.parse_blast(o_file)
-            fastadf = pd.DataFrame.from_dict(mtools.parse_fasta(f_file), 
-                    orient = 'index', columns = ['qseqid', 'sequence'])
-            unmapped_ids = set(fasta['qseqid']) - set(blast['qseqid'])
-            if len(unmapped_ids) > 0:                                           # if some proteins queried are not present in final output
-                fastadf = fastadf[fastadf['qseqid'].isin(unmapped_ids)]
-                fastadf['qseqid'] = '>' + fastadf['qseqid']
-                fastadf.to_csv(fasta + '1', sep = '\n')
-                tries += 1
-            else:
-                all_mapped = True
-            if tries > 0:
-                mtools.run_command('cat {} {}'.format(output, output + '1'), 
-                                   file = output + '2')
-                os.rename(output + '2', output)
+            if os.path.getsize(o_file) > 0:                                     # if rpsblast was able to make new annotations
+                blast = mtools.parse_blast(o_file)
+                fastadf = pd.DataFrame.from_dict(mtools.parse_fasta(f_file), 
+                        orient = 'index').reset_index()
+                fastadf.columns = ['qseqid', 'sequence']
+                unmapped_ids = set(fastadf['qseqid']) - set(blast['qseqid'])
+                if len(unmapped_ids) > 0:                                       # if some proteins queried are not present in final output, write new fasta file with those proteins for new annotation
+                    fastadf = fastadf[fastadf['qseqid'].isin(unmapped_ids)]
+                    fastadf['qseqid'] = '>' + fastadf['qseqid']
+                    fastadf.to_csv(fasta + '1', sep = '\n', index = False, 
+                                   header = False)
+                else:
+                    all_mapped = True
+                if tries > 0:
+                    mtools.run_command('cat {} {}'.format(output, output + '1'), 
+                                       file = output + '2')
+                    os.rename(output + '2', output)
+            tries += 1
                 
         if os.path.isfile(output + '1'):
             os.remove(output + '1')
                 
-        if len(set(fasta['qseqid']) - set(blast['qseqid'])) > 0:
+        if len(set(fastadf['qseqid']) - set(blast['qseqid'])) > 0:
             unmapped_file = fasta.replace('.faa','_unmapped.faa')
             open(unmapped_file, 'w').write('\n'.join(
-                    set(fasta['qseqid']) - set(blast['qseqid'])))
+                    set(fastadf['qseqid']) - set(blast['qseqid'])))
             print('PSI-BLAST failed to functionally annotate {} proteins'.format(
-                    str(len(set(fasta['qseqid']) - set(blast['qseqid'])) > 0)))
+                    str(len(set(fastadf['qseqid']) - set(blast['qseqid'])) > 0)))
             print('Unmapped IDs are available at {} and results for the annotated'
                   + ' proteins are available at {}'.format(unmapped_file, output))
         else:
