@@ -86,6 +86,10 @@ parser.add_argument("-qs", "--quality-score", type = str,
                     help="""Scoring system of quality of reads""")
 parser.add_argument("-bcl", "--binning-contig-legth", type = str, 
                     help="""Minimum length of contigs to be considered for binning""")
+parser.add_argument("-anncols", "--annotation-columns", type = str, 
+                    help="""List of UniProt columns to obtain information from""")
+parser.add_argument("-anndbs", "--annotation-databases", type = str, 
+                    help="""List of databases to cross-check with UniProt information""")
              
 args = mtools.validate_arguments(parser)
 
@@ -188,13 +192,15 @@ for experiment in experiments:
             
             mtools.timed_message('Annotating sequences')
             annotater = Annotater(file = args.output + '/Assembly/' + mg_name + '/contigs.fasta',
-                                 out_dir = args.output,
-                                 assembler = args.assembler,
-                                 db = args.annotation_database[0],
-                                 assembled = assembled,
-                                 error_model = 'illumina_10',
-                                 name = mg_name,
-                                 threads = args.threads)
+                                  out_dir = args.output,
+                                  assembler = args.assembler,
+                                  db = args.annotation_database[0],
+                                  assembled = assembled,
+                                  error_model = 'illumina_10',
+                                  name = mg_name,
+                                  threads = args.threads,
+                                  columns = args.columns.split(','),
+                                  databases = args.databases.split(','))
             annotater.run()
             
             mtools.task_is_finished(task = 'Annotation',

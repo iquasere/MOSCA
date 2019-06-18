@@ -128,7 +128,9 @@ class Annotater:
             for i in pbar(range(0, len(ids), chunk)):
                 j = i + chunk if i + chunk < len(ids) else len(ids)
                 try:
-                    data = self.uniprot_request(ids[i:j], original_database, database_destination)
+                    data = self.uniprot_request(ids[i:j], original_database, 
+                                database_destination, columns = columns, 
+                                databases = databases)
                     if len(data) > 0:
                         uniprotinfo = pd.read_csv(StringIO(data), sep = '\t')
                         result = pd.concat([result, uniprotinfo[uniprotinfo.columns.tolist()[:-1]]])    # last column is uniprot_list
@@ -180,7 +182,8 @@ class Annotater:
                   ' at ' + ids_unmapped_output + ' and information obtained is available' +
                   ' at ' + output)
         
-    def recursive_uniprot_information(self, blast, output, max_iter = 5):
+    def recursive_uniprot_information(self, blast, output, max_iter = 5,
+                                      columns = None, databases = None):
         if os.path.isfile(output):
             result = pd.read_csv(output, sep = '\t', low_memory=False).drop_duplicates()
             ids_done = list(set(result['Entry']))
@@ -200,7 +203,8 @@ class Annotater:
         while len(ids_missing) > 0 and tries < max_iter:
             print('Information already gathered for ' + str(len(ids_done)) + 
                   ' ids. Still missing for ' + str(len(ids_missing)) + '.')
-            uniprotinfo = self.get_uniprot_information(ids_missing)
+            uniprotinfo = self.get_uniprot_information(ids_missing,
+                                columns = columns, databases = databases)
             ids_done += list(set(uniprotinfo['Entry']))
             result = result[uniprotinfo.columns]
             result = pd.concat([result, uniprotinfo])
@@ -395,7 +399,7 @@ class Annotater:
         
     def run_recursively_rpsblast(self, fasta, output, cog, threads = '0', max_tries = 5):
         all_mapped = False
-        tries = 0
+        tries = 1
         while not all_mapped and tries < max_tries:
             (f_file, o_file) = (fasta, output) if tries == 0 else (
                     fasta + '1', output + '1')
@@ -407,6 +411,7 @@ class Annotater:
                         orient = 'index').reset_index()
                 fastadf.columns = ['qseqid', 'sequence']
                 unmapped_ids = set(fastadf['qseqid']) - set(blast['qseqid'])
+                print(str(len(unmapped_ids)) + ' IDs still not annotated.')
                 if len(unmapped_ids) > 0:                                       # if some proteins queried are not present in final output, write new fasta file with those proteins for new annotation
                     fastadf = fastadf[fastadf['qseqid'].isin(unmapped_ids)]
                     fastadf['qseqid'] = '>' + fastadf['qseqid']
@@ -418,6 +423,9 @@ class Annotater:
                     mtools.run_command('cat {} {}'.format(output, output + '1'), 
                                        file = output + '2')
                     os.rename(output + '2', output)
+                
+            #else:                                                               # rpsblast can't annotate more sequences
+                
             tries += 1
                 
         if os.path.isfile(output + '1'):
@@ -635,7 +643,9 @@ class Annotater:
         
         # Retrieval of information from UniProt IDs
         self.recursive_uniprot_information(self.out_dir + '/Annotation/aligned.blast', 
-                                           self.out_dir + '/Annotation/uniprot_info.tsv')
+                                           self.out_dir + '/Annotation/uniprot_info.tsv',
+                                           columns = self.columns,
+                                           databases = self.databases)
         
         # Functional annotation with COG database
         self.cog_annotation(self.out_dir + '/Annotation/fgs.faa', 
