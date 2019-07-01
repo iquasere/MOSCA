@@ -37,7 +37,7 @@ RUN buildDeps='build-essential zlib1g-dev' \
 && conda install -c anaconda pandas \
 && conda install -c conda-forge tqdm \
 && conda install scikit-learn \
-&& conda install -y -c bioconda blast \
+&& conda install -c bioconda blast \
 && mkdir /MOSCA/Databases/annotation_databases \
 && mkdir /input_data \
 && mkdir -p /MOSCA/Databases/COG \
@@ -50,6 +50,7 @@ RUN buildDeps='build-essential zlib1g-dev' \
 && wget ftp://ftp.ncbi.nlm.nih.gov/pub/COG/COG/whog -P MOSCA/Databases/COG \
 && wget https://github.com/aleimba/bac-genomics-scripts/raw/master/cdd2cog/cdd2cog.pl -P MOSCA/scripts \
 #sed -i '302s#.*#    my $pssm_id = $1 if $line[1] =~ /^gnl\\|CDD\\|(\\d+)/; \# get PSSM-Id from the subject hit#' MOSCA/cdd2cog.pl      # Sometimes this is needed... will save when use of uninitialized value floods the screen - when they change from CDD:number to gnl|CDD|number
+&& conda install -c anaconda lxml \
 && conda install -c bioconda searchgui \
 && conda install -c bioconda peptide-shaker \
 && conda install -c bioconda maxquant \

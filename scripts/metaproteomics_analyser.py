@@ -216,25 +216,26 @@ class MetaProteomicsAnalyser:
     def create_mqpar(self, output):
         if os.path.isfile(output):                                              # the create file command will not create a new one if the file already exists
             os.remove(output)                                                   # even if that file already has non-default information in it, messing with the next commands
-        mtools.run_command('maxquant' + output + ' --create')
+        mtools.run_command('maxquant ' + output + ' --create')
         
     '''
     input:
-        file: name of the mqpar.xml file to have its values changed
+        mqpar: name of the mqpar.xml file to have its values changed
         fasta_database: name of the FASTA database for metaproteomics
         spectra_folder: name of the folder with RAW spectra files
-        experiment_name: name of the experiment
+        experiment_names: list of experiments, with one element for each file
     output:
         the "file" file will be updated with the new parameters
     '''
     def edit_maxquant_mqpar(self, mqpar, fasta_database, spectra_folder, 
-                            experiment_name, threads = 1):
+                            experiment_names, threads = 1):
         print('Updating parameters file information.')
         parser = etree.XMLParser(remove_blank_text=True)
         tree = etree.parse(mqpar, parser)
         root = tree.getroot()
         root.find("fastaFiles/FastaFileInfo/fastaFilePath").text = fasta_database
         print('Fasta database = ' + fasta_database)
+        root.find("separateLfq").text = 'True'
         root.find("numThreads").text = str(threads)
         print('Number of threads = ' + str(threads))
         for child in ['filePaths/string', 'experiments/string',
@@ -246,27 +247,16 @@ class MetaProteomicsAnalyser:
         fractions = root.find("fractions")
         ptms = root.find("ptms")
         paramGroupIndices = root.find("paramGroupIndices")
-        print('Experiment = ' + experiment_name)
         files = mtools.sort_alphanumeric(glob.glob(spectra_folder + '/*.RAW'))
-        for file in files:
-            print('Adding file: ' + file)
-            etree.SubElement(filePaths, 'string').text = file
-            etree.SubElement(experiments, 'string').text = experiment_name
+        for i in range(len(files)):
+            print('Adding file: ' + files[i])
+            etree.SubElement(filePaths, 'string').text = files[i]
+            print('Experiment = ' + experiment_names[i])
+            etree.SubElement(experiments, 'string').text = experiment_names[i]
             etree.SubElement(fractions, 'short').text = '32767'
-            etree.SubElement(ptms, 'boolean').text = 'False'
+            etree.SubElement(ptms, 'boolean').text = 'True'
             etree.SubElement(paramGroupIndices, 'int').text = '0'
-        '''
-        for experiment in experiments_files.index:
-            print('Experiment = ' + experiment)
-            files = mtools.sort_alphanumeric(experiments_files.loc[experiment]['files'])
-            for file in files:
-                print(file)
-                etree.SubElement(filePaths, 'string').text = file
-                etree.SubElement(experiments, 'string').text = experiment
-                etree.SubElement(fractions, 'short').text = '32767'
-                etree.SubElement(ptms, 'boolean').text = 'False'
-                etree.SubElement(paramGroupIndices, 'int').text = '0'
-        '''
+        root.find("parameterGroups/parameterGroup/lfqMode").text = '1'
         tree.write(mqpar, pretty_print=True)
         print('Parameters file is available at ' + mqpar)
         
@@ -286,16 +276,16 @@ class MetaProteomicsAnalyser:
         #os.rename(spectra_folder + '/combined', output_folder + '/maxquant_results')
         
     def run(self):
-        
+        '''
         self.verify_crap_db(self.crap_database)
         self.database_generation(self.output + '/database_uniprot_sequences.fasta', 
                                  self.crap_database, self.protease, 
                                  how = 'raw', blast = self.blast, faa = self.faa)
-        
+        '''
         if self.workflow == 'maxquant':
             self.create_mqpar(self.output + '/mqpar.xml')
-            self.edit_maxquant_mqpar(self.output + '/mqpar.xml', self.output + '/database.fasta',
-                                     self.spectra_folder, self.experiment_name,
+            self.edit_maxquant_mqpar(self.output + '/mqpar.xml', '/mnt/HDDStorage/jsequeira/MGMP_datasets/database.fasta', #self.output + '/database.fasta',
+                                     self.spectra_folder, self.experiment_names,
                                      threads = 6)
             self.run_maxquant(self.output + '/mqpar.xml', self.spectra_folder, self.output)
             
@@ -313,3 +303,13 @@ class MetaProteomicsAnalyser:
                                   '_' + self.sample_name + '_' +  self.replicate_number + 
                                   '_Default_Protein_Report.txt'), self.blast,
                                   self.output + '/Spectra_counting.tsv')
+            
+if __name__ == '__main__':
+    
+    mp = MetaProteomicsAnalyser(workflow = 'maxquant',
+                                output = '/mnt/HDDStorage/jsequeira/MGMP/Metaproteomics/MaxQUANT',
+                                spectra_folder = '/mnt/HDDStorage/jsequeira/MGMP_datasets',
+                                threads = '12',
+                                experiment_names = ['OL']*24 + ['OLBES']*24 + ['PAL']*24 +['EST']*24+['Blanc']*5)
+    
+    mp.run()

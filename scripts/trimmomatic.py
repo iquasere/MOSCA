@@ -190,7 +190,7 @@ class Trimmomatic:
     def bash_command(self):
         result = ('java -jar ' + os.path.expanduser('~/anaconda3/jar/trimmomatic.jar ') 
             + self.paired + ' -threads ' + self.threads)
-        if hasattr(self, 'quality_score'): 
+        if hasattr(self, 'quality_score') and self.quality_score is not None: 
             result += " -" + self.quality_score
             self.__dict__.pop('quality_score') 
         for f in self.input_files:
@@ -207,7 +207,8 @@ class Trimmomatic:
         for key in problem_attributes:
             self.__dict__.pop(key)
         for arg in self.__dict__.keys():
-            result += self.set_argument(arg)
+            if self.__dict__[arg] is not None:
+                result += self.set_argument(arg)
         for attr in problem_attributes:
             setattr(self, attr, attributes[attr])
         return result

@@ -53,7 +53,7 @@ class SortMeRNA:
         if hasattr(self,'paired_out'):
             if self.paired_out == True:
                 result += ' --paired_out'
-        print('bash command:',result)
+        result += ' -a ' + self.threads
         return result
     
     def merge_pe(self, forward, reverse, interleaved):
@@ -87,7 +87,9 @@ class SortMeRNA:
             self.merge_pe(self.reads[0], self.reads[1], interleaved)
             self.reads = interleaved
             self.run_tool()
-            self.unmerge_pe(interleaved, self.working_dir + '/Preprocess/SortMeRNA/' + self.name + '_forward.fastq', self.working_dir + '/Preprocess/SortMeRNA/' + self.name + '_reverse.fastq')
+            self.unmerge_pe(self.working_dir + '/Preprocess/SortMeRNA/' + self.name + '_rejected.fastq', 
+                            self.working_dir + '/Preprocess/SortMeRNA/' + self.name + '_forward.fastq', 
+                            self.working_dir + '/Preprocess/SortMeRNA/' + self.name + '_reverse.fastq')
             self.correct_files(self.working_dir + '/Preprocess/SortMeRNA/' + self.name + '_forward.fastq', self.working_dir + '/Preprocess/SortMeRNA/' + self.name + '_reverse.fastq')
         else:
             self.run_tool()

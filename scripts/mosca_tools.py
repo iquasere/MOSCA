@@ -173,7 +173,7 @@ class MoscaTools:
             print('Deleting file', file)
             os.remove(file)
     
-    def run_command(self, bashCommand, file = '', mode = 'w', sep = ''):
+    def run_command(self, bashCommand, file = '', mode = 'w', sep = ' '):
         print(bashCommand)
         if file == '':
                 subprocess.run(bashCommand.split(sep), stdout=subprocess.PIPE, check = True)       # was subprocess.Popen
@@ -289,6 +289,7 @@ class MoscaTools:
     
     def validate_arguments(self, parser):
         args = parser.parse_args()
+        '''
         if args.files is None or args.output is None:
             if args.files is None:
                 print('Must specify which files to use!')
@@ -296,9 +297,9 @@ class MoscaTools:
                 print('Must specify which output directory to use!')
             parser.print_help()
             exit()
-        else:
-            args.output = args.output.rstrip('/')                               # remove the automatic ending
-            return args
+        '''
+        args.output = args.output.rstrip('/')                               # remove the automatic ending
+        return args
 
     def print_arguments(self, args):
         import pprint
@@ -389,21 +390,23 @@ class MoscaTools:
     Output:
         will print the message with the time in human readable format
     '''
-    def timed_message(message = None):
+    def timed_message(self, message = None):
         print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ': ' + message)
             
     '''
     Input:
         task: Str, task that has finished ['preprocessing','assembly','annotation',
         'binning','expression']
+        file: name of monitorization file
+        task_output: name of folder/file where outputs are stored
     Output:
         will print the message with the time in human readable format
     '''
-    def task_is_finished(task = None, file = None, task_output = None):
+    def task_is_finished(self, task = None, file = None, task_output = None):
         print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + 
               ': {} has finished and results are available at {}'.format(
                 task, task_output))
-        with(open(monitorization_file), 'a') as f:
+        with open(file, 'a') as f:
             if task in ['Metatranscriptomics analysis', 'Metaproteomics analysis']:
                 task = 'Expression'
             f.write(task.lower() + '\n')

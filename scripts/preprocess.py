@@ -60,7 +60,8 @@ class Preprocesser:
                               other = self.working_dir + '/Preprocess/SortMeRNA/' + self.name + '_rejected',
                               paired = True if self.paired == 'PE' else False,
                               working_dir = self.working_dir,
-                              name = self.name)
+                              name = self.name,
+                              threads = self.threads)
         sortmerna.run()
         print('rRNA sequences removal done')
     
@@ -111,7 +112,6 @@ class Preprocesser:
         
         
     def run(self):
-        
         self.first_check()
         
         adapters = self.trim_adapters()

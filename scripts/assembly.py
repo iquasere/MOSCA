@@ -21,7 +21,7 @@ class Assembler:
         if hasattr(self, 'memory') and self.assembler == 'metaspades':          # Megahit reads max memory in byte, metaspades reads in Gb
             self.memory /= 1.25e8
         
-    def set_argument(self, x, assembler = None):
+    def set_argument(self, x, assembler):
         if isinstance(self.__dict__[x], str):
             if x is not 'threads':
                 return ' --' + x.replace('_','-') + ' ' + self.__dict__[x]
@@ -35,7 +35,8 @@ class Assembler:
             return result.rstrip(',')
         elif self.__dict__[x] == True:
             return ' --' + x.replace('_','-')
-        return 'Not a valid argument'
+        else:
+            print('Not a valid {} value for the assembler:{}'.format(x, self.__dict__[x]))
         
     def metaspades_command(self):
         assembler = self.__dict__.pop('assembler')
@@ -68,7 +69,8 @@ class Assembler:
             if hasattr(self, attr):
                 self.__dict__.pop(attr)
         for arg in self.__dict__.keys():
-            result += self.set_argument(arg)
+            if self.__dict__[arg] is not None:
+                result += self.set_argument(arg, 'metaspades')
         self.out_dir = out_dir
         self.assembler = assembler
         self.forward, self.reverse = forward, reverse
@@ -91,7 +93,8 @@ class Assembler:
             result.rstrip(',')
             self.__dict__.pop('interleaved')
         for arg in self.__dict__.keys():
-            result += self.set_argument(arg)
+            if self.__dict__[arg] is not None:
+                result += self.set_argument(arg, 'megahit')
         for arg in args.keys():
             self.__dict__[arg] = args[arg]
         return result

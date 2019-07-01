@@ -25,7 +25,7 @@ mtools = MoscaTools()
 parser = argparse.ArgumentParser(description="Multi Omics Software for Community Analysis",
                                  epilog="""A tool for performing metagenomics, metatranscriptomics 
                                  and metaproteomics analysis.""")
-parser.add_argument("-f","--files", type=str, nargs = '*',
+parser.add_argument("-f","--files", type=str, nargs = '*', required=True,
                     help="Input files for analysis (mg1R1,mg1R2:mt1R1,mt1R2 mg2R1,...)")
 parser.add_argument("-st","--sequencing-technology",default='paired',choices=["paired","single"],
                     action='store',type=str,help='Type of data (paired/single)-ended')
@@ -53,9 +53,9 @@ parser.add_argument("-ol","--output-level", default = 'maximum', type = str,
 parser.add_argument("-tod", "--type-of-data", default = "metatranscriptomics",
                     help = ("""If data is metagenomics integrated with metatranscriptomics
                             or metaproteomics, if not specified will be assumed to be metagenomics
-                            and metatranscriptomics. This option can be ignored with dealing
-                            only with metagenomics data"""), choices=["metatranscriptomics",
-                    "metaproteomics"])
+                            and metatranscriptomics. This option can be ignored when dealing
+                            only with metagenomics data"""), 
+                            choices=["metatranscriptomics", "metaproteomics"])
 parser.add_argument("-c","--conditions", type=str, nargs = '*',
                     help="""Different conditions for metatranscriptomics/metaproteomics 
                     analysis, separated by comma (,)""")
@@ -145,7 +145,7 @@ for experiment in experiments:
             if hasattr(args, 'quality_score'):
                 setattr(preprocesser, 'quality_score', args.quality_score)
                 
-            preprocesser.run()
+            #preprocesser.run()
             
             mtools.task_is_finished(task = 'Preprocessing',
                     file = monitorization_file, 
@@ -172,12 +172,13 @@ for experiment in experiments:
                                  reverse = mg[1],
                                  threads = args.threads)
             
-            if args.assembler == 'metaspades' and hasattr(args, 'quality_score'):   # Megahit doesn't accept quality score input
+            if (args.assembler == 'metaspades' and hasattr(args, 'quality_score')
+            and getattr(args, 'quality_score') not in ['None', None]):          # Megahit doesn't accept quality score input
                 setattr(assembler, 'phred_offset', args.quality_score)              # --phred-offset is the name of the parameter in MetaSPAdes
-            if args.memory is not None:
+            if args.memory not in [None, 'None']:
                 setattr(assembler, 'memory', args.memory)
             
-            assembler.run()
+            #assembler.run()
             
             mtools.task_is_finished(task = 'Assembly',
                     file = monitorization_file, 
@@ -194,13 +195,14 @@ for experiment in experiments:
             annotater = Annotater(file = args.output + '/Assembly/' + mg_name + '/contigs.fasta',
                                   out_dir = args.output,
                                   assembler = args.assembler,
-                                  db = args.annotation_database[0],
+                                  db = args.annotation_database,
                                   assembled = assembled,
                                   error_model = 'illumina_10',
                                   name = mg_name,
                                   threads = args.threads,
-                                  columns = args.columns.split(','),
-                                  databases = args.databases.split(','))
+                                  columns = args.annotation_columns.split(','),
+                                  databases = args.annotation_databases.split(','))
+            
             annotater.run()
             
             mtools.task_is_finished(task = 'Annotation',

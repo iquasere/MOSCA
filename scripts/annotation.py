@@ -399,17 +399,17 @@ class Annotater:
         
     def run_recursively_rpsblast(self, fasta, output, cog, threads = '0', max_tries = 5):
         all_mapped = False
-        tries = 1
+        tries = 0
         while not all_mapped and tries < max_tries:
             (f_file, o_file) = (fasta, output) if tries == 0 else (
                     fasta + '1', output + '1')
             self.run_rpsblast(f_file, o_file, cog, threads = threads)
             print('Checking if all IDs were mapped to COG database.')           # rpsblast self-reportedly runs out of memory, and the solution here is to re-annotate with the unmapped proteins
+            fastadf = pd.DataFrame.from_dict(mtools.parse_fasta(f_file), 
+                        orient = 'index').reset_index()
+            fastadf.columns = ['qseqid', 'sequence']
             if os.path.getsize(o_file) > 0:                                     # if rpsblast was able to make new annotations
                 blast = mtools.parse_blast(o_file)
-                fastadf = pd.DataFrame.from_dict(mtools.parse_fasta(f_file), 
-                        orient = 'index').reset_index()
-                fastadf.columns = ['qseqid', 'sequence']
                 unmapped_ids = set(fastadf['qseqid']) - set(blast['qseqid'])
                 print(str(len(unmapped_ids)) + ' IDs still not annotated.')
                 if len(unmapped_ids) > 0:                                       # if some proteins queried are not present in final output, write new fasta file with those proteins for new annotation
@@ -424,8 +424,11 @@ class Annotater:
                                        file = output + '2')
                     os.rename(output + '2', output)
                 
-            #else:                                                               # rpsblast can't annotate more sequences
-                
+            else:                                                               # rpsblast can't annotate more sequences
+                fastadf = fastadf.iloc[1:]                                      # remove the first sequence, the rotten egg bastard
+                fastadf['qseqid'] = '>' + fastadf['qseqid']
+                fastadf.to_csv(fasta + '1', sep = '\n', index = False, 
+                               header = False)
             tries += 1
                 
         if os.path.isfile(output + '1'):
@@ -436,9 +439,9 @@ class Annotater:
             open(unmapped_file, 'w').write('\n'.join(
                     set(fastadf['qseqid']) - set(blast['qseqid'])))
             print('PSI-BLAST failed to functionally annotate {} proteins'.format(
-                    str(len(set(fastadf['qseqid']) - set(blast['qseqid'])) > 0)))
-            print('Unmapped IDs are available at {} and results for the annotated'
-                  + ' proteins are available at {}'.format(unmapped_file, output))
+                    str(len(set(fastadf['qseqid'] - set(blast['qseqid'])) > 0))))
+            print("""Unmapped IDs are available at {} and results for the annotated'
+                   proteins are available at {}""".format(unmapped_file, output))
         else:
             print('Results for all IDs are available at {}'.format(output))
         
@@ -590,7 +593,7 @@ class Annotater:
         return result
     
     def run(self):
-        self.gene_calling(self.file, self.out_dir + '/Annotation/' + self.name, self.assembled)
+        #self.gene_calling(self.file, self.out_dir + '/Annotation/' + self.name, self.assembled)
         self.annotation()
     
     '''
