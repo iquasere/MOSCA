@@ -12,6 +12,7 @@ import re
 import pandas as pd
 import numpy as np
 import progressbar
+import matplotlib.pyplot as plt
 
 __author__ = "Tiago Oliveira"
 __credits__ = ["Joao Sequeira"]
@@ -231,8 +232,8 @@ class Pathway():
         self.boxes_ko = {}
         self.ko_boxes = {}
         for i in range(0, len(self.pathway.orthologs)):
-            self._set_bgcolor(self.pathway.orthologs[i], "#9e9e9e")
-            self._set_fgcolor(self.pathway.orthologs[i], "#9e9e9e")
+            self._set_bgcolor(self.pathway.orthologs[i], "#ffffff")
+            self._set_fgcolor(self.pathway.orthologs[i], "#ffffff")
             orthologs_in_box = self.pathway.orthologs[i].name.split(" ")
             for n in range(0, len(orthologs_in_box)):
                 orthologs_in_box[n] = orthologs_in_box[n][3:]
@@ -620,22 +621,13 @@ class Pathway():
         :param log: bol providing the option for a log normalization of data
         :param colormap: str representing a costum matplotlib colormap to be used
         '''
-        dataframe = dataframe.groupby(level=0).sum()
-        print("a")
-        print(dataframe)
-        print("b")
-        print(dataframe.min().min())
-        print(dataframe.max().max())
 
         if log:
             norm = cm.colors.LogNorm(vmin=dataframe.min().min(), vmax=dataframe.max().max())
         else:
             norm = cm.colors.Normalize(vmin=dataframe.min().min(), vmax=dataframe.max().max())
 
-        print(norm(26739))
-        print(norm(83316))
-        print(norm(53316))
-        print(norm(0))
+
 
         if colormap == "":
             colormap = cm.get_cmap("coolwarm")
@@ -673,6 +665,11 @@ class Pathway():
                     n += 1
                 self.create_tile_box(self.pathway.orthologs[box])
 
+    def grey_boxes(self, box_list):
+        for i in box_list:
+            self._set_bgcolor(self.pathway.orthologs[i], "#7c7272")
+            self._set_fgcolor(self.pathway.orthologs[i], "#7c7272")
+
 ################################################################################
 ################################################################################
 
@@ -694,10 +691,15 @@ class MoscaData():
         df = pd.read_csv(file, delimiter=",", index_col=["Cross-reference (KEGG)"])
         df = df[df.index.notnull()]
         coverted_KEGG_ID, orthologs_ID = self.convert_KEGGID_koID(df.index.tolist())
+        converted_dic = {}
         for i in range(0, len(coverted_KEGG_ID)):
             coverted_KEGG_ID[i] = str(coverted_KEGG_ID[i]) + ";"
+            converted_dic[coverted_KEGG_ID[i]] = orthologs_ID[i]
         df = df.loc[coverted_KEGG_ID]
-        df["orthologs"] = orthologs_ID
+        new_index = []
+        for i in df.index.tolist():
+            new_index.append(converted_dic[i])
+        df["orthologs"] = new_index
         df = df.set_index("orthologs")
 
         return df
@@ -711,6 +713,8 @@ class MoscaData():
         dic_pathway = {}
         generalmaps = ["01100", "01110", "01120", "01130", "01200", "01210",
                        "01212", "01212", "01220"]
+
+        
         for i in pathways.read().split("\n")[:-1]:
             pathway = i.split("\t")[0][8:]
             desc = i.split("\t")[1]
@@ -732,7 +736,15 @@ class MoscaData():
         data = data.sort_values(by=["sums"], ascending=False)
         if n > len(data.index.tolist()):
             n = len(data.index.tolist())
-        return data.index.tolist()[:n - 1]
+        return data.index.tolist()[:n]
+
+    def top_cog(self, samples, n= 10):
+        data = self.data.groupby("COG functional category")[samples].sum()
+        data["sums"] = data.sum(axis=1)
+        data = data.sort_values(by=["sums"], ascending=False)
+        if n > len(data.index.tolist()):
+            n = len(data.index.tolist())
+        return data.index.tolist()[:n]
 
 
     ############################################################################
@@ -745,6 +757,9 @@ class MoscaData():
         :return: pandas dataframe with MOSCA data
         '''
         return self.data
+
+    def set_df(self, df):
+        self.data = pd.read_csv(df, delimiter=",", index_col=["orthologs"])
 
     ############################################################################
     ####                            Sets                                    ####
@@ -873,26 +888,60 @@ class MoscaData():
             genus = self.top_gemus(samples, nr)
         colors = self.set_colors([], len(genus))
         for map in self.pathway:
-            pathway = self.load_pathway(map)
-            dic_boxes = {}
-            present_genus = []
-            for type in genus:
-                df = self.data[self.data["Taxonomic lineage (GENUS)"] == type][samples]
+            try:
+                pathway = self.load_pathway(map)
+                dic_boxes = {}
+                present_genus = []
+                for genu in genus:
+                    df = self.data[self.data["Taxonomic lineage (GENUS)"] == genu][samples]
+                    df = df[df.any(axis=1)]
+                    orthologs = df.index.tolist()
+                    for ortholog in orthologs:
+                        if ortholog in pathway.get_ko_boxes().keys():
+                            if genu not in present_genus:
+                                present_genus.append(genu)
+                            for box in pathway.get_ko_boxes()[ortholog]:
+                                if box in dic_boxes.keys():
+                                    dic_boxes[box].append(genu)
+                                else:
+                                    dic_boxes[box] = [genu]
+                
+                pathway.pathway_box_list(dic_boxes, present_genus, len(genus), colors)
+
+                
+                df = self.data[samples]
                 df = df[df.any(axis=1)]
+                
                 orthologs = df.index.tolist()
+                grey_boxes = []
                 for ortholog in orthologs:
                     if ortholog in pathway.get_ko_boxes().keys():
-                        if type not in present_genus:
-                            present_genus.append(type)
                         for box in pathway.get_ko_boxes()[ortholog]:
-                            if box in dic_boxes.keys():
-                                dic_boxes[box].append(type)
-                            else:
-                                dic_boxes[box] = [type]
-            pathway.pathway_box_list(dic_boxes, present_genus, 10, colors)
-            name_pdf = str(map) + "_" + "genomic_potential"
-            pathway.pathway_pdf(name_pdf)
-            print("Map saved to " + name_pdf + ".pdf")
+                            if box not in dic_boxes.keys() and box not in grey_boxes:
+                                grey_boxes.append(box)
+                print(grey_boxes)
+                pathway.grey_boxes(grey_boxes)
+
+
+                
+
+            
+                name_pdf = str(map) + "_" + "genomic_potential"
+                pathway.pathway_pdf(name_pdf)
+                print("Map saved to " + name_pdf + ".pdf")
+                if len(grey_boxes) > 0:
+                    temp_colors = colors
+                    temp_colors.append("#7c7272")
+                    temp_genus = genus
+                    temp_genus.append("Present in Samples")
+                    self.potential_legend(temp_colors, temp_genus, str(name_pdf) + ".png")
+                    
+                else:
+                    self.potential_legend(colors, genus, str(name_pdf) + ".png")
+            except:
+                print(str(map) + " - Failed to process")
+        
+                
 
 
     def genomic_potential_sample(self, samples, threshold = 0):
@@ -929,181 +978,66 @@ class MoscaData():
         expression values
         :param log: bol providing the option for a log normalization of data
         '''
+        
         for map in self.pathway:
-            pathway = self.load_pathway(map)
-            data = []
-            new_index = []
-            df = self.data.groupby(level = 0)[samples].sum()
-            df = df[df.any(axis=1)]
-            orthologs = df.index.tolist()
-            for ortholog in orthologs:
-                if ortholog in pathway.get_ko_boxes().keys():
-                    for box in pathway.get_ko_boxes()[ortholog]:
-                        for ko in df.loc[orthologs].index.tolist():
-                            data.append(df.loc[ko].tolist())
-                            new_index.append(box)
-            new_df = pd.DataFrame(data, columns=samples, index=new_index)
-            new_df = new_df[new_df.any(axis=1)]
-            pathway.pathway_boxes_diferencial(new_df, log)
+            if True:
+                pathway = self.load_pathway(map)
+                data = []
+                new_index = []
+                df = self.data.groupby(level = 0)[samples].sum()
+                df = df[df.any(axis=1)]
+                orthologs = df.index.tolist()
+                for ortholog in orthologs:
+                    if ortholog in pathway.get_ko_boxes().keys():
+                        for box in pathway.get_ko_boxes()[ortholog]:
+                            for ko in df.loc[orthologs].index.tolist():
+                                data.append(df.loc[ko].tolist())
+                                new_index.append(box)
+                df.to_csv("marosca.csv", sep=",")
+                new_df = pd.DataFrame(data, columns=samples, index=new_index)
+                new_df = new_df[new_df.any(axis=1)]
+                new_df = new_df.groupby(level=0).sum()
+                pathway.pathway_boxes_diferencial(new_df, log)
+                
 
-            if log:
-                name_pdf = str(map) + "_" + "differential_expression" + "_" + "log"
-                pathway.pathway_pdf(name_pdf)
-            else:
-                name_pdf = str(map) + "_" + "differential_expression"
-                pathway.pathway_pdf(name_pdf)
-            print("Map saved to " + name_pdf + ".pdf")
-
-
-############################################################################
-####                            Test                                    ####
-############################################################################
-
-def test_clean_pathway():
-    clean_pathway = Pathway("map00680")
-    clean_pathway.pathway_pdf("test_clean_pathway")
-
-def test_pathway_genes():
-    test_pathway = Pathway("map00680")
-    kegg_IDs = ["pmy:Pmen_3467", "pre:PCA10_14290", "mba:Mbar_A0841", "psub:Pelsub_P2997", "mby:MSBRM_0151", "mby:MSBRM_0158"]
-    test_pathway.pathway_genes(kegg_IDs)
-    test_pathway.pathway_pdf("test_pathway_genes")
-    test_pathway.reset_pathway()
-    kegg_IDs.append("ddh:Desde_0778")
-    test_pathway.pathway_genes(kegg_IDs, ["#ef0000"])
-    test_pathway.pathway_pdf("test_pathway_genes_vermelho")
-
-def test_pathway_organismo():
-    test_pathway = Pathway("map00680")
-    test_pathway.pathway_organismo("eco")
-    test_pathway.pathway_pdf("test_pathway_organismo")
-    test_pathway.reset_pathway()
-    test_pathway.pathway_organismo("eco",["#ef0000"])
-    test_pathway.pathway_pdf("test_pathway_organismo_vermelho")
-
-def test_pathway_genes_organismo():
-    test_pathway = Pathway("map00680")
-    kegg_IDs = ["ppg:PputGB1_2248","ppt:PPS_3154","ppx:T1E_2051","ppun:PP4_21640","ppud:DW66_3426","sme:SMc02610", "mby:MSBRM_0152"]
-    test_pathway.pathway_genes_organismo(kegg_IDs)
-    test_pathway.pathway_pdf("test_pathway_genes_organismo")
-
-def test_pathway_genes_diferencial():
-    df_pair = pd.DataFrame(
-        [[1, 2, 3, 4, 5], [2, 3, 4, 5, 6], [3, 4, 5, 6, 7], [4, 5, 6, 7, 8], [5, 6, 7, 8, 9]],
-        columns=['c1', 'c2', 'c3', 'c4', 'c5'],
-        index=["pmy:Pmen_3467","pre:PCA10_14290","mba:Mbar_A0841","psub:Pelsub_P2997","mby:MSBRM_0151"])
-
-    df_odd = pd.DataFrame(
-        [[1, 2, 3, 4], [2, 3, 4, 5], [3, 4, 5, 6], [4, 5, 6, 7],
-         [5, 6, 7, 8]],
-        columns=['c1', 'c2', 'c3', 'c4'],
-        index=["pmy:Pmen_3467", "pre:PCA10_14290", "mba:Mbar_A0841",
-               "psub:Pelsub_P2997", "mby:MSBRM_0151"])
-
-    def_nine = pd.DataFrame(
-        [[1, 2, 5, 15, 17, 19, 45, 55, 50], [2, 4, 3, 20, 19, 22, 50, 52, 70], [2, 1, 2, 20, 15, 24, 50, 57, 48], [2, 5, 10, 22, 25, 20, 60, 61, 65],
-         [1, 3, 4, 20, 15, 19, 50, 66, 48]],
-        columns=['c1', 'c2', 'c3', 'c4', "c5", "c6", "c7", "c8", "c9"],
-        index=["pmy:Pmen_3467", "pre:PCA10_14290", "mba:Mbar_A0841",
-               "psub:Pelsub_P2997", "mby:MSBRM_0151"])
-
-    def_nine = pd.DataFrame(
-        [[1, 2, 5, 15, 17, 19, 45, 55, 50], [2, 4, 3, 20, 19, 22, 50, 52, 70],
-         [2, 1, 2, 20, 15, 24, 50, 57, 48], [2, 5, 10, 22, 25, 20, 60, 61, 65]],
-        columns=['c1', 'c2', 'c3', 'c4', "c5", "c6", "c7", "c8", "c9"],
-        index=[ "pre:PCA10_14290", "mba:Mbar_A0841",
-               "psub:Pelsub_P2997","mby:MSBRM_0151"])
-
-    print(def_nine)
-    test_pathway = Pathway("map00680")
-    #test_pathway.pathway_genes_diferencial(df_pair)
-    #test_pathway.pathway_genes_diferencial(df_odd)
-    test_pathway.pathway_genes_diferencial(def_nine, 100, 9)
-    test_pathway.pathway_pdf("test_pathway_genes_diferencial")
-
-def test_pathway_genes_amostras():
-    test_pathway = Pathway("map00680")
-    kegg_IDs_matrix = [["ppg:PputGB1_2248", "ppt:PPS_3154", "ppx:T1E_2051",
-                "ppun:PP4_21640", "ppud:DW66_3426", "sme:SMc02610",
-                "mby:MSBRM_0152"]]
-    test_pathway.pathway_genes_amostras(kegg_IDs_matrix)
-    test_pathway.pathway_pdf("test_pathway_genes_amostras")
-
-
-def test_genomic_potential_genus():
-    data = MoscaData("all_info_normalized.csv",["map00680"])
-    samples_mg = ["grinder-reads0.17a", "grinder-reads0.17b", "grinder-reads0.17c"]
-    data.genomic_potential_genus(samples_mg, ["Pseudomonas", "Methanosarcina","Pelolinea","Thermoplasmatales"])
-
-
-def test_genomic_potential_sample():
-    data = MoscaData("all_info_normalized.csv", ["map00680"])
-    samples_mg = ["grinder-reads0.17a", "grinder-reads0.17b","grinder-reads0.17c"]
-    data.genomic_potential_sample(samples_mg)
-    data.pathway_pdf("test_genomic_potential_sample")
-
-
-def test_diferential_expression_sample():
-    data = MoscaData("all_info_normalized_all.csv")
-    #data.set_pathway(["map00680"])
-
-    samples_mt = ["grinder-reads1a", "grinder-reads1b", "grinder-reads1c", "grinder-reads3a", "grinder-reads3b", "grinder-reads3c"]
-
-
-    data.diferential_expression_sample(samples_mt, True)
-    data.diferential_expression_sample(samples_mt, False)
-
-
-############################################################################
-####                            Main                                    ####
-############################################################################
-
-if __name__ == '__main__':
-    ## Test Functions
-    #test_clean_pathway()
-    #test_pathway_genes()
-    #test_pathway_organismo()
-    #test_pathway_genes_organismo()
-    #test_pathway_genes_diferencial()
-    #test_pathway_genes_amostras()
-    test_genomic_potential_genus()
-    #test_genomic_potential_sample()
-    #test_diferential_expression_sample()
-    import matplotlib as mpl
-
-
-    '''
-    import matplotlib.pyplot as plt
-    from matplotlib.offsetbox import (TextArea, DrawingArea, OffsetImage,
-                                      AnnotationBbox)
-    from matplotlib.cbook import get_sample_data
-    from PIL import Image
+                if log:
+                    name_pdf = str(map) + "_" + "differential_expression" + "_" + "log"
+                    pathway.pathway_pdf(name_pdf)
+                    
+                else:
+                    name_pdf = str(map) + "_" + "differential_expression_"
+                    pathway.pathway_pdf(name_pdf)
+                print("Map saved to " + name_pdf + ".pdf")
+                self.differential_colorbar(new_df, name_pdf + ".png")
+                
+            if True:
+                print(str(map) + " - Failed to process")
+                
     
-    im = plt.imread(get_sample_data('/home/nowinder/Projects/Uminho/Projeto/test_pathway.png'))
+    def potential_legend(self, colors, labels, filename):
+        colors = colors
+        print(len(colors))
+        f = lambda m,c: plt.plot([],[],marker=m, color=c, ls="none")[0]
+        handles = [f("s", colors[i]) for i in range(len(colors))]
+        labels = labels
+        print(len(labels))
+        legend = plt.legend(handles, labels, loc=3, framealpha=1, frameon=True)
 
-    fig, ax = plt.subplots()
-    ax.plot(range(10))
-    newax = fig.add_axes([0, 0, 1, 1], anchor='NE', zorder=1)
-    newax.imshow(im)
-    newax.axis('off')
-    plt.savefig('myfig.png', dpi=5000
-    plt.show()
+        def export_legend(legend, filename="legend.png", expand=[-5,-5,5,5]):
+            fig  = legend.figure
+            fig.canvas.draw()
+            bbox  = legend.get_window_extent()
+            bbox = bbox.from_extents(*(bbox.extents + np.array(expand)))
+            bbox = bbox.transformed(fig.dpi_scale_trans.inverted())
+            fig.savefig(filename, dpi="figure", bbox_inches=bbox)
 
+        export_legend(legend, filename)
 
-    min, max = (-40, 30)
-    step = 10
-    mymap = cm.get_cmap("rainbow")
-    Z = [[0, 0], [0, 0]]
-    levels = range(min, max + step, step)
-
-    CS3 = plt.contourf(Z, levels, cmap=mymap)
-    plt.clf()
-    plt.colorbar(CS3)  # using the colorbar info I got from contourf
-    plt.axis('off')
-    plt.show()
-    # plt.figure(figsize=(1023.36 / 100, 670.8 / 100), dpi=10)
-
-    plt.savefig('myfig.pdf')    
-    '''
-
-
+    def differential_colorbar(self, dataframe, filename):
+        FIGSIZE = (2,3)
+        mpb = plt.pcolormesh(dataframe,cmap='coolwarm')
+        fig,ax = plt.subplots(figsize=FIGSIZE)
+        plt.colorbar(mpb,ax=ax)
+        ax.remove()
+        plt.savefig(filename,bbox_inches='tight')
+                
