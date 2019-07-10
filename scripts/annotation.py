@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 MOSCA's Annotation package for Gene Calling and 
 Alignment of identified ORFs to UniProt database

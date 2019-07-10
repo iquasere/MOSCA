@@ -21,6 +21,8 @@ class MetaProteomicsAnalyser:
     
     def __init__ (self, **kwargs):
         self.__dict__ = kwargs
+        self.searchgui_exe = glob.glob('SearchGUI-*.*.*/SearchGUI-*.*.*.jar')[-1]
+        self.peptide_shaker_exe = glob.glob('PeptideShaker-*.*.*/PeptideShaker-*.*.*.jar')[-1]
         
     '''   
     input: 
@@ -86,7 +88,7 @@ class MetaProteomicsAnalyser:
         confirmation of cRAP database presence in the folder, or download of the 
         database if absent
     '''    
-    def verify_crap_db(self, crap_database):
+    def verify_crap_db(self, crap_database = 'MOSCA/Databases/metaproteomics/crap.fasta'):
         if os.path.isfile(crap_database):
             print('cRAP database exists at ' + crap_database)
         else:
@@ -98,90 +100,105 @@ class MetaProteomicsAnalyser:
     input:
         protein_fasta: fasta file with proteins from MG analysis, plus trypsin 
         and cRAP sequences
+        searchgui_exe: executable .jar of searchgui
     output:
         a FASTA file named "database + _concatenated_target_decoy.fasta" will be 
         created, containing interleaved original and decoy sequences
     ''' 
-    def create_decoy_database(self, database):
-        bashCommand = ('searchgui eu.isas.searchgui.cmd.FastaCLI -in ' 
-                       + database + ' -decoy')
-        mtools.run_command(bashCommand)
+    def create_decoy_database(self, database, searchgui_exe):
+        decoy_database = database.replace('.fasta', '_concatenated_target_decoy.fasta')
+        if not os.path.isfile(decoy_database):
+            bashCommand = ('java -cp {} eu.isas.searchgui.cmd.FastaCLI -in {} -decoy'.format(
+                    searchgui_exe, database))
+            mtools.run_command(bashCommand)
+        else:
+            print(decoy_database + ' already exists!')
         
     '''   
     input: 
         output: name of parameters file
         database: name of FASTA decoy database
+        searchgui_exe: executable .jar of searchgui
     output:
         a parameters file will be produced for SearchCLI and/or PeptideShakerCLI
     ''' 
-    def generate_parameters_file(self, output, database):
-        bashCommand = ('searchgui eu.isas.searchgui.cmd.IdentificationParametersCLI ' + 
-                       '-out ' + output + ' -db ' + database + ' -prec_tol 10 ' + 
-                       '-frag_tol 0.02 -enzyme Trypsin -fixed_mods "Carbamidomethylation of C"' +
-                       ' -variable_mods "Oxidation of M" -mc 2')
+    def generate_parameters_file(self, output, database, searchgui_exe):
+        bashCommand = ('java -cp {} eu.isas.searchgui.cmd.IdentificationParametersCLI ' + 
+                       '-out {} -db {} -prec_tol 10 -frag_tol 0.02 -enzyme Trypsin ' +
+                       '-fixed_mods "Carbamidomethylation of C" -variable_mods ' + 
+                       '"Oxidation of M, Acetylation of protein N-term" -mc 2').format(
+                               searchgui_exe, output, database)
         print(bashCommand)
         bashCommand_correct = shlex.split(bashCommand)                              #the usual way with MoscaTools is not working here, dunno why
         process = subprocess.Popen(bashCommand_correct, stdout=subprocess.PIPE)
         output, error = process.communicate()
-        #mtools.run_command(bashCommand)
-        
-    '''   
-    input: 
-        spectra_folder: folder containing the raw spectra files
-        output: folder to output results
-        parameters_file: parameters filename 
-    output:
-        a "searchgui_out.zip" file will be created in the output folder
-    ''' 
-    def peptide_spectrum_matching(self, spectra_folder, output, parameters_file,
-                                  search_engines = ['xtandem', 'myrimatch', 'msgf']):
-        bashCommand = ('searchgui eu.isas.searchgui.cmd.SearchCLI -spectrum_files '
-                       + spectra_folder + ' -output_folder ' + output + ' -id_params ' 
-                       + parameters_file +
-                       ''.join([' -' + engine + ' 1' for engine in search_engines]))
         mtools.run_command(bashCommand)
         
     '''   
     input: 
         spectra_folder: folder containing the raw spectra files
-        experiment_name: name of experiment
-        sample_name: name of sample
-        replicate_number: number of replicate (STRING)
+        output: folder to output results
+        parameters_file: parameters filename
+        searchgui_exe: executable .jar of searchgui
+        search_engines: search engines to perform PSM
+    output:
+        a "searchgui_out.zip" file will be created in the output folder
+    ''' 
+    def peptide_spectrum_matching(self, spectra_folder, output, 
+                                  parameters_file, searchgui_exe,
+                                  search_engines = ['xtandem', 'myrimatch', 'msgf'],
+                                  threads = '12'):
+        bashCommand = ('java -cp {} eu.isas.searchgui.cmd.SearchCLI -spectrum_files ' +
+                       '{} -output_folder {} -id_params {} -threads {}' + 
+                       ''.join([' -' + engine + ' 1' for engine in search_engines])).format(
+                               searchgui_exe, spectra_folder, output, parameters_file, 
+                               threads)
+        mtools.run_command(bashCommand)
+        
+    '''   
+    input: 
+        spectra_folder: folder containing the raw spectra files
         output: folder to output results
         parameters_file: parameters filename
         searchcli_output: searchcli output filename
         peptideshaker_output: peptideshaker output filename
+        peptide_shaker_exe: executable .jar of peptide-shaker
+        experiment_name: name of experiment
+        sample_name: name of sample
+        replicate_number: number of replicate (STRING)
     output:
         a file will be outputed with the validation of the PSMs and protein
         identifications
     ''' 
-    def browse_identification_results(self, spectra_folder, experiment_name, 
-                                      sample_name, replicate_number, parameters_file,
-                                      searchcli_output, peptideshaker_output):
-        bashCommand = ('peptide-shaker eu.isas.peptideshaker.cmd.PeptideShakerCLI ' +
-                       '-spectrum_files ' + spectra_folder + ' -experiment ' + 
-                       experiment_name + ' -sample ' + sample_name + ' -replicate ' + 
-                       replicate_number + ' -identification_files ' + searchcli_output + 
-                       ' -out ' + peptideshaker_output)
+    def browse_identification_results(self, spectra_folder, parameters_file,
+                                      searchcli_output, peptideshaker_output,
+                                      peptide_shaker_exe, experiment_name = 'MyExperiment', 
+                                      sample_name = 'MySample', replicate_number = '1'):
+        bashCommand = ('java -cp {} eu.isas.peptideshaker.cmd.PeptideShakerCLI ' +
+                       '-spectrum_files {} -experiment {} -sample {} -replicate ' + 
+                       '{} -identification_files {} -out {}').format(
+                        peptide_shaker_exe, spectra_folder, experiment_name, sample_name, 
+                        replicate_number, searchcli_output, peptideshaker_output)
         mtools.run_command(bashCommand)
        
     '''   
     input: 
         peptideshaker_output: peptideshaker output filename
         reports_folder: folder to where output reports
+        peptide_shaker_exe: executable .jar of peptide-shaker
         reports_list: list of INTEGERS from 0 to 11 corresponding to the reports
         to output
     output:
         if it doesn't exist, "reports_folder" will be created
         reports will be outputed to "reports_folder"
     ''' 
-    def generate_reports(self, peptideshaker_output, reports_folder, 
+    def generate_reports(self, peptideshaker_output, reports_folder, peptide_shaker_exe,
                          reports_list = [str(n) for n in range(12)]):
         print('Created ' + reports_folder)
         pathlib.Path(reports_folder).mkdir(parents=True, exist_ok=True)                 # creates folder for reports
-        bashCommand = ('peptide-shaker eu.isas.peptideshaker.cmd.ReportCLI -in ' + 
-                       peptideshaker_output + ' -out_reports ' + reports_folder + 
-                       ' -reports ' + ','.join(reports_list))
+        bashCommand = ('java -cp {} eu.isas.peptideshaker.cmd.ReportCLI -in ' + 
+                       '{} -out_reports {} -reports ' + ','.join(reports_list)).format(
+                               peptide_shaker_exe, peptideshaker_output, reports_folder)
         mtools.run_command(bashCommand)
         
     '''   
@@ -247,7 +264,7 @@ class MetaProteomicsAnalyser:
         fractions = root.find("fractions")
         ptms = root.find("ptms")
         paramGroupIndices = root.find("paramGroupIndices")
-        files = mtools.sort_alphanumeric(glob.glob(spectra_folder + '/*.RAW'))
+        files = mtools.sort_alphanumeric(glob.glob(spectra_folder + '/*.wiff'))
         for i in range(len(files)):
             print('Adding file: ' + files[i])
             etree.SubElement(filePaths, 'string').text = files[i]
@@ -290,26 +307,45 @@ class MetaProteomicsAnalyser:
             self.run_maxquant(self.output + '/mqpar.xml', self.spectra_folder, self.output)
             
         elif self.workflow == 'compomics':
-            self.create_decoy_database(self.output + '/database.fasta')
-            self.generate_parameters_file(self.output + '/params.par', 
-                                          self.output + '/database_concatenated_target_decoy.fasta')
+            self.create_decoy_database(self.database, self.searchgui_exe)
+            try:                                                                # reference to https://github.com/compomics/searchgui/issues/217
+                self.generate_parameters_file(self.output + '/params.par', 
+                    self.database.replace('.fasta', '_concatenated_target_decoy.fasta'),
+                    self.searchgui_exe)
+            except:
+                print('An illegal reflective access operation has occurred. But MOSCA can handle it.')
             self.peptide_spectrum_matching(self.spectra_folder, self.output, 
-                                           self.output + '/params.par')
-            self.browse_identification_results(self.spectra_folder, self.experiment_name, 
-                        self.sample_name, self.replicate_number, self.output + '/params.par', 
-                        self.output + '/searchgui_out.zip', self.output + '/ps_output.cpsx')
-            self.generate_reports(self.output + '/ps_output.cpsx', self.output + '/reports')
+                                           self.output + '/params.par',
+                                           self.searchgui_exe)
+            self.browse_identification_results(self.spectra_folder, self.output + '/params.par', 
+                        self.output + '/searchgui_out.zip', self.output + '/ps_output.cpsx',
+                        self.peptide_shaker_exe)
+            try:
+                self.generate_reports(self.output + '/ps_output.cpsx', self.output + '/reports',
+                                      self.peptide_shaker_exe)
+            except:
+                print('No identifications?')
+            '''
             self.spectra_counting((self.output + '/reports/' + self.experiment_name + 
                                   '_' + self.sample_name + '_' +  self.replicate_number + 
                                   '_Default_Protein_Report.txt'), self.blast,
                                   self.output + '/Spectra_counting.tsv')
+            '''
             
 if __name__ == '__main__':
     
-    mp = MetaProteomicsAnalyser(workflow = 'maxquant',
-                                output = '/mnt/HDDStorage/jsequeira/MGMP/Metaproteomics/MaxQUANT',
-                                spectra_folder = '/mnt/HDDStorage/jsequeira/MGMP_datasets',
-                                threads = '12',
-                                experiment_names = ['OL']*24 + ['OLBES']*24 + ['PAL']*24 +['EST']*24+['Blanc']*5)
-    
-    mp.run()
+    for i in range(1,7):
+        js = [1,9] if i != 2 else [1,4]
+        for j in js:
+            spectra_folder_folder = '/home/jsequeira/Catia_MS/mgf/sample{}_{}'.format(str(i),str(j))
+            
+            mp = MetaProteomicsAnalyser(workflow = 'compomics',
+                                        output = spectra_folder_folder,
+                                        spectra_folder = spectra_folder_folder,
+                                        threads = '12',
+                                        database = '/home/jsequeira/Catia_MS/mgf/database.fasta',
+                                        experiment_name = 'Catia_MS',
+                                        sample_name = 'sample{}_{}'.format(str(i),str(j)),
+                                        replicate_number = str(i))
+            
+            mp.run()

@@ -63,8 +63,11 @@ wget ftp://ftp.ncbi.nlm.nih.gov/pub/COG/COG/whog -P MOSCA/Databases/COG
 wget https://github.com/aleimba/bac-genomics-scripts/raw/master/cdd2cog/cdd2cog.pl -P MOSCA/scripts
 #sed -i '302s#.*#    my $pssm_id = $1 if $line[1] =~ /^gnl\\|CDD\\|(\\d+)/; \# get PSSM-Id from the subject hit#' MOSCA/cdd2cog.pl      # Sometimes this is needed... will save when use of uninitialized value floods the screen - when they change from CDD:number to gnl|CDD|number
 # Metaproteomics
-conda install -y -c bioconda searchgui
-conda install -y -c bioconda peptide-shaker
+apt-get install -y libpwiz-tools
+wget http://genesis.ugent.be/maven2/eu/isas/searchgui/SearchGUI/3.3.16/SearchGUI-3.3.16-mac_and_linux.tar.gz
+tar -xzvf SearchGUI-3.3.16-mac_and_linux.tar.gz
+wget http://genesis.ugent.be/maven2/eu/isas/peptideshaker/PeptideShaker/1.16.41/PeptideShaker-1.16.41.zip
+unzip PeptideShaker-1.16.41.zip
 conda install -y -c bioconda maxquant
 # Krona plotting
 git clone https://github.com/marbl/Krona.git

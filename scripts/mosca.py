@@ -59,8 +59,9 @@ parser.add_argument("-tod", "--type-of-data", default = "metatranscriptomics",
 parser.add_argument("-c","--conditions", type=str, nargs = '*',
                     help="""Different conditions for metatranscriptomics/metaproteomics 
                     analysis, separated by comma (,)""")
-parser.add_argument("-t","--threads",type=str,metavar = "Threads", default = str(multiprocessing.cpu_count() - 2),
-                    help="Number of threads available for MOSCA")
+parser.add_argument("-t","--threads",type=str, metavar = "Threads", 
+                    default = str(multiprocessing.cpu_count()),
+                    help="Number of threads available for MOSCA. Default is number of cores available.")
 parser.add_argument("-m","--memory",type=str,
                     help="Maximum memory (byte) available for MOSCA. Applied only in the assembly")
 parser.add_argument("-mark","--marker-gene-set",type=str,
