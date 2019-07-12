@@ -316,7 +316,7 @@ class MetaProteomicsAnalyser:
                 print('An illegal reflective access operation has occurred. But MOSCA can handle it.')
             self.peptide_spectrum_matching(self.spectra_folder, self.output, 
                                            self.output + '/params.par',
-                                           self.searchgui_exe)
+                                           self.searchgui_exe, threads = self.threads)
             self.browse_identification_results(self.spectra_folder, self.output + '/params.par', 
                         self.output + '/searchgui_out.zip', self.output + '/ps_output.cpsx',
                         self.peptide_shaker_exe)
@@ -342,7 +342,7 @@ if __name__ == '__main__':
             mp = MetaProteomicsAnalyser(workflow = 'compomics',
                                         output = spectra_folder_folder,
                                         spectra_folder = spectra_folder_folder,
-                                        threads = '12',
+                                        threads = '15',
                                         database = '/home/jsequeira/Catia_MS/mgf/database.fasta',
                                         experiment_name = 'Catia_MS',
                                         sample_name = 'sample{}_{}'.format(str(i),str(j)),
