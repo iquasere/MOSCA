@@ -17,7 +17,7 @@ import os, pathlib, shlex, subprocess, glob, shutil
 
 mtools = MoscaTools()
 
-class MetaProteomicsAnalyser:
+class MetaproteomicsAnalyser:
     
     def __init__ (self, **kwargs):
         self.__dict__ = kwargs
@@ -204,21 +204,37 @@ class MetaProteomicsAnalyser:
     '''   
     input: 
         protein_report: name of file containing protein report from PeptideShaker
-        blast: name of blast file with UniProt annotations
         output: name of file to output
+        blast: name of blast file with UniProt annotations - only needed if uniprot_ids = False
+        uniprot_ids: boolean, True if protein sequences already are named with UniProt IDs
+            If False, will need blast file to retrieve the UniProt IDs from
+        samples_names: names of samples respective to protein_reports
     output:
         A tab separated spectra count file named "output", with UniProt IDs
         and corresponding spectra quantification
     '''
-    def spectra_counting(self, protein_report, blast, output):
-        report = pd.read_csv(protein_report, sep = '\t', index_col = 0)
-        blast = DIAMOND(out = blast).parse_result()
-        blast['sseqid'] = [ide.split('|')[-1] for ide in blast.sseqid]
-        report = pd.merge(report, blast[['qseqid','sseqid']], 
-                         left_on = 'Main Accession', right_on = 'qseqid')
-        report = report[['sseqid', '#Peptides']]
-        report = report.groupby('sseqid')['#Peptides'].sum().reset_index()
-        report.to_csv(output, sep = '\t', index = False, header = None)
+    def spectra_counting(self, protein_reports, output, blast = None, uniprot_ids = False,
+                         samples_names = None):
+        protein_reports = mtools.sort_alphanumeric(protein_reports)
+        if samples_names is None:
+            samples_names = [filename.split('/')[-3] for filename in protein_reports]  # samples names are the folder containing the reports folder 
+        spectra_count = pd.DataFrame(columns = ['Main Accession'])
+        for i in range(len(protein_reports)):
+            report = pd.read_csv(protein_reports[i], sep = '\t', index_col = 0)
+            if not uniprot_ids:
+                blast = DIAMOND(out = blast).parse_result()
+                blast['sseqid'] = [ide.split('|')[-1] for ide in blast.sseqid]
+                report = pd.merge(report, blast[['qseqid','sseqid']], 
+                                 left_on = 'Main Accession', right_on = 'qseqid')
+                report = report[['sseqid', '#PSMs']]
+            else:
+                report = report[['Main Accession', '#PSMs']]
+            report.columns = ['Main Accession', samples_names[i]]
+            report = report.groupby('Main Accession')[samples_names[i]].sum().reset_index()
+            spectra_count = pd.merge(spectra_count, report, on = 'Main Accession',
+                                     how = 'outer')
+        spectra_count[samples_names] = spectra_count[samples_names].fillna(value = 0).astype(int)
+        spectra_count.to_csv(output, sep = '\t', index = False)
         
     '''
     MetaProteomics with MaxQuant
@@ -333,7 +349,7 @@ class MetaProteomicsAnalyser:
             '''
             
 if __name__ == '__main__':
-    
+    '''
     for i in range(1,7):
         js = [1,9] if i != 2 else [1,4]
         for j in js:
@@ -349,3 +365,12 @@ if __name__ == '__main__':
                                         replicate_number = str(i))
             
             mp.run()
+    '''
+    
+    mp = MetaproteomicsAnalyser()
+    
+    files = glob.glob('/home/jsequeira/Catia_MS/mgf/*/reports/MyExperiment_MySample_1_Default_Protein_Report.txt')
+    
+    mp.spectra_counting(files, '/home/jsequeira/Catia_MS/mgf/spectra_count.tsv',
+                        uniprot_ids = True)
+    

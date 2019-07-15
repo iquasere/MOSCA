@@ -67,7 +67,7 @@ dev.off()
 # Sample expressions differential analysis
 sampleDists <- dist(t(assay(vsd)))
 sampleDistMatrix <- as.matrix(sampleDists)
-rownames(sampleDistMatrix) <- dds$condition
+rownames(sampleDistMatrix) <- colnames(total)
 colnames(sampleDistMatrix) <- NULL
 colors <- colorRampPalette( rev(brewer.pal(9, "Blues")) )(255)
 jpeg(paste(opt$output, "sample_distances.jpeg", sep = '/'))

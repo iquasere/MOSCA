@@ -1,27 +1,22 @@
 #!/usr/bin/env python
 
-from Bio import SeqIO
-from Bio.KEGG.REST import *
+from Bio.KEGG.REST import kegg_get, kegg_link, kegg_list, Pathway
 from Bio.KEGG.KGML import KGML_parser
 from Bio.Graphics.KGML_vis import KGMLCanvas
 from Bio.KEGG.KGML import KGML_pathway
 from matplotlib import cm
 from matplotlib.colors import to_hex
 import matplotlib.pyplot as plt
-import re
-import pandas as pd
-import numpy as np
-import progressbar
-import matplotlib.pyplot as plt
+import re, pandas as pd, numpy as np
 
 __author__ = "Tiago Oliveira"
-__credits__ = ["Joao Sequeira"]
+__credits__ = ["Tiago Oliveira", "Joao Sequeira"]
 __version__ = "1.0"
 __maintainer__ = "Tiago Oliveira"
 __email__ = "tiagomanuel28@gmail.com"
 __status__ = "Production"
 ################################################################################
-class Pathway():
+class KeggMaps():
 
     def __init__(self, pathway_ID):
         '''
@@ -66,7 +61,7 @@ class Pathway():
         :param pathway_element: kegg pathway xml element object
         :param color:  color to be used in rgb
         '''
-        pathway_element.graphics[0].bgcolor = color
+        pathway_element.graphics[0].fgcolor = color
 
     def _set_colors(self, colors = [], ncolor = 1):
         '''
@@ -362,7 +357,6 @@ class Pathway():
         '''
         width = rec_old.graphics[0].width / nrboxes
         movement_steps = width
-        n = 0
         newrecord = KGML_pathway.Graphics(rec_old)
         newrecord.name = ""
         newrecord.type = "rectangle"
@@ -408,7 +402,7 @@ class Pathway():
          speciescod:geneID
         :param color: hex color code
         '''
-        self.KEGG_ID, ortholog_ID = self.convert_KEGGID_koID(KEGG_ID)
+        self.KEGG_ID, ortholog_ID = self.KEGGID2KO(KEGG_ID)
         color1 = self._set_colors(color)[0]
         for ortholog_rec in self.pathway.orthologs:
             for ortholog in ortholog_rec.name.split(" "):
@@ -433,7 +427,7 @@ class Pathway():
         for gene_rec in pathway_organism.genes:
             for gene in gene_rec.name.split(" "):
                 organism_kegg_ID.append(gene)
-        organism_ortholog_ID = self.convert_KEGGID_koID(organism_kegg_ID)[1]
+        organism_ortholog_ID = self.KEGGID2KO(organism_kegg_ID)[1]
 
         for ortholog_rec in self.pathway.orthologs:
             for ortholog in ortholog_rec.name.split(" "):
@@ -450,7 +444,7 @@ class Pathway():
         :param maxshared: naximum number of boxes to be drawed
         :param color: list of hex color codes to be used to color the pathway map
         '''
-        coverted_KEGG_ID, orthologs_ID = self.convert_KEGGID_koID(KEGG_ID)
+        coverted_KEGG_ID, orthologs_ID = self.KEGGID2KO(KEGG_ID)
         organisms = self.organismo_genes(coverted_KEGG_ID)
 
         # Set colors
@@ -518,7 +512,7 @@ class Pathway():
         :param colormap: str with name of matplotlib colormap to be used
         :return:
         '''
-        coverted_KEGG_ID, orthologs_ID = self.convert_KEGGID_koID(dataframe.index.tolist())
+        coverted_KEGG_ID, orthologs_ID = self.KEGGID2KO(dataframe.index.tolist())
         dataframe = dataframe.ix[coverted_KEGG_ID] # filtrar kegg_IDs com KO
         orthologs_dic = self.ortholog_dic()
 
@@ -681,18 +675,17 @@ class MoscaData():
         else:
             self.pathway = self.maps().keys()
 
-
     def load_file(self, file):
         '''
         Load MOSCA .csv file and prepares it for operations
         :param file: .csv file from MOSCA analysis
         return: pandas DataFrame object containing the formated .csv data
         '''
-        df = pd.read_csv(file, delimiter=",", index_col=["Cross-reference (KEGG)"])
+        df = pd.read_csv(file, sep = '\t', index_col=["Cross-reference (KEGG)"])
         df = df[df.index.notnull()]
-        coverted_KEGG_ID, orthologs_ID = self.convert_KEGGID_koID(df.index.tolist())
+        coverted_KEGG_ID, orthologs_ID = self.KEGGID2KO(df.index.tolist())
         converted_dic = {}
-        for i in range(0, len(coverted_KEGG_ID)):
+        for i in range(len(coverted_KEGG_ID)):
             coverted_KEGG_ID[i] = str(coverted_KEGG_ID[i]) + ";"
             converted_dic[coverted_KEGG_ID[i]] = orthologs_ID[i]
         df = df.loc[coverted_KEGG_ID]
@@ -776,17 +769,18 @@ class MoscaData():
     ####                              Helper                                ####
     ############################################################################
 
-    def convert_KEGGID_koID(self, KEGG_ID):
+    def KEGGID2KO(self, KEGG_ID, step = 150):
         '''
         Converts KEGG_ID genes to Ortholog KO ID from KEGG
         :param KEGG_ID: (list) - KEGG ID genes
+        :param step: (int) - will convert "step" KEGG IDs at a time
         :return: (tupple) - (list,list) - KEGG ID genes converted and ko IDs
         '''
         #TODO Adicionar excecoes para gerir KEGG IDs incorretos
         coverted_KEGG_ID = []
         orthologs_ID = []
         print(len(KEGG_ID))
-        if len(KEGG_ID) <= 150:
+        if len(KEGG_ID) <= step:
             links = kegg_link("ko", KEGG_ID).read().split("\n")
             for link in links:
                 if len(link) > 1:
@@ -794,14 +788,14 @@ class MoscaData():
                     orthologs_ID.append(link.split("\t")[1][3:])
         else:
             i = 0
-            while ((i+150) < len(KEGG_ID)):
+            while ((i+step) < len(KEGG_ID)):
                 print(i)
-                links = kegg_link("ko", KEGG_ID[i:i+150]).read().split("\n")
+                links = kegg_link("ko", KEGG_ID[i:i+step]).read().split("\n")
                 for link in links:
                     if len(link) > 1:
                         coverted_KEGG_ID.append(link.split("\t")[0])
                         orthologs_ID.append(link.split("\t")[1][3:])
-                i += 150
+                i += step
             links = kegg_link("ko", KEGG_ID[i:len(KEGG_ID)]).read().split("\n")
             for link in links:
                 if len(link) > 1:
@@ -907,7 +901,6 @@ class MoscaData():
                                     dic_boxes[box] = [genu]
                 
                 pathway.pathway_box_list(dic_boxes, present_genus, len(genus), colors)
-
                 
                 df = self.data[samples]
                 df = df[df.any(axis=1)]
@@ -922,10 +915,6 @@ class MoscaData():
                 print(grey_boxes)
                 pathway.grey_boxes(grey_boxes)
 
-
-                
-
-            
                 name_pdf = str(map) + "_" + "genomic_potential"
                 pathway.pathway_pdf(name_pdf)
                 print("Map saved to " + name_pdf + ".pdf")
@@ -940,9 +929,6 @@ class MoscaData():
                     self.potential_legend(colors, genus, str(name_pdf) + ".png")
             except:
                 print(str(map) + " - Failed to process")
-        
-                
-
 
     def genomic_potential_sample(self, samples, threshold = 0):
         '''

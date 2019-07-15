@@ -1,4 +1,4 @@
-# TMM normalization
+# Normalization of gene expression data
 # By João Sequeira
 # Jan 2019
 

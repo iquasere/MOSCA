@@ -413,6 +413,7 @@ class MoscaTools:
         
 
 if __name__ == '__main__':
+    '''
     mtools = MoscaTools()
     
     for n in ['1','2','3','4']:
@@ -422,115 +423,6 @@ if __name__ == '__main__':
         mtools.perform_alignment('MOSCAfinal/Assembly/joined/contigs.fasta', 
                                  reads, 'MOSCAfinal/Metatranscriptomics/mt' + n, 
                                  threads = 10)
+    '''
+    mtools = MoscaTools()
         
-'''
-for name in ['OLDES6_S4_L001','PAL6_S2_L001']:
-    pbar = ProgressBar()
-    fasta = pd.DataFrame.from_dict(parse_fasta(name + '_database.fasta'), orient = 'index')
-    fasta['qseqid'] = fasta.index
-    fasta.reset_index(inplace = True)
-    data = pd.merge(fasta, blast[['qseqid','id']], on = 'qseqid', how = 'inner')
-    with open(name + '_uniprotids_database.fasta','w') as f:
-        for i in pbar(range(len(data))):
-            f.write('>' + data.iloc[i]['id'] + '\n' +  data.iloc[i][0] + '\n')
-'''
-'''
-import pandas as pd, re, sys
-
-ec_re = re.compile("EC:[1-6\-].[0-9\-]+.[0-9\-]+.[0-9\-]+")
-
-
-def read_ecmap(fh):
-    enzymes = []
-    proteins = []
-    for line in fh:
-        items = line.split("\t")
-        m = ec_re.search(items[2])
-        try:
-            ec = m.group().split(":")[1]
-        except AttributeError:
-            continue
-        member = "{}.{}".format(items[0], items[1])
-        proteins.append(member)
-        enzymes.append(ec)
-    return enzymes, proteins
-
-
-def ecmap(f):
-    with open(f) as fh:
-        enzymes, proteins = read_ecmap(fh)
-    return enzymes, proteins
-
-
-def read_cogmap(fh):
-    cogs = []
-    proteins = []
-    for line in fh:
-        items = line.split("\t")
-        prots = items[-1].split(",")
-        cog = [items[1]] * len(prots)
-        cogs += cog
-        proteins += prots
-    return cogs, proteins
-
-
-def cogmap(f):
-    with open(f) as fh:
-        cogs, proteins = read_cogmap(fh)
-    return cogs, proteins
-
-def cog2ec(map_df, frac=0.5):
-    # Group by cog and enzyme to get number of each EC assignment per cog
-    map_df_counts = map_df.groupby(["enzyme", "cog"]).count().reset_index()
-    map_df_counts.index = map_df_counts.cog
-    map_df_counts.drop("cog", axis=1, inplace=True)
-    map_df_counts.sort_index(inplace=True)
-    # Count total number of proteins per cog
-    cog_counts = map_df_counts.groupby(level=0).sum()
-    # Divide enzyme assignment number by total protein number to get fraction of each assignment
-    ecfrac = map_df_counts.protein.div(cog_counts.protein).reset_index()
-    # Get index of where fraction is above threshold
-    index = ecfrac.loc[ecfrac.protein >= frac].index
-    # Return mappings where fraction is above threshold
-    return map_df_counts.iloc[index]
-
-enzymes, proteins = ecmap('/home/jsequeira/eggnog4.protein_id_conversion.tsv')
-ecmap_df = pd.DataFrame(data={"enzyme": enzymes, "protein": proteins})
-
-cogs, proteins = cogmap('/home/jsequeira/NOG.members.tsv')
-cogmap_df = pd.DataFrame(data={"cog": cogs, "protein": proteins})
-
-map_df = pd.merge(ecmap_df, cogmap_df, on="protein")
-
-map_df_counts = map_df.groupby(["enzyme", "cog"]).count().reset_index()
-map_df_counts.index = map_df_counts.cog
-map_df_counts.drop("cog", axis=1, inplace=True)
-map_df_counts.sort_index(inplace=True)
-
-# Count total number of proteins per cog
-cog_counts = map_df_counts.groupby(level=0).sum()
-
-# Divide enzyme assignment number by total protein number to get fraction of each assignment
-ecfrac = map_df_counts.protein.div(cog_counts.protein).reset_index()
-# Get index of where fraction is above threshold
-index = ecfrac.loc[ecfrac.protein >= frac].index
-
-map_df_counts.iloc[index]
-
-new_relation['cog'] = new_map_df_counts.groupby('cog')['protein'].progress_apply(lambda x:
-            x.value_counts().index[0] if len(x.value_counts().index) > 0 else np.nan)
-
-new_relation = list()
-protein_counts = test_df.groupby('cog')['protein'].apply(max)
-protein_counts[cog]
-for cog in pbar(eggnogs):
-    try:
-        new_relation.append([cog,
-                             map_df_counts[map_df_counts['protein'] == protein_counts[cog]]['protein'][0],
-                             map_df_counts[map_df_counts['protein'] == protein_counts[cog]]['enzyme'][0]])
-    except:
-        continue
-    
-def sort_alphanumeric(alphanumeric_list):
-    return sorted(alphanumeric_list, key=lambda item: (int(item.partition(' ')[0]) if item[0].isdigit() else float('inf'), item))
-'''
