@@ -37,6 +37,8 @@ library("DESeq2")
 dds <- DESeqDataSetFromMatrix(countData = total, colData = cd, design = ~condition)
 dds <- DESeq(dds)
 res <- results(dds)
+data <- counts(estimateSizeFactors(dds), normalized=TRUE)
+write.csv(data, paste(file=opt$output, "normalized_counts.csv", sep = '/'), quote = FALSE)
 
 # Bland–Altman plot
 jpeg(paste(opt$output, "ma.jpeg", sep = '/'))
@@ -56,7 +58,8 @@ if(identical(opt$method, "differential")) {
     resOrdered <- res[order(res$padj),]
 } else {
     resOrdered <- res[order(-res$baseMean),]}
-write.csv(as.data.frame(resOrdered), paste(file=opt$output, "condition_treated_results.csv", sep = '/'))
+write.csv(as.data.frame(resOrdered), quote = FALSE, 
+          paste(file=opt$output, "condition_treated_results.csv", sep = '/'))
 vsd <- varianceStabilizingTransformation(dds, blind=FALSE)
 select=rownames(head(resOrdered,20))
 vsd.counts = assay(vsd)[select,]

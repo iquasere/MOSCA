@@ -592,7 +592,7 @@ class Annotater:
         return result
     
     def run(self):
-        #self.gene_calling(self.file, self.out_dir + '/Annotation/' + self.name, self.assembled)
+        self.gene_calling(self.file, self.out_dir + '/Annotation/' + self.name, self.assembled)
         self.annotation()
     
     '''
@@ -606,15 +606,15 @@ class Annotater:
         databases: LIST, name of databases in format for COG analysis
         threads: STR, number of threads to use
     Output: 
-        pandas.DataFrame with abundance and expression information
+        several outputs to folder 'output'
     '''
     def cog_annotation(self, faa, output, cddid = 'MOSCA/Databases/COG/cddid.tbl',
                        whog = 'MOSCA/Databases/COG/whog', fun = 'MOSCA/Databases/COG/fun.txt', 
-                       databases = None, threads = '8'):
+                       databases = None, threads = '14'):
         self.create_split_cog_db('MOSCA/Databases/COG', 'MOSCA/Databases/COG/Cog', threads = threads)
         pns = glob.glob('./MOSCA/Databases/COG/Cog_' + threads + '_*.pn')
         databases = [pn.split('.pn')[0] for pn in pns]
-        self.run_recursively_rpsblast(faa, output + '/cdd_aligned.blast', ' '.join(databases))
+        self.run_rpsblast(faa, output + '/cdd_aligned.blast', ' '.join(databases))
         if os.path.isdir(os.getcwd() + '/results'):                              # the cdd2cog tool does not overwrite, and fails if results directory already exists
             print('Eliminating ' + os.getcwd() + '/results')
             shutil.rmtree(os.getcwd() + '/results', ignore_errors=True)          # is not necessary when running the tool once, but better safe then sorry!
@@ -849,8 +849,25 @@ if __name__ == '__main__':
     
     annotater.global_information()
     '''
-    
+    '''
     annotater = Annotater(out_dir = 'MOSCAfinal', threads = '1')
 
     annotater.cog_annotation('MOSCAfinal/Annotation/fgs_failed.faa', 'debugCOG', 
                              threads = '12')
+    '''
+    
+    annotater = Annotater()
+    
+    #annotater.cog_annotation('/home/jsequeira/Catia_MS/original_results/original_analysis_sequences.fasta','/home/jsequeira/Catia_MS/original_results')
+    
+    cogs = annotater.organize_cdd_blast('/home/jsequeira/Catia_MS/original_results/results/rps-blast_cog.txt')
+    
+    cogs['Entry'] = [ide.split('|')[1] if len(ide.split('|')) == 3 else ide for ide in cogs.qseqid]
+    del cogs['qseqid']
+    
+    data = pd.read_excel('/home/jsequeira/Catia_MS/original_results/oa_simplified.xlsx')
+    
+    joined = pd.merge(data, cogs, on = 'Entry', how = 'outer')
+    
+    joined.to_csv('/home/jsequeira/Catia_MS/original_results/joined.csv',index=False)
+    
