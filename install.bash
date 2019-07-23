@@ -25,13 +25,15 @@ conda install -y diamond
 conda install -y -c conda-forge progressbar33
 conda install -y -c bioconda htseq
 conda install -y -c bioconda bowtie2
-git clone -b devel https://github.com/claczny/VizBin.git
-conda install -c bioconda ant
-conda install -c cyclus java-jdk
-cd VizBin/src/interface/VizBin
-ant jar
-cd ../../../..
 conda install -y -c bioconda maxbin2
+conda install -c anaconda biopython
+conda install -c anaconda reportlab
+#git clone -b devel https://github.com/claczny/VizBin.git
+#conda install -c bioconda ant
+#conda install -c cyclus java-jdk
+#cd VizBin/src/interface/VizBin
+#ant jar
+#cd ../../../..
 conda install -y -c bioconda bioconductor-deseq2=1.22.1
 conda install -y -c bioconda bioconductor-genomeinfodb
 conda install -y -c bioconda bioconductor-genomeinfodbdata
