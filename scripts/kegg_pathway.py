@@ -5,8 +5,10 @@ from Bio.KEGG.KGML import KGML_parser, KGML_pathway
 from Bio.Graphics.KGML_vis import KGMLCanvas
 from matplotlib import cm
 from matplotlib.colors import to_hex
+from io import StringIO
 import matplotlib.pyplot as plt
 import re, pandas as pd, numpy as np
+from progressbar import ProgressBar
 
 __author__ = "Tiago Oliveira"
 __credits__ = ["Tiago Oliveira", "Joao Sequeira"]
@@ -15,10 +17,10 @@ __maintainer__ = "Joao Sequeira"
 __email__ = "maildosequeira@gmail.com"
 __status__ = "Production"
 ################################################################################
-
-class KeggMaps:
+class KeggPathway:
     def __init__(self, **kwargs):
         self.__dict__ = kwargs
+        
         self.maps = {
             # 1. Metabolism
             # 1.0 Global and overview maps
@@ -650,6 +652,27 @@ class KeggMaps:
             '04110','04111','04112','04113','04114','04210','04215','04216','04217',
             '04115','04218','04510','04520','04530','04540','04550','02024','05111',
             '02025','02026','02030','02040','04810']
+        
+    def keggid2ko(self, kegg_ids, step = 150):
+        '''
+        Converts KEGG_ID genes to Ortholog KO ID from KEGG
+        :param KEGG_ID: (list) - KEGG ID genes
+        :param step: (int) - will convert "step" KEGG IDs at a time
+        :return: (list) - (list,list) - KEGG ID genes converted and ko IDs
+        '''
+        result = list()
+        i = 0
+        print('Converting {:d} KEGG IDs to KOs through the KEGG API.'.format(len(kegg_ids)))
+        pbar = ProgressBar()
+        for i in pbar(range(0, len(kegg_ids) - step, step)):
+            result += kegg_link("ko", kegg_ids[i:i+step]).read().split("\n")[:-1]
+            
+        result += kegg_link("ko", kegg_ids[len(kegg_ids) - step:]).read().split("\n")[:-1]; open('conversion.txt', 'w').write('\n'.join(result))
+        result = [relation.split('\t') for relation in result]
+        
+        return list(map(list, zip(*result)))
+
+kp = KeggPathway()
 
 class KeggMap():
 
@@ -658,23 +681,14 @@ class KeggMap():
         Initialize object
         :param pathway_ID: (str) - KEGG Pathway ID
         '''
+        self.pathway_ID = pathway_ID[-5:] if len(pathway_ID) > 5 else pathway_ID
         self.set_pathway(pathway_ID)
         self.KEGG_ID = []
         self.ortholog_ID = []
 
     ############################################################################
-    ####                            Hiden                                   ####
+    ####                            Hidden                                  ####
     ############################################################################
-    def _pathway_ID_handle(self, pathway_ID):
-        '''
-        Parses the pathway ID, extracting the numeric part
-        :param pathway_ID: (str) - full pathway ID
-        :return: (str) pathway ID, int part
-        '''
-        if len(pathway_ID) >5:
-            pathway_ID = pathway_ID[-5:]
-        return str(pathway_ID)
-
     def _set_bgcolor(self, pathway_element, color):
         '''
         Sets graphic element background color
@@ -690,7 +704,7 @@ class KeggMap():
         :param color:  color to be used in rgb
         '''
         pathway_element.graphics[0].fgcolor = color
-
+        
     def _set_colors(self, colors = [], ncolor = 1):
         '''
         Creates list of hex colors to be used,
@@ -772,6 +786,14 @@ class KeggMap():
                 return KGML_parser.read(pathway)
             except:
                 print("Invalid IDs")
+                
+    def reset_pathway(self):
+        '''
+        Resets pathway state
+        '''
+        self.set_pathway(self.pathway_ID)
+        self.KEGG_ID = []
+        self.ortholog_ID = []
 
     def organismo_genes(self, kegg_ID):
         '''
@@ -798,7 +820,7 @@ class KeggMap():
                     orthologs_dic[ortholog] = ortholog_name
         return orthologs_dic
 
-    def convert_koID_EC(self, ko_ID):
+    def ko2ec(self, ko_ID):
         '''
         Converts kegg ortholog id to EC numers
         :param ko_ID: list of kegg ortholog ids
@@ -814,7 +836,7 @@ class KeggMap():
             if len(result) > 1:
                 ko_dic[result.split("\t")[0].strip("ko:")] = result.split("\t")[1].upper()
         return ko_dic
-
+    
     ############################################################################
     ####                            Sets                                    ####
     ############################################################################
@@ -824,10 +846,8 @@ class KeggMap():
         Set pathway with Kegg Pathway ID
         :param pathway_ID: (str) Kegg Pathway ID
         '''
-        self.pathway_ID = self._pathway_ID_handle(pathway_ID)
-        self.pathway = self.load_pathway(self.pathway_ID)
+        self.pathway = self.load_pathway(self.pathway_ID)                       # get the KGML
         ko = []
-
         self.ko_boxes = {}
         for i in range(len(self.pathway.orthologs)):
             self._set_bgcolor(self.pathway.orthologs[i], "#ffffff")             # set all boxes to white
@@ -838,8 +858,9 @@ class KeggMap():
                     self.ko_boxes[ortholog] = list()
                 self.ko_boxes[ortholog].append(i)                               # {'K16157':[0,13,432], 'K16158':[4,13,545]}
             ko.append(self.pathway.orthologs[i].graphics[0].name.strip("."))    # 'K16157...' -> 'K16157'
-
-        ko_to_ec = self.convert_koID_EC(ko)
+        
+        # Set text in boxes to EC numbers
+        ko_to_ec = self.ko2ec(ko)                                               # {'K16157':'ec:1.14.13.25'}
         for ortholog_rec in self.pathway.orthologs:
             ko = ortholog_rec.graphics[0].name.strip(".")
             if ko in ko_to_ec.keys():
@@ -962,7 +983,8 @@ class KeggMap():
     ####                          Operations                                ####
     ############################################################################
 
-    def pathway_pdf(self, filename = "", imagemap = True, orthologs = True, compounds = True, maps = True, reactions = True):
+    def pathway_pdf(self, filename = None, imagemap = True, orthologs = True, 
+                    compounds = True, maps = True, reactions = True):
         '''
         Prints current pathway to PDF file
         :param filename: (str) - PDF filename
@@ -971,36 +993,20 @@ class KeggMap():
         :param compounds: (bol) - Print compounds
         :param maps: (bol) - Print maps
         :param reactions: (bol) - Print reactions ???
-        :return: PDF file with current pathway
+        :return: creates PDF file with current pathway
         '''
         #TODO Verificar o parametro reactions
         pathway_pdf = KGMLCanvas(self.pathway)
-        pathway_pdf.import_imagemap=imagemap
+        pathway_pdf.import_imagemap = imagemap
         pathway_pdf.label_orthologs = orthologs
         pathway_pdf.label_compounds = compounds
         pathway_pdf.label_maps = maps
         pathway_pdf.label_reaction_entries = reactions
 
-        if filename == "":
-            pathway_pdf.draw(str(self.pathway_ID+".pdf"))
+        if filename is None:
+            pathway_pdf.draw(self.pathway_ID + ".pdf")
         else:
-            pathway_pdf.draw(str(filename+".pdf"))
-
-    def pathway_genes(self, KEGG_ID, color=[]):
-        '''
-        Given a list of kegg gene ids colors the pathway map with a specific color
-        :param KEGG_ID: list of kegg gene ids following this sintax:
-         speciescod:geneID
-        :param color: hex color code
-        '''
-        self.KEGG_ID, ortholog_ID = self.keggid2ko(KEGG_ID)
-        color1 = self._set_colors(color)[0]
-        for ortholog_rec in self.pathway.orthologs:
-            for ortholog in ortholog_rec.name.split(" "):
-                if ortholog in ortholog_ID:
-                    self.ortholog_ID.append(ortholog)
-                    self._set_bgcolor(ortholog_rec, color1)
-                    self._set_fgcolor(ortholog_rec, color1)
+            pathway_pdf.draw(filename)
 
     def pathway_organismo(self, organism_ID, color = ""):
         '''
@@ -1018,7 +1024,7 @@ class KeggMap():
         for gene_rec in pathway_organism.genes:
             for gene in gene_rec.name.split(" "):
                 organism_kegg_ID.append(gene)
-        organism_ortholog_ID = self.keggid2ko(organism_kegg_ID)[1]
+        organism_ortholog_ID = kp.keggid2ko(organism_kegg_ID)[1]
 
         for ortholog_rec in self.pathway.orthologs:
             for ortholog in ortholog_rec.name.split(" "):
@@ -1035,7 +1041,7 @@ class KeggMap():
         :param maxshared: naximum number of boxes to be drawed
         :param color: list of hex color codes to be used to color the pathway map
         '''
-        coverted_KEGG_ID, orthologs_ID = self.keggid2ko(KEGG_ID)
+        coverted_KEGG_ID, orthologs_ID = kp.keggid2ko(KEGG_ID)
         organisms = self.organismo_genes(coverted_KEGG_ID)
 
         # Set colors
@@ -1088,73 +1094,6 @@ class KeggMap():
                         ortholog_rec.graphics.append(newrecord)
                         n += 1
                     self.create_tile_box(ortholog_rec)
-
-    def pathway_genes_diferencial(self, dataframe, scale = 100, maxshared = 5, colormap = ""):
-        '''
-        Given a dataframe with expression values and index corresponding to
-        ortholog kegg id, multiples the numbers by the scale number and
-        represents in a heatmap format the expression levels of each sample
-        in each ortholog representation in the pathway map.
-        :param dataframe: pandas dataframe with expression values in each collumn
-        and index corresponding to ortholog kegg id
-        :param scale: int of number to be used to scale the values of dataframe
-        :param maxshared: int with maximum number of boxes to draw in each
-        ortholog representation in pathway map
-        :param colormap: str with name of matplotlib colormap to be used
-        :return:
-        '''
-        coverted_KEGG_ID, orthologs_ID = self.keggid2ko(dataframe.index.tolist())
-        dataframe = dataframe.ix[coverted_KEGG_ID] # filtrar kegg_IDs com KO
-        orthologs_dic = self.ortholog_dic()
-
-        new_index = []
-        for ortholog in orthologs_ID:
-            if ortholog in orthologs_dic.keys():
-                new_index.append(orthologs_dic[ortholog])
-
-        dataframe.index = new_index  # Passar os kegg_ID para Ko
-        #TODO verificar este groupby com sum
-        dataframe = dataframe.groupby(level=0).sum()
-
-        value_range = (dataframe.max().max() - dataframe.min().min()) * scale
-        #dataframe = dataframe.apply(self._scale_values, args=(scale,))
-
-        if colormap == "":
-            colormap = cm.get_cmap("coolwarm",value_range)
-        else:
-            try:
-                colormap = cm.get_cmap(colormap, value_range)
-            except:
-                print("Colormap doesn't exist")
-        print(dataframe)
-        dataframe = dataframe.apply(self._conv_value_rgb, args=(colormap, scale))
-        dataframe = dataframe.apply(self._conv_rgb_hex)
-
-        nrboxes = len(dataframe.columns.tolist())
-        for ortholog_rec in self.pathway.orthologs:
-            ortholog_name = ortholog_rec.name.split(" ")[0]
-            if ortholog_name in dataframe.index.tolist():
-                colors = dataframe.ix[ortholog_name].tolist()
-                if nrboxes > maxshared:
-                    nrboxes = maxshared
-                if nrboxes%2==0:
-                    n = 0
-                    for i in range(-nrboxes+1, nrboxes, 2):
-                        newrecord = self.create_pair_boxes(ortholog_rec, nrboxes, i)
-                        newrecord.bgcolor = colors[n]
-                        ortholog_rec.graphics.append(newrecord)
-                        n+=1
-                    self.create_tile_box(ortholog_rec)
-
-                if nrboxes% 2 != 0:
-                    n= 0
-                    for i in range(int(-(nrboxes-1)/2),int((nrboxes+1)/2)):
-                        newrecord = self.create_odd_boxes(ortholog_rec, nrboxes, i)
-                        newrecord.bgcolor = colors[n]
-                        ortholog_rec.graphics.append(newrecord)
-                        n += 1
-                    self.create_tile_box(ortholog_rec)
-
 
     def pathway_box_list(self, dic_box_items, items, maxshared = 10, color = []):
         '''
@@ -1260,12 +1199,14 @@ class KeggMap():
 ################################################################################
 
 class MoscaData():
-    def __init__(self, file, pathway=[]):
-        self.data = self.load_file(file)
+    def __init__(self, file = None, pathway=[]):
+        if file:
+            self.data = self.load_file(file)
         if len(pathway) > 0:
             self.pathway = pathway
-        else:
-            self.pathway = self.maps().keys()
+            
+    # TODO - whats happens when no pathway is specified
+    # handle MOSCA output/load_file
 
     def load_file(self, file):
         '''
@@ -1275,7 +1216,7 @@ class MoscaData():
         '''
         df = pd.read_csv(file, sep = '\t', index_col=["Cross-reference (KEGG)"])
         df = df[df.index.notnull()]
-        coverted_KEGG_ID, orthologs_ID = self.keggid2ko(df.index.tolist())
+        coverted_KEGG_ID, orthologs_ID = kp.keggid2ko(df.index.tolist())
         converted_dic = {}
         for i in range(len(coverted_KEGG_ID)):
             coverted_KEGG_ID[i] = str(coverted_KEGG_ID[i]) + ";"
@@ -1289,25 +1230,19 @@ class MoscaData():
 
         return df
 
-    def maps(self):
+    def all_kegg_maps(self):
         '''
         Creates a dic with all specific kegg pathway maps and their description
-        :return: dic with all specific kegg pathway maps
+        :return: pandas.DataFrame with Map ID as index and maps names as
+        sole column
         '''
-        pathways = kegg_list("pathway")
-        dic_pathway = {}
-        generalmaps = ["01100", "01110", "01120", "01130", "01200", "01210",
-                       "01212", "01212", "01220"]
-
+        maps = pd.read_csv(StringIO(kegg_list("pathway").read()), sep='\t',
+                           names = ['ID', 'Name'])
         
-        for i in pathways.read().split("\n")[:-1]:
-            pathway = i.split("\t")[0][8:]
-            desc = i.split("\t")[1]
-            if pathway not in generalmaps:
-                dic_pathway[pathway] = desc
-
-
-        return dic_pathway
+        maps['ID'] = maps['ID'].apply(lambda x: x.split(':')[1])
+        maps.set_index('ID', inplace = True)
+        
+        return maps
 
     def top_gemus(self, samples, n=10):
         '''
@@ -1323,64 +1258,9 @@ class MoscaData():
             n = len(data.index.tolist())
         return data.index.tolist()[:n]
 
-    def top_cog(self, samples, n= 10):
-        data = self.data.groupby("COG functional category")[samples].sum()
-        data["sums"] = data.sum(axis=1)
-        data = data.sort_values(by=["sums"], ascending=False)
-        if n > len(data.index.tolist()):
-            n = len(data.index.tolist())
-        return data.index.tolist()[:n]
-
-
-    ############################################################################
-    ####                            Gets                                    ####
-    ############################################################################
-
-    def get_df(self):
-        '''
-        Gets loaded MOSCA data in pandas dataframe format
-        :return: pandas dataframe with MOSCA data
-        '''
-        return self.data
-
-    def set_df(self, df):
-        self.data = pd.read_csv(df, delimiter=",", index_col=["orthologs"])
-
-    ############################################################################
-    ####                            Sets                                    ####
-    ############################################################################
-
-    def set_pathway(self, pathway):
-        '''
-        Sets a pathway
-        :param pathway:  KEGG pathway ID to be set
-        '''
-        self.pathway = pathway
-
     ############################################################################
     ####                              Helper                                ####
     ############################################################################
-
-    def keggid2ko(self, kegg_ids, step = 150):
-        '''
-        Converts KEGG_ID genes to Ortholog KO ID from KEGG
-        :param KEGG_ID: (list) - KEGG ID genes
-        :param step: (int) - will convert "step" KEGG IDs at a time
-        :return: (list) - (list,list) - KEGG ID genes converted and ko IDs
-        '''
-        result = list()
-        i = 0
-        print('Converting {:d} KEGG IDs to KOs through the KEGG API.'.format(len(kegg_ids)))
-        
-        while ((i+step) < len(kegg_ids)):
-            result += kegg_link("ko", kegg_ids[i:i+step]).read().split("\n")[:-1]
-            i += step
-            
-        result += kegg_link("ko", kegg_ids[i:len(kegg_ids)]).read().split("\n")[:-1]
-        result = [relation.split('\t') for relation in result]
-        
-        return list(map(list, zip(*result)))
-
 
     def set_colors(self, colors = [], ncolor = 1):
         '''
@@ -1434,7 +1314,7 @@ class MoscaData():
     ####                          Operations                                ####
     ############################################################################
 
-    def genomic_potential_genus(self, samples, genus, nr = 10):
+    def genomic_potential_genus(self, samples, genus = [], nr = 10):
         '''
         Represents the genomic potential of the dataset, by coloring each
         genus with an unique color. Only the orthologs with at least one
@@ -1450,9 +1330,9 @@ class MoscaData():
         else:
             genus = self.top_gemus(samples, nr)
         colors = self.set_colors([], len(genus))
-        for map in self.pathway:
+        for metabolic_map in self.pathway:
             try:
-                pathway = self.load_pathway(map)
+                pathway = self.load_pathway(metabolic_map)
                 dic_boxes = {}
                 present_genus = []
                 for genu in genus:
@@ -1484,7 +1364,7 @@ class MoscaData():
                 print(grey_boxes)
                 pathway.grey_boxes(grey_boxes)
 
-                name_pdf = str(map) + "_" + "genomic_potential"
+                name_pdf = metabolic_map + "_genomic_potential"
                 pathway.pathway_pdf(name_pdf)
                 print("Map saved to " + name_pdf + ".pdf")
                 if len(grey_boxes) > 0:
@@ -1497,7 +1377,7 @@ class MoscaData():
                 else:
                     self.potential_legend(colors, genus, str(name_pdf) + ".png")
             except:
-                print(str(map) + " - Failed to process")
+                print(metabolic_map + " - Failed to process")
 
     def genomic_potential_sample(self, samples, threshold = 0):
         '''
@@ -1552,7 +1432,7 @@ class MoscaData():
             new_df = new_df.groupby(level=0).sum()
             pathway.pathway_boxes_diferencial(new_df, log)
 
-            name_pdf = str(metabolic_map) + "_differential_expression"
+            name_pdf = (metabolic_map + "_differential_expression" + '' if not log else '_log')
             pathway.pathway_pdf(name_pdf)
                 
             print("Map saved to " + name_pdf + ".pdf")
@@ -1590,100 +1470,42 @@ class MoscaData():
 ####                            Test                                    ####
 ############################################################################
     
-        
-def test_clean_pathway():
-    clean_pathway = KeggMap("map00680")
-    clean_pathway.pathway_pdf("test_clean_pathway")
-
-def test_pathway_genes():
-    test_pathway = KeggMap("map00680")
-    kegg_IDs = ["pmy:Pmen_3467", "pre:PCA10_14290", "mba:Mbar_A0841", "psub:Pelsub_P2997", "mby:MSBRM_0151", "mby:MSBRM_0158"]
-    test_pathway.pathway_genes(kegg_IDs)
-    test_pathway.pathway_pdf("test_pathway_genes")
-    test_pathway.reset_pathway()
-    kegg_IDs.append("ddh:Desde_0778")
-    test_pathway.pathway_genes(kegg_IDs, ["#ef0000"])
-    test_pathway.pathway_pdf("test_pathway_genes_vermelho")
-
 def test_pathway_organismo():
     test_pathway = KeggMap("map00680")
     test_pathway.pathway_organismo("eco")
-    test_pathway.pathway_pdf("test_pathway_organismo")
+    test_pathway.pathway_pdf("tkm/test_pathway_organismo.pdf")
     test_pathway.reset_pathway()
-    test_pathway.pathway_organismo("eco",["#ef0000"])
-    test_pathway.pathway_pdf("test_pathway_organismo_vermelho")
+    test_pathway.pathway_organismo("eco",color = ["#ef0000"])
+    test_pathway.pathway_pdf("tkm/test_pathway_organismo_vermelho.pdf")
 
 def test_pathway_genes_organismo():
     test_pathway = KeggMap("map00680")
     kegg_IDs = ["ppg:PputGB1_2248","ppt:PPS_3154","ppx:T1E_2051","ppun:PP4_21640","ppud:DW66_3426","sme:SMc02610", "mby:MSBRM_0152"]
     test_pathway.pathway_genes_organismo(kegg_IDs)
-    test_pathway.pathway_pdf("test_pathway_genes_organismo")
-
-def test_pathway_genes_diferencial():
-    df_pair = pd.DataFrame(
-        [[1, 2, 3, 4, 5], [2, 3, 4, 5, 6], [3, 4, 5, 6, 7], [4, 5, 6, 7, 8], [5, 6, 7, 8, 9]],
-        columns=['c1', 'c2', 'c3', 'c4', 'c5'],
-        index=["pmy:Pmen_3467","pre:PCA10_14290","mba:Mbar_A0841","psub:Pelsub_P2997","mby:MSBRM_0151"])
-
-    df_odd = pd.DataFrame(
-        [[1, 2, 3, 4], [2, 3, 4, 5], [3, 4, 5, 6], [4, 5, 6, 7],
-         [5, 6, 7, 8]],
-        columns=['c1', 'c2', 'c3', 'c4'],
-        index=["pmy:Pmen_3467", "pre:PCA10_14290", "mba:Mbar_A0841",
-               "psub:Pelsub_P2997", "mby:MSBRM_0151"])
-
-    def_nine = pd.DataFrame(
-        [[1, 2, 5, 15, 17, 19, 45, 55, 50], [2, 4, 3, 20, 19, 22, 50, 52, 70], [2, 1, 2, 20, 15, 24, 50, 57, 48], [2, 5, 10, 22, 25, 20, 60, 61, 65],
-         [1, 3, 4, 20, 15, 19, 50, 66, 48]],
-        columns=['c1', 'c2', 'c3', 'c4', "c5", "c6", "c7", "c8", "c9"],
-        index=["pmy:Pmen_3467", "pre:PCA10_14290", "mba:Mbar_A0841",
-               "psub:Pelsub_P2997", "mby:MSBRM_0151"])
-
-    def_nine = pd.DataFrame(
-        [[1, 2, 5, 15, 17, 19, 45, 55, 50], [2, 4, 3, 20, 19, 22, 50, 52, 70],
-         [2, 1, 2, 20, 15, 24, 50, 57, 48], [2, 5, 10, 22, 25, 20, 60, 61, 65]],
-        columns=['c1', 'c2', 'c3', 'c4', "c5", "c6", "c7", "c8", "c9"],
-        index=[ "pre:PCA10_14290", "mba:Mbar_A0841",
-               "psub:Pelsub_P2997","mby:MSBRM_0151"])
-
-    print(def_nine)
-    test_pathway = KeggMap("map00680")
-    #test_pathway.pathway_genes_diferencial(df_pair)
-    #test_pathway.pathway_genes_diferencial(df_odd)
-    test_pathway.pathway_genes_diferencial(def_nine, 100, 9)
-    test_pathway.pathway_pdf("test_pathway_genes_diferencial")
-
-def test_pathway_genes_amostras():
-    test_pathway = KeggMap("map00680")
-    kegg_IDs_matrix = [["ppg:PputGB1_2248", "ppt:PPS_3154", "ppx:T1E_2051",
-                "ppun:PP4_21640", "ppud:DW66_3426", "sme:SMc02610",
-                "mby:MSBRM_0152"]]
-    test_pathway.pathway_genes_amostras(kegg_IDs_matrix)
-    test_pathway.pathway_pdf("test_pathway_genes_amostras")
-
+    test_pathway.pathway_pdf("tkm/test_pathway_genes_organismo.pdf")
 
 def test_genomic_potential_genus():
-    data = MoscaData("all_info_normalized.csv",["map00680"])
+    data = MoscaData("all_info_normalized.tsv",["map00680"])
     samples_mg = ["grinder-reads0.17a", "grinder-reads0.17b", "grinder-reads0.17c"]
     data.genomic_potential_genus(samples_mg, ["Pseudomonas", "Methanosarcina","Pelolinea","Thermoplasmatales"])
-
+    data.pathway_pdf("tkm/test_genomic_potential_genus.pdf")
 
 def test_genomic_potential_sample():
-    data = MoscaData("all_info_normalized.csv", ["map00680"])
+    data = MoscaData("all_info_normalized.tsv", ["map00680"])
     samples_mg = ["grinder-reads0.17a", "grinder-reads0.17b","grinder-reads0.17c"]
     data.genomic_potential_sample(samples_mg)
-    data.pathway_pdf("test_genomic_potential_sample")
+    data.pathway_pdf("tkm/test_genomic_potential_sample.pdf")
 
 
 def test_differential_expression_sample():
-    data = MoscaData("all_info_normalized_all.csv")
+    data = MoscaData("all_info_normalized.tsv")
     #data.set_pathway(["map00680"])
 
-    samples_mt = ["grinder-reads1a", "grinder-reads1b", "grinder-reads1c", "grinder-reads3a", "grinder-reads3b", "grinder-reads3c"]
+    #samples_mt = ["grinder-reads1a", "grinder-reads1b", "grinder-reads1c", "grinder-reads3a", "grinder-reads3b", "grinder-reads3c"]
+    samples_mt = ["grinder-reads{}{}".format(i, j) for i in ['0.17','1','3'] for j in ['a','b','c']]
 
-
-    data.differential_expression_sample(samples_mt, True)
-    data.differential_expression_sample(samples_mt, False)
+    data.differential_expression_sample(samples_mt, log = True, pathways = ["map00680"])
+    data.differential_expression_sample(samples_mt, log = False, pathways = ["map00680"])
 
 
 ############################################################################
@@ -1691,43 +1513,8 @@ def test_differential_expression_sample():
 ############################################################################
 
 if __name__ == '__main__':
-    ## Test Functions
-    #test_clean_pathway()
-    #test_pathway_genes()
-    #test_pathway_organismo()
-    #test_pathway_genes_organismo()
-    #test_pathway_genes_diferencial()
-    #test_pathway_genes_amostras()
-    test_genomic_potential_genus()
-    #test_genomic_potential_sample()
-    #test_differential_expression_sample()
-
-
-    '''
-    import matplotlib.pyplot as plt
-    from matplotlib.offsetbox import (TextArea, DrawingArea, OffsetImage,
-                                      AnnotationBbox)
-    from matplotlib.cbook import get_sample_data
-    from PIL import Image
     
-    im = plt.imread(get_sample_data('/home/nowinder/Projects/Uminho/Projeto/test_pathway.png'))
-    fig, ax = plt.subplots()
-    ax.plot(range(10))
-    newax = fig.add_axes([0, 0, 1, 1], anchor='NE', zorder=1)
-    newax.imshow(im)
-    newax.axis('off')
-    plt.savefig('myfig.png', dpi=5000
-    plt.show()
-    min, max = (-40, 30)
-    step = 10
-    mymap = cm.get_cmap("rainbow")
-    Z = [[0, 0], [0, 0]]
-    levels = range(min, max + step, step)
-    CS3 = plt.contourf(Z, levels, cmap=mymap)
-    plt.clf()
-    plt.colorbar(CS3)  # using the colorbar info I got from contourf
-    plt.axis('off')
-    plt.show()
-    # plt.figure(figsize=(1023.36 / 100, 670.8 / 100), dpi=10)
-    plt.savefig('myfig.pdf')    
-    '''
+    ## Test Functions
+    #test_genomic_potential_genus()
+    #test_genomic_potential_sample()
+    test_differential_expression_sample()

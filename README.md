@@ -35,14 +35,18 @@ Logo by [Sérgio A. Silva](https://www.ceb.uminho.pt/People/Details/64888072-5cd
 
 ## Setting up MOSCA
 
-MOSCA files can be retrieved with a git command.
-
+MOSCA files can be retrieved from git.
 ```
 git clone https://github.com/iquasere/MOSCA.git
 ```
 
-MOSCA already brings a bash script that will install all of its pre-dependencies and databases. However, it does require Conda previously installed. Instructions on installing Anaconda on an Ubuntu 18.04 may be found [here](https://www.digitalocean.com/community/tutorials/how-to-install-anaconda-on-ubuntu-18-04-quickstart).
+MOSCA requires Conda previously installed. Instructions on installing Anaconda on an Ubuntu 18.04 may be found [here](https://www.digitalocean.com/community/tutorials/how-to-install-anaconda-on-ubuntu-18-04-quickstart). Alternatively, you can directly download the installation for Ubuntu with which MOSCA was tested - problems have been found using more recent distributions.
+```
+wget https://repo.anaconda.com/archive/Anaconda3-2019.03-Linux-x86_64.sh
+bash Anaconda3-2019.03-Linux-x86_64.sh
+```
 
+After having Conda available, the bash script that will install all of its pre-dependencies and databases can be run as follow: 
 ```
 bash MOSCA/install.bash
 ```
@@ -50,7 +54,6 @@ bash MOSCA/install.bash
 ## Base arguments for running MOSCA
 
 MOSCA was designed to run with as few arguments as possible. Only the input files and output directory have to be specified. MOSCA considers the input files in the following format, separated by spaces:
-
 ```
 path/to/mg_file1,path/to/mg_file2:path/to/mt_file1,path/to/mt_file2
 ```
