@@ -7,7 +7,7 @@ from matplotlib import cm
 from matplotlib.colors import to_hex
 from io import StringIO
 import matplotlib.pyplot as plt
-import re, pandas as pd, numpy as np
+import re, pandas as pd, numpy as np, os
 from progressbar import ProgressBar
 
 __author__ = "Tiago Oliveira"
@@ -665,12 +665,35 @@ class KeggPathway:
         print('Converting {:d} KEGG IDs to KOs through the KEGG API.'.format(len(kegg_ids)))
         pbar = ProgressBar()
         for i in pbar(range(0, len(kegg_ids) - step, step)):
-            result += kegg_link("ko", kegg_ids[i:i+step]).read().split("\n")[:-1]
+            try:
+                result += kegg_link("ko", kegg_ids[i:i+step]).read().split("\n")[:-1]
+            except:
+                print('Broke at index ' + str(i))
+                result = [relation.split('\t') for relation in result]
+                return list(map(list, zip(*result)))
             
         result += kegg_link("ko", kegg_ids[len(kegg_ids) - step:]).read().split("\n")[:-1]; open('conversion.txt', 'w').write('\n'.join(result))
         result = [relation.split('\t') for relation in result]
-        
         return list(map(list, zip(*result)))
+
+    def keggid2ko_mapping(self, kegg_ids, step = 150, output_file = None):
+        '''
+        Adaptation from keggid2ko to include writing of mapping if it has already
+        been performed
+        :param KEGG_ID: (list) - KEGG ID genes
+        :param step: (int) - will convert "step" KEGG IDs at a time
+        :param output_file: (str) - Name of file to output mapping to
+        :return: (list) - (list,list) - KEGG ID genes converted and ko IDs
+        '''
+        if output_file and os.path.isfile(output_file):
+            return pd.read_csv(output_file, sep = '\t')
+        mapping = pd.DataFrame(self.keggid2ko(kegg_ids, step = step)).transpose()
+        mapping.columns = ['KEGG ID', 'KO']
+        if output_file:
+            mapping.to_csv(output_file, sep = '\t', index = False)
+        return mapping
+    
+
 
 kp = KeggPathway()
 
@@ -687,9 +710,10 @@ class KeggMap():
         self.ortholog_ID = []
 
     ############################################################################
-    ####                            Hidden                                  ####
+    ####                              Helper                                ####
     ############################################################################
-    def _set_bgcolor(self, pathway_element, color):
+    
+    def set_bgcolor(self, pathway_element, color):
         '''
         Sets graphic element background color
         :param pathway_element: kegg pathway xml element object
@@ -697,7 +721,7 @@ class KeggMap():
         '''
         pathway_element.graphics[0].bgcolor = color
 
-    def _set_fgcolor(self, pathway_element, color):
+    def set_fgcolor(self, pathway_element, color):
         '''
         Sets graphic element contour color
         :param pathway_element: kegg pathway xml element object
@@ -705,7 +729,7 @@ class KeggMap():
         '''
         pathway_element.graphics[0].fgcolor = color
         
-    def _set_colors(self, colors = [], ncolor = 1):
+    def set_colors(self, colors = [], ncolor = 1):
         '''
         Creates list of hex colors to be used,
         using matplotlib or using costum colors
@@ -713,26 +737,19 @@ class KeggMap():
         :param ncolor: int indicating the ammount of hex colors should be created
         :return: returns list with hex color codes
         '''
-        ret_color = []
         if len(colors) == 0:
             # if no colors are given creates a list of hex colors with ncolor
             # ammount from matplotlib discrete colormaps. If ncolor > 12
             # a continuous colormap is used instead.
             if ncolor <= 8:
                 pastel2 = cm.get_cmap('Pastel2', 8)
-                for i in range(ncolor):
-                    ret_color.append(to_hex(pastel2(i)))
-                return ret_color
+                return [to_hex(pastel2(i)) for i in range(ncolor)]
             elif ncolor <= 12:
                 set3 = cm.get_cmap("Set3", 12)
-                for i in range(ncolor):
-                    ret_color.append(to_hex(set3(i)))
-                return ret_color
+                return [to_hex(set3(i)) for i in range(ncolor)]
             else:
                 rainbow = cm.get_cmap("rainbow",ncolor)
-                for i in range(ncolor):
-                    ret_color.append(to_hex(rainbow(i)))
-                return ret_color
+                return [to_hex(rainbow(i)) for i in range(ncolor)]
         else:
             # validates hex values and returns the original list
             isvalidhex = True
@@ -745,7 +762,7 @@ class KeggMap():
             else:
                 raise Exception("Colors aren't valid hex codes")
 
-    def _conv_value_rgb(self, value, colormap, norm):
+    def conv_value_rgb(self, value, colormap, norm):
         '''
         Normalizes values in a vector and transforms it into corresponding
         hex color using given colormap
@@ -755,20 +772,15 @@ class KeggMap():
         :param norm: matplotlib Normalize or LogNorm object
         :return: returns hex colors in vector format
         '''
-        value = value.apply(norm)
-        return value.apply(colormap)
+        return value.apply(norm).apply(colormap)
 
-    def _conv_rgb_hex(self, rgb):
+    def conv_rgb_hex(self, rgb):
         '''
         converts rgb into hex color code in vector
         :param rgb: rgb value in vector resulting from pandas dataframe apply
         :return: vector with converted hex color code
         '''
         return rgb.apply(to_hex)
-
-    ############################################################################
-    ####                              Helper                                ####
-    ############################################################################
 
     def load_pathway(self, pathway_ID, organism_ID = ""):
         '''
@@ -850,8 +862,8 @@ class KeggMap():
         ko = []
         self.ko_boxes = {}
         for i in range(len(self.pathway.orthologs)):
-            self._set_bgcolor(self.pathway.orthologs[i], "#ffffff")             # set all boxes to white
-            self._set_fgcolor(self.pathway.orthologs[i], "#ffffff")             # ditto
+            self.set_bgcolor(self.pathway.orthologs[i], "#ffffff")             # set all boxes to white
+            self.set_fgcolor(self.pathway.orthologs[i], "#ffffff")             # ditto
             orthologs_in_box = [ide[3:] for ide in self.pathway.orthologs[i].name.split()]  # 'ko:K16157 ko:K16158 ko:K16159' -> ['K16157', 'K16158', 'K16159']
             for ortholog in orthologs_in_box:
                 if ortholog not in self.ko_boxes.keys():
@@ -917,7 +929,6 @@ class KeggMap():
     ############################################################################
     ####                    Graphical Manipulation                          ####
     ############################################################################
-
 
     def create_tile_box(self, record):
         '''
@@ -1017,21 +1028,22 @@ class KeggMap():
         '''
         #TODO adaptar para recolher varios organismos
 
-        color1 = self._set_colors(color)[0]
+        color1 = self.set_colors(color)[0]
 
         pathway_organism = self.load_pathway(self.pathway_ID, organism_ID)
         organism_kegg_ID = []
         for gene_rec in pathway_organism.genes:
             for gene in gene_rec.name.split(" "):
                 organism_kegg_ID.append(gene)
-        organism_ortholog_ID = kp.keggid2ko(organism_kegg_ID)[1]
+        organism_ortholog_ID = kp.keggid2ko_mapping(
+                organism_kegg_ID, output_file = self.output + '/kegg2ko.tsv')[1]
 
         for ortholog_rec in self.pathway.orthologs:
             for ortholog in ortholog_rec.name.split(" "):
                 if ortholog in organism_ortholog_ID:
                     self.ortholog_ID.append(ortholog)
-                    self._set_bgcolor(ortholog_rec, color1)
-                    self._set_fgcolor(ortholog_rec, color1)
+                    self.set_bgcolor(ortholog_rec, color1)
+                    self.set_fgcolor(ortholog_rec, color1)
 
     def pathway_genes_organismo(self, KEGG_ID, maxshared = 5, color = []):
         '''
@@ -1041,15 +1053,16 @@ class KeggMap():
         :param maxshared: naximum number of boxes to be drawed
         :param color: list of hex color codes to be used to color the pathway map
         '''
-        coverted_KEGG_ID, orthologs_ID = kp.keggid2ko(KEGG_ID)
+        coverted_KEGG_ID, orthologs_ID = kp.keggid2ko_mapping(
+                KEGG_ID, output_file = self.output + '/kegg2ko.tsv')
         organisms = self.organismo_genes(coverted_KEGG_ID)
 
         # Set colors
         organism_colors = {}
         if len(color) < len(organisms):
-            colors = self._set_colors([], len(organisms))
+            colors = self.set_colors([], len(organisms))
         else:
-            colors = self._set_colors(color)
+            colors = self.set_colors(color)
         i = 0
         for organism in organisms:
             if organism not in organism_colors.keys():
@@ -1106,7 +1119,7 @@ class KeggMap():
         represented in each element in the pathway map
         :param color: list of costum colors to be used to color the elements
         '''
-        colors = self._set_colors(color, len(items))
+        colors = self.set_colors(color, len(items))
         dic_colors = {}
         for i in range(0, len(items)):
             dic_colors[items[i]] = colors[i]
@@ -1160,8 +1173,8 @@ class KeggMap():
                 colormap = cm.get_cmap(colormap)
             except:
                 print("Colormap doesn't exist")
-        dataframe = dataframe.apply(self._conv_value_rgb, args=(colormap, norm))
-        dataframe = dataframe.apply(self._conv_rgb_hex)
+        dataframe = dataframe.apply(self.conv_value_rgb, args=(colormap, norm))
+        dataframe = dataframe.apply(self.conv_rgb_hex)
 
 
 
@@ -1191,15 +1204,16 @@ class KeggMap():
 
     def grey_boxes(self, box_list):
         for i in box_list:
-            self._set_bgcolor(self.pathway.orthologs[i], "#7c7272")
-            self._set_fgcolor(self.pathway.orthologs[i], "#7c7272")
+            self.set_bgcolor(self.pathway.orthologs[i], "#7c7272")
+            self.set_fgcolor(self.pathway.orthologs[i], "#7c7272")
 
 
 ################################################################################
 ################################################################################
 
 class MoscaData():
-    def __init__(self, file = None, pathway=[]):
+    def __init__(self, file = None, pathway=[], **kwargs):
+        self.__dict__ = kwargs
         if file:
             self.data = self.load_file(file)
         if len(pathway) > 0:
@@ -1214,20 +1228,13 @@ class MoscaData():
         :param file: .csv file from MOSCA analysis
         return: pandas DataFrame object containing the formated .csv data
         '''
-        df = pd.read_csv(file, sep = '\t', index_col=["Cross-reference (KEGG)"])
-        df = df[df.index.notnull()]
-        coverted_KEGG_ID, orthologs_ID = kp.keggid2ko(df.index.tolist())
-        converted_dic = {}
-        for i in range(len(coverted_KEGG_ID)):
-            coverted_KEGG_ID[i] = str(coverted_KEGG_ID[i]) + ";"
-            converted_dic[coverted_KEGG_ID[i]] = orthologs_ID[i]
-        df = df.loc[coverted_KEGG_ID]
-        new_index = []
-        for i in df.index.tolist():
-            new_index.append(converted_dic[i])
-        df["orthologs"] = new_index
-        df = df.set_index("orthologs")
-
+        df = pd.read_csv(file, sep = '\t')
+        df = df[df['Cross-reference (KEGG)'].notnull()]
+        data = kp.keggid2ko_mapping(df['Cross-reference (KEGG)'].tolist(),      #          KEGG ID         KO
+                                    output_file = self.output + '/kegg2ko.tsv') # 0  sfu:Sfum_1080  ko:K03738
+        data['KEGG ID'] += ';'
+        df = pd.merge(df, data, left_on = 'Cross-reference (KEGG)', right_on = 'KEGG ID')   # inner join
+        df = df.set_index("KO")
         return df
 
     def all_kegg_maps(self):
@@ -1361,7 +1368,6 @@ class MoscaData():
                         for box in pathway.get_ko_boxes()[ortholog]:
                             if box not in dic_boxes.keys() and box not in grey_boxes:
                                 grey_boxes.append(box)
-                print(grey_boxes)
                 pathway.grey_boxes(grey_boxes)
 
                 name_pdf = metabolic_map + "_genomic_potential"
@@ -1498,7 +1504,8 @@ def test_genomic_potential_sample():
 
 
 def test_differential_expression_sample():
-    data = MoscaData("all_info_normalized.tsv")
+    data = MoscaData("all_info_normalized.tsv",
+                     output = 'debugKEGG')
     #data.set_pathway(["map00680"])
 
     #samples_mt = ["grinder-reads1a", "grinder-reads1b", "grinder-reads1c", "grinder-reads3a", "grinder-reads3b", "grinder-reads3c"]

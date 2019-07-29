@@ -42,6 +42,7 @@ conda install -y -c bioconda r-pheatmap
 conda install -y -c r r-rcolorbrewer
 conda install -y -c bioconda r-optparse
 conda install -y -c anaconda pandas
+conda install -y -c anaconda xlrd                                               # pandas Excel support
 conda install -y -c conda-forge tqdm
 conda install -y scikit-learn
 conda install -y -c anaconda lxml
