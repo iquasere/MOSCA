@@ -699,15 +699,14 @@ kp = KeggPathway()
 
 class KeggMap():
 
-    def __init__(self, pathway_ID):
+    def __init__(self, pathway_ID, **kwargs):
         '''
         Initialize object
         :param pathway_ID: (str) - KEGG Pathway ID
         '''
+        self.__dict__ = kwargs
         self.pathway_ID = pathway_ID[-5:] if len(pathway_ID) > 5 else pathway_ID
         self.set_pathway(pathway_ID)
-        self.KEGG_ID = []
-        self.ortholog_ID = []
 
     ############################################################################
     ####                              Helper                                ####
@@ -804,8 +803,6 @@ class KeggMap():
         Resets pathway state
         '''
         self.set_pathway(self.pathway_ID)
-        self.KEGG_ID = []
-        self.ortholog_ID = []
 
     def organismo_genes(self, kegg_ID):
         '''
@@ -878,20 +875,6 @@ class KeggMap():
             if ko in ko_to_ec.keys():
                 ortholog_rec.graphics[0].name = ko_to_ec[ko]
 
-    def set_kegg_ID(self, kegg_ID):
-        '''
-        Sets keeg ids
-        :param kegg_ID: list of kegg ids
-        '''
-        self.KEGG_ID = kegg_ID
-
-    def set_ortholog_ID(self, ortholog_ID):
-        '''
-        Set ortholog ids
-        :param ortholog_ID: list of ortholog ids
-        '''
-        self.ortholog_ID = ortholog_ID
-
     ############################################################################
     ####                            Gets                                    ####
     ############################################################################
@@ -909,13 +892,6 @@ class KeggMap():
         :return: pathway object
         '''
         return self.pathway
-
-    def get_orthologs_ID(self):
-        '''
-        returns ortholog id list
-        :return: list ortholog id
-        '''
-        return self.ortholog_ID
 
     def get_ko_boxes(self):
         '''
@@ -950,40 +926,19 @@ class KeggMap():
         record.graphics[0].fgcolor = "#FFFFFF00"
         record.graphics[0].name = ""
 
-    def create_pair_boxes(self, rec_old, nrboxes, i):
+    def create_box_heatmap(self, rec_old, nrboxes, i, paired = True):
         '''
-        Creates small box when the number of boxes to draw is an even number
+        Creates small heatmap when the number of boxes to draw is an even number
         :param rec_old: graphical element object to be used as reference
         :param nrboxes: int nr of boxes to be drawed
         :param i: int internal number of movements of the box given by the for loop
         :return: graphical element object
         '''
-        movement_steps = rec_old.graphics[0].width / (4 * (nrboxes / 2))
-        width = rec_old.graphics[0].width / nrboxes
-        rec_new = KGML_pathway.Graphics(rec_old)
-        rec_new.name = ""
-        rec_new.type = "rectangle"
-        rec_new.width = width
-        rec_new.height = rec_old.graphics[0].height
-        rec_new.y = rec_old.graphics[0].y
-        rec_new.x = (i * movement_steps) + rec_old.graphics[0].x
-        rec_new.fgcolor = "#FFFFFF00"
-        return rec_new
-
-    def create_odd_boxes(self, rec_old, nrboxes, i):
-        '''
-        Creates small box when the number of boxes to draw is an odd number
-        :param rec_old:graphical element object to be used as reference
-        :param nrboxes:int nr of boxes to be drawed
-        :param i:int internal number of movements of the box given by the for loop
-        :return: graphical element object
-        '''
-        width = rec_old.graphics[0].width / nrboxes
-        movement_steps = width
+        movement_steps = rec_old.graphics[0].width / (nrboxes * (2 if paired else 1))
         newrecord = KGML_pathway.Graphics(rec_old)
         newrecord.name = ""
         newrecord.type = "rectangle"
-        newrecord.width = width
+        newrecord.width = movement_steps * 1.3 * (2 if paired else 1)           # sub-boxes width, adjusted by a factor that experimentally fixed well in the representations
         newrecord.height = rec_old.graphics[0].height
         newrecord.y = rec_old.graphics[0].y
         newrecord.x = (i * movement_steps) + rec_old.graphics[0].x
@@ -994,7 +949,7 @@ class KeggMap():
     ####                          Operations                                ####
     ############################################################################
 
-    def pathway_pdf(self, filename = None, imagemap = True, orthologs = True, 
+    def pathway_pdf(self, filename, imagemap = True, orthologs = True, 
                     compounds = True, maps = True, reactions = True):
         '''
         Prints current pathway to PDF file
@@ -1013,11 +968,7 @@ class KeggMap():
         pathway_pdf.label_compounds = compounds
         pathway_pdf.label_maps = maps
         pathway_pdf.label_reaction_entries = reactions
-
-        if filename is None:
-            pathway_pdf.draw(self.pathway_ID + ".pdf")
-        else:
-            pathway_pdf.draw(filename)
+        pathway_pdf.draw(filename)
 
     def pathway_organismo(self, organism_ID, color = ""):
         '''
@@ -1036,12 +987,11 @@ class KeggMap():
             for gene in gene_rec.name.split(" "):
                 organism_kegg_ID.append(gene)
         organism_ortholog_ID = kp.keggid2ko_mapping(
-                organism_kegg_ID, output_file = self.output + '/kegg2ko.tsv')[1]
+                organism_kegg_ID, output_file = self.output + '/kegg2ko.tsv')
 
         for ortholog_rec in self.pathway.orthologs:
             for ortholog in ortholog_rec.name.split(" "):
-                if ortholog in organism_ortholog_ID:
-                    self.ortholog_ID.append(ortholog)
+                if ortholog in organism_ortholog_ID['KO']:
                     self.set_bgcolor(ortholog_rec, color1)
                     self.set_fgcolor(ortholog_rec, color1)
 
@@ -1148,7 +1098,7 @@ class KeggMap():
                 self.create_tile_box(self.pathway.orthologs[box])
 
 
-    def pathway_boxes_diferencial(self, dataframe, log = False, colormap=""):
+    def pathway_boxes_diferencial(self, dataframe, log = False, colormap = "coolwarm"):
         '''
         Represents expression values present in a dataframe in the
         pathway map
@@ -1158,49 +1108,31 @@ class KeggMap():
         :param log: bol providing the option for a log normalization of data
         :param colormap: str representing a costum matplotlib colormap to be used
         '''
-
+        
         if log:
             norm = cm.colors.LogNorm(vmin=dataframe.min().min(), vmax=dataframe.max().max())
         else:
             norm = cm.colors.Normalize(vmin=dataframe.min().min(), vmax=dataframe.max().max())
 
-
-
-        if colormap == "":
-            colormap = cm.get_cmap("coolwarm")
-        else:
-            try:
-                colormap = cm.get_cmap(colormap)
-            except:
-                print("Colormap doesn't exist")
+        colormap = cm.get_cmap(colormap)
         dataframe = dataframe.apply(self.conv_value_rgb, args=(colormap, norm))
         dataframe = dataframe.apply(self.conv_rgb_hex)
+        
+        dataframe = dataframe[dataframe.columns.tolist()[:8]]
+        
+        nrboxes = len(dataframe.columns.tolist())                               # number of samples
 
-
-
-        nrboxes = len(dataframe.columns.tolist())
         for box in dataframe.index.tolist():
-            colors = dataframe.ix[box].tolist()
-
-            if nrboxes % 2 == 0:
-                n = 0
-
-                for i in range(-nrboxes + 1, nrboxes, 2):
-                    newrecord = self.create_pair_boxes(self.pathway.orthologs[box], nrboxes, i)
-                    newrecord.bgcolor = colors[n]
-
-                    self.pathway.orthologs[box].graphics.append(newrecord)
-                    n += 1
-                self.create_tile_box(self.pathway.orthologs[box])
-
-            if nrboxes % 2 != 0:
-                n = 0
-                for i in range(int(-(nrboxes - 1) / 2), int((nrboxes + 1) / 2)):
-                    newrecord = self.create_odd_boxes(self.pathway.orthologs[box], nrboxes, i)
-                    newrecord.bgcolor = colors[n]
-                    self.pathway.orthologs[box].graphics.append(newrecord)
-                    n += 1
-                self.create_tile_box(self.pathway.orthologs[box])
+            colors = dataframe.loc[box].tolist()
+            paired = True if nrboxes % 2 == 0 else False
+            for i in range(nrboxes):
+                newrecord = self.create_box_heatmap(self.pathway.orthologs[box], nrboxes, 
+                                                    i * 2 - (nrboxes - 1) if paired     # if nrboxes = 8, i * 2 - (nrboxes - 1) = -7,-5,-3,-1,1,3,5,7
+                                                    else i - int(nrboxes / 2),          # if nrboxes = 9, i - int(nrboxes / 2) = -4,-3,-2,-1,0,1,2,3,4
+                                                    paired = paired)
+                newrecord.bgcolor = colors[i]
+                self.pathway.orthologs[box].graphics.append(newrecord)
+            self.create_tile_box(self.pathway.orthologs[box])
 
     def grey_boxes(self, box_list):
         for i in box_list:
@@ -1215,7 +1147,9 @@ class MoscaData():
     def __init__(self, file = None, pathway=[], **kwargs):
         self.__dict__ = kwargs
         if file:
-            self.data = self.load_file(file)
+            self.data = self.load_file(file)                                    #            Protein ID  ...               KEGG ID
+                                                                                # KO                     ...
+                                                                                # ko:K01126  A0A0P0GQB3  ...  bcel:BcellWH2_02985;
         if len(pathway) > 0:
             self.pathway = pathway
             
@@ -1234,7 +1168,7 @@ class MoscaData():
                                     output_file = self.output + '/kegg2ko.tsv') # 0  sfu:Sfum_1080  ko:K03738
         data['KEGG ID'] += ';'
         df = pd.merge(df, data, left_on = 'Cross-reference (KEGG)', right_on = 'KEGG ID')   # inner join
-        df = df.set_index("KO")
+        df.index = [ide.split(':')[1] for ide in df['KO']]                      # ko:K00001 -> K00001
         return df
 
     def all_kegg_maps(self):
@@ -1410,13 +1344,15 @@ class MoscaData():
         self.pathway.pathway_box_list(dic_box_sample, samples)
 
 
-    def differential_expression_sample(self, samples, log=False, pathways = None):
+    def differential_expression_sample(self, samples, output_folder,
+                                       log=False, pathways = None):
         '''
         Represents in small heatmaps the expression levels of each sample on the
         dataset present in the given pathway map. The values can be transford to
         a log10 scale
-        :param samples: list of str column names of the dataset correspoding to
+        :param samples: list of str column names of the dataset corresponding to
         expression values
+        :param output_folder: string  - name of folder to store pdfs
         :param log: bol providing the option for a log normalization of data
         '''
         
@@ -1426,32 +1362,35 @@ class MoscaData():
             new_index = []
             df = self.data.groupby(level = 0)[samples].sum()
             df = df[df.any(axis=1)]
-            orthologs = df.index.tolist()
-            for ortholog in orthologs:
+            pbar = ProgressBar()
+            print('Mapping {} KOs to corresponding boxes in map {}.'.format(
+                    len(df.index), metabolic_map))
+            for ortholog in pbar(df.index.tolist()):
                 if ortholog in pathway.get_ko_boxes().keys():
                     for box in pathway.get_ko_boxes()[ortholog]:
-                        for ko in df.loc[orthologs].index.tolist():
+                        for ko in df.index.tolist():
                             data.append(df.loc[ko].tolist())
                             new_index.append(box)
-            new_df = pd.DataFrame(data, columns=samples, index=new_index)
+            
+            new_df = pd.DataFrame(data, columns=samples, index=new_index)       #                sample1
+                                                                                # 6              151800.0
             new_df = new_df[new_df.any(axis=1)]
             new_df = new_df.groupby(level=0).sum()
+            
             pathway.pathway_boxes_diferencial(new_df, log)
-
-            name_pdf = (metabolic_map + "_differential_expression" + '' if not log else '_log')
+            name_pdf = '{}/{}_differential_expression{}.pdf'.format(output_folder, 
+                        metabolic_map, '_log' if log else '')
             pathway.pathway_pdf(name_pdf)
                 
             print("Map saved to " + name_pdf + ".pdf")
-            self.differential_colorbar(new_df, name_pdf + ".png")
+            self.differential_colorbar(new_df, name_pdf.replace(".pdf",'png'))
                 
     
     def potential_legend(self, colors, labels, filename):
         colors = colors
-        print(len(colors))
         f = lambda m,c: plt.plot([],[],marker=m, color=c, ls="none")[0]
         handles = [f("s", colors[i]) for i in range(len(colors))]
         labels = labels
-        print(len(labels))
         legend = plt.legend(handles, labels, loc=3, framealpha=1, frameon=True)
 
         def export_legend(legend, filename="legend.png", expand=[-5,-5,5,5]):
@@ -1477,42 +1416,40 @@ class MoscaData():
 ############################################################################
     
 def test_pathway_organismo():
-    test_pathway = KeggMap("map00680")
+    test_pathway = KeggMap("map00680", output = 'debugKEGG')
     test_pathway.pathway_organismo("eco")
-    test_pathway.pathway_pdf("tkm/test_pathway_organismo.pdf")
+    test_pathway.pathway_pdf("debugKEGG/test_pathway_organismo.pdf")
     test_pathway.reset_pathway()
-    test_pathway.pathway_organismo("eco",color = ["#ef0000"])
-    test_pathway.pathway_pdf("tkm/test_pathway_organismo_vermelho.pdf")
+    test_pathway.pathway_organismo("eco", color = ["#ef0000"])
+    test_pathway.pathway_pdf("debugKEGG/test_pathway_organismo_vermelho.pdf")
 
 def test_pathway_genes_organismo():
     test_pathway = KeggMap("map00680")
     kegg_IDs = ["ppg:PputGB1_2248","ppt:PPS_3154","ppx:T1E_2051","ppun:PP4_21640","ppud:DW66_3426","sme:SMc02610", "mby:MSBRM_0152"]
     test_pathway.pathway_genes_organismo(kegg_IDs)
-    test_pathway.pathway_pdf("tkm/test_pathway_genes_organismo.pdf")
+    test_pathway.pathway_pdf("debugKEGG/test_pathway_genes_organismo.pdf")
 
 def test_genomic_potential_genus():
-    data = MoscaData("all_info_normalized.tsv",["map00680"])
+    data = MoscaData("all_info_simulated.tsv",["map00680"])
     samples_mg = ["grinder-reads0.17a", "grinder-reads0.17b", "grinder-reads0.17c"]
     data.genomic_potential_genus(samples_mg, ["Pseudomonas", "Methanosarcina","Pelolinea","Thermoplasmatales"])
-    data.pathway_pdf("tkm/test_genomic_potential_genus.pdf")
+    data.pathway_pdf("debugKEGG/test_genomic_potential_genus.pdf")
 
 def test_genomic_potential_sample():
-    data = MoscaData("all_info_normalized.tsv", ["map00680"])
+    data = MoscaData("all_info_simulated.tsv", ["map00680"])
     samples_mg = ["grinder-reads0.17a", "grinder-reads0.17b","grinder-reads0.17c"]
     data.genomic_potential_sample(samples_mg)
-    data.pathway_pdf("tkm/test_genomic_potential_sample.pdf")
+    data.pathway_pdf("debugKEGG/test_genomic_potential_sample.pdf")
 
 
 def test_differential_expression_sample():
-    data = MoscaData("all_info_normalized.tsv",
-                     output = 'debugKEGG')
+    data = MoscaData("marosca.tsv", output = 'debugKEGG')
     #data.set_pathway(["map00680"])
 
     #samples_mt = ["grinder-reads1a", "grinder-reads1b", "grinder-reads1c", "grinder-reads3a", "grinder-reads3b", "grinder-reads3c"]
     samples_mt = ["grinder-reads{}{}".format(i, j) for i in ['0.17','1','3'] for j in ['a','b','c']]
-
-    data.differential_expression_sample(samples_mt, log = True, pathways = ["map00680"])
-    data.differential_expression_sample(samples_mt, log = False, pathways = ["map00680"])
+    data.differential_expression_sample(samples_mt, 'debugKEGG', log = True, pathways = ["map00680"])
+    data.differential_expression_sample(samples_mt, 'debugKEGG', log = False, pathways = ["map00680"])
 
 
 ############################################################################
@@ -1520,8 +1457,19 @@ def test_differential_expression_sample():
 ############################################################################
 
 if __name__ == '__main__':
-    
+    #kegg_link("ko", "ppg:PputGB1_2248")
     ## Test Functions
+    #test_pathway_organismo()
     #test_genomic_potential_genus()
     #test_genomic_potential_sample()
     test_differential_expression_sample()
+
+'''
+pbar = ProgressBar()
+for sample in samples:
+    print(sample)
+    pbar = ProgressBar()
+    for i in pbar(marosca.index):
+        if marosca.loc[i][sample] != np.nan:
+            marosca.loc[i][sample] *= np.random.uniform(low=0.8, high=1.2, size = 1)[0]
+'''
