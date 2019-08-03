@@ -1062,7 +1062,7 @@ class KeggMap():
         '''
         Represents items in the pathway map
         :param dic_box_items: dic with keys correspoding to int index of the list
-        of ortholog elements in pathway and values correspoding to to elements
+        of ortholog elements in pathway and values correspoding to elements
         of items
         :param items: list of items to be represented and given a specific color
         :param maxshared: int representing the maximum number of boxes to be
@@ -1070,9 +1070,7 @@ class KeggMap():
         :param color: list of costum colors to be used to color the elements
         '''
         colors = self.set_colors(color, len(items))
-        dic_colors = {}
-        for i in range(0, len(items)):
-            dic_colors[items[i]] = colors[i]
+        dic_colors = {items[i] : colors[i] for i in range(len(items))}
 
         for box in dic_box_items.keys():
             number_types = len(dic_box_items[box])
@@ -1087,7 +1085,7 @@ class KeggMap():
                     n += 1
                 self.create_tile_box(self.pathway.orthologs[box])
 
-            if number_types % 2 != 0:
+            else:
                 n = 0
                 for i in range(int(-(number_types - 1) / 2),
                                int((number_types + 1) / 2)):
@@ -1118,7 +1116,7 @@ class KeggMap():
         dataframe = dataframe.apply(self.conv_value_rgb, args=(colormap, norm))
         dataframe = dataframe.apply(self.conv_rgb_hex)
         
-        dataframe = dataframe[dataframe.columns.tolist()[:8]]
+        dataframe = dataframe[dataframe.columns.tolist()]
         
         nrboxes = len(dataframe.columns.tolist())                               # number of samples
 
@@ -1255,40 +1253,40 @@ class MoscaData():
     ####                          Operations                                ####
     ############################################################################
 
-    def genomic_potential_genus(self, samples, genus = [], nr = 10):
+    def genomic_potential_genus(self, samples, genera = [], nr = 10):
         '''
         Represents the genomic potential of the dataset, by coloring each
         genus with an unique color. Only the orthologs with at least one
         sample expression level above the threshold will be represented
         :param samples:list of str column names of the dataset correspoding to
         expression values
-        :param genus: list of genus to represent
+        :param genera: list of genus to represent
         :param threshold: int representing the expression threshold
         '''
         #KO for each genus type
-        if len(genus) > 0:
-            genus = list(set(genus))
+        if len(genera) > 0:
+            genera = list(set(genera))
         else:
-            genus = self.top_gemus(samples, nr)
-        colors = self.set_colors([], len(genus))
+            genera = self.top_gemus(samples, nr)
+        colors = self.set_colors([], len(genera))
         for metabolic_map in self.pathway:
             try:
                 pathway = self.load_pathway(metabolic_map)
                 dic_boxes = {}
                 present_genus = []
-                for genu in genus:
-                    df = self.data[self.data["Taxonomic lineage (GENUS)"] == genu][samples]
+                for genus in genera:
+                    df = self.data[self.data["Taxonomic lineage (GENUS)"] == genus][samples]
                     df = df[df.any(axis=1)]
                     orthologs = df.index.tolist()
                     for ortholog in orthologs:
                         if ortholog in pathway.get_ko_boxes().keys():
-                            if genu not in present_genus:
-                                present_genus.append(genu)
+                            if genus not in present_genus:
+                                present_genus.append(genus)
                             for box in pathway.get_ko_boxes()[ortholog]:
                                 if box in dic_boxes.keys():
-                                    dic_boxes[box].append(genu)
+                                    dic_boxes[box].append(genus)
                                 else:
-                                    dic_boxes[box] = [genu]
+                                    dic_boxes[box] = [genus]
                 
                 pathway.pathway_box_list(dic_boxes, present_genus, len(genus), colors)
                 
@@ -1336,8 +1334,8 @@ class MoscaData():
                 if ortholog in self.pathway.get_ko_boxes().keys():
                     for box in self.pathway.get_ko_boxes()[ortholog]:
                         if box in dic_box_sample.keys():
-                            dic_box_sample[box].append(sample)
-                            dic_box_sample[box] = list(set(dic_box_sample[box]))
+                            if sample not in dic_box_sample[box]:
+                                dic_box_sample[box].append(sample)
                         else:
                             dic_box_sample[box] = [sample]
 
