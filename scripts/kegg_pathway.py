@@ -18,7 +18,18 @@ __email__ = "maildosequeira@gmail.com"
 __status__ = "Production"
 ################################################################################
 class KeggPathway:
+    '''
+    This class concerns with the storage of information manually retrieved from 
+    KEGG documentation for reference, and the conversion of certain IDs to 
+    different IDs from the KEGG DB
+    '''
+    
     def __init__(self, **kwargs):
+        '''
+        Initialize object
+        :param **kwargs - none is necessary for this class
+        '''
+        
         self.__dict__ = kwargs
         
         self.maps = {
@@ -714,6 +725,9 @@ class KeggPathway:
 kp = KeggPathway()
 
 class KeggMap():
+    '''
+    This class 
+    '''
 
     def __init__(self, pathway_ID, **kwargs):
         '''
@@ -746,10 +760,9 @@ class KeggMap():
         
     def set_colors(self, colors = [], ncolor = 1):
         '''
-        Creates list of hex colors to be used,
-        using matplotlib or using costum colors
+        Creates list of hex colors to be used, using matplotlib or using custom colors
         :param colors: list of hex colors
-        :param ncolor: int indicating the ammount of hex colors should be created
+        :param ncolor: int indicating the amount of hex colors that should be created
         :return: returns list with hex color codes
         '''
         if len(colors) == 0:
@@ -768,10 +781,12 @@ class KeggMap():
         else:
             # validates hex values and returns the original list
             isvalidhex = True
-            for hexvalue in colors:
-                match = re.search(r'^#(?:[0-9a-fA-F]{3}){1,2}$', str(hexvalue))
+            i = 0
+            while isvalidhex:
+                match = re.search(r'^#(?:[0-9a-fA-F]{3}){1,2}$', str(colors[i]))
                 if not match:
                     isvalidhex = False
+                i += 1
             if isvalidhex:
                 return colors
             else:
@@ -858,8 +873,8 @@ class KeggMap():
         ko = []
         self.ko_boxes = {}
         for i in range(len(self.pathway.orthologs)):
-            self.set_bgcolor(self.pathway.orthologs[i], "#ffffff")             # set all boxes to white
-            self.set_fgcolor(self.pathway.orthologs[i], "#ffffff")             # ditto
+            self.set_bgcolor(self.pathway.orthologs[i], "#ffffff")              # set all boxes to white
+            self.set_fgcolor(self.pathway.orthologs[i], "#ffffff")              # ditto
             orthologs_in_box = [ide[3:] for ide in self.pathway.orthologs[i].name.split()]  # 'ko:K16157 ko:K16158 ko:K16159' -> ['K16157', 'K16158', 'K16159']
             for ortholog in orthologs_in_box:
                 if ortholog not in self.ko_boxes.keys():
@@ -868,7 +883,7 @@ class KeggMap():
             ko.append(self.pathway.orthologs[i].graphics[0].name.strip("."))    # 'K16157...' -> 'K16157'
         
         # Set text in boxes to EC numbers
-        ko_to_ec = kp.ko2ec(ko)                                               # {'K16157':'ec:1.14.13.25'}
+        ko_to_ec = kp.ko2ec(ko)                                                 # {'K16157':'ec:1.14.13.25'}
         for ortholog_rec in self.pathway.orthologs:
             ko = ortholog_rec.graphics[0].name.strip(".")
             if ko in ko_to_ec.keys():
@@ -900,7 +915,8 @@ class KeggMap():
 
     def create_box_heatmap(self, rec_old, nrboxes, i, paired = True):
         '''
-        Creates small heatmap when the number of boxes to draw is an even number
+        Helper function for creating heatmap, draws one expression value in its
+        correct position on the bigger parent box
         :param rec_old: graphical element object to be used as reference
         :param nrboxes: int nr of boxes to be drawed
         :param i: int internal number of movements of the box given by the for loop
@@ -942,11 +958,10 @@ class KeggMap():
         pathway_pdf.label_reaction_entries = reactions
         pathway_pdf.draw(filename)
 
-    def pathway_organismo(self, organism_ID, color = ""):
+    def taxon_map(self, organism_ID, color = ""):
         '''
-        Given a list of kegg organism ids, colors the pathway map with
-        a specific color
-        :param organism_ID: lsit of species kegg id
+        Paints a map with the boxes for which the given taxon has KOs identified
+        :param organism_ID: KEGG ID of the taxon
         :param color: hex color code
         '''
         #TODO adaptar para recolher varios organismos
@@ -1067,8 +1082,7 @@ class KeggMap():
                     n += 1
                 self.create_tile_box(self.pathway.orthologs[box])
 
-
-    def pathway_boxes_diferencial(self, dataframe, log = False, colormap = "coolwarm"):
+    def pathway_boxes_diferential(self, dataframe, log = False, colormap = "coolwarm"):
         '''
         Represents expression values present in a dataframe in the
         pathway map
@@ -1347,7 +1361,7 @@ class MoscaData():
             new_df = new_df[new_df.any(axis=1)]
             new_df = new_df.groupby(level=0).sum()
             
-            pathway.pathway_boxes_diferencial(new_df, log)
+            pathway.pathway_boxes_diferential(new_df, log)
             name_pdf = '{}/{}_differential_expression{}.pdf'.format(output_folder, 
                         metabolic_map, '_log' if log else '')
             pathway.pathway_pdf(name_pdf)
