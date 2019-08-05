@@ -693,6 +693,22 @@ class KeggPathway:
             mapping.to_csv(output_file, sep = '\t', index = False)
         return mapping
     
+    def ko2ec(self, ko_ID):
+        '''
+        Converts kegg ortholog id to EC numers
+        :param ko_ID: list of kegg ortholog ids
+        :return: dic associating ortholog kegg id with list
+        of assotiated EC numbers
+        '''
+        ko_dic = {}
+        conversion = kegg_link("enzyme", ko_ID).read().split("\n")[:-1]
+        ko_dic = {result.split("\t")[0].strip("ko:"):result.split("\t")[1].upper()
+                for result in conversion if len(result) > 1}                    # if len(result) > 1 -> some KOs might not have EC numbers
+        ko_dic = {}
+        for result in conversion:
+            if len(result) > 1:
+                ko_dic[result.split("\t")[0].strip("ko:")] = result.split("\t")[1].upper()
+        return ko_dic
 
 
 kp = KeggPathway()
@@ -828,23 +844,6 @@ class KeggMap():
                 if ortholog not in orthologs_dic.keys():
                     orthologs_dic[ortholog] = ortholog_name
         return orthologs_dic
-
-    def ko2ec(self, ko_ID):
-        '''
-        Converts kegg ortholog id to EC numers
-        :param ko_ID: list of kegg ortholog ids
-        :return: dic associating ortholog kegg id with list
-        of assotiated EC numbers
-        '''
-        ko_dic = {}
-        conversion = kegg_link("enzyme", ko_ID).read().split("\n")[:-1]
-        ko_dic = {result.split("\t")[0].strip("ko:"):result.split("\t")[1].upper()
-                for result in conversion if len(result) > 1}                    # if len(result) > 1 -> some KOs might not have EC numbers
-        ko_dic = {}
-        for result in conversion:
-            if len(result) > 1:
-                ko_dic[result.split("\t")[0].strip("ko:")] = result.split("\t")[1].upper()
-        return ko_dic
     
     ############################################################################
     ####                            Sets                                    ####
@@ -869,38 +868,11 @@ class KeggMap():
             ko.append(self.pathway.orthologs[i].graphics[0].name.strip("."))    # 'K16157...' -> 'K16157'
         
         # Set text in boxes to EC numbers
-        ko_to_ec = self.ko2ec(ko)                                               # {'K16157':'ec:1.14.13.25'}
+        ko_to_ec = kp.ko2ec(ko)                                               # {'K16157':'ec:1.14.13.25'}
         for ortholog_rec in self.pathway.orthologs:
             ko = ortholog_rec.graphics[0].name.strip(".")
             if ko in ko_to_ec.keys():
                 ortholog_rec.graphics[0].name = ko_to_ec[ko]
-
-    ############################################################################
-    ####                            Gets                                    ####
-    ############################################################################
-
-    def get_pathway_ID(self):
-        '''
-        Get pathway ID
-        :return: pathway ID
-        '''
-        return self.pathway_ID
-
-    def get_pathway(self):
-        '''
-        returns pathway
-        :return: pathway object
-        '''
-        return self.pathway
-
-    def get_ko_boxes(self):
-        '''
-        returns dictionary assotiating ortholog kegg id to list of
-        ortholog element index
-        :return: dic with ortholog kegg id as keys and values as list of
-        ortholog element index number
-        '''
-        return self.ko_boxes
 
     ############################################################################
     ####                    Graphical Manipulation                          ####
@@ -1279,10 +1251,10 @@ class MoscaData():
                     df = df[df.any(axis=1)]
                     orthologs = df.index.tolist()
                     for ortholog in orthologs:
-                        if ortholog in pathway.get_ko_boxes().keys():
+                        if ortholog in pathway.ko_boxes.keys():
                             if genus not in present_genus:
                                 present_genus.append(genus)
-                            for box in pathway.get_ko_boxes()[ortholog]:
+                            for box in pathway.ko_boxes[ortholog]:
                                 if box in dic_boxes.keys():
                                     dic_boxes[box].append(genus)
                                 else:
@@ -1296,8 +1268,8 @@ class MoscaData():
                 orthologs = df.index.tolist()
                 grey_boxes = []
                 for ortholog in orthologs:
-                    if ortholog in pathway.get_ko_boxes().keys():
-                        for box in pathway.get_ko_boxes()[ortholog]:
+                    if ortholog in pathway.ko_boxes.keys():
+                        for box in pathway.ko_boxes[ortholog]:
                             if box not in dic_boxes.keys() and box not in grey_boxes:
                                 grey_boxes.append(box)
                 pathway.grey_boxes(grey_boxes)
@@ -1331,8 +1303,8 @@ class MoscaData():
         for sample in samples:
             orthologs = df.loc[df[sample] > threshold].index.tolist()
             for ortholog in orthologs:
-                if ortholog in self.pathway.get_ko_boxes().keys():
-                    for box in self.pathway.get_ko_boxes()[ortholog]:
+                if ortholog in self.pathway.ko_boxes.keys():
+                    for box in self.pathway.ko_boxes[ortholog]:
                         if box in dic_box_sample.keys():
                             if sample not in dic_box_sample[box]:
                                 dic_box_sample[box].append(sample)
@@ -1364,8 +1336,8 @@ class MoscaData():
             print('Mapping {} KOs to corresponding boxes in map {}.'.format(
                     len(df.index), metabolic_map))
             for ortholog in pbar(df.index.tolist()):
-                if ortholog in pathway.get_ko_boxes().keys():
-                    for box in pathway.get_ko_boxes()[ortholog]:
+                if ortholog in pathway.ko_boxes.keys():
+                    for box in pathway.ko_boxes[ortholog]:
                         for ko in df.index.tolist():
                             data.append(df.loc[ko].tolist())
                             new_index.append(box)
