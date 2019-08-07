@@ -696,6 +696,7 @@ class KEGGPathway:
         :param output_file: (str) - Name of file to output mapping to
         :return: (pandas.DataFrame) - columns KEGG ID, KO
         '''
+        print(kegg_ids[:100])
         if output_file and os.path.isfile(output_file):
             return pd.read_csv(output_file, sep = '\t')
         mapping = pd.DataFrame(self.keggid2ko(kegg_ids, step = step)).transpose()
@@ -720,20 +721,21 @@ class KEGGPathway:
                 for result in conversion if len(result) > 1}                    # if len(result) > 1 -> some KOs might not have EC numbers
         return ko_dic
     
-    def most_abundant_genus(self, data, samples, n_of_genus = 10):
+    def most_abundant_taxa(self, data, samples, number_of_taxa = 10, 
+                           level_of_taxa = 'GENUS'):
         '''
         Calculates top genus from samples
         :param samples: list of samples to consider for quantification of genus abundance
         :param n: number of top genus to return
         :return: list of top genus
         '''
-        data = data.groupby("Taxonomic lineage (GENUS)")[samples].sum()
+        data = data.groupby("Taxonomic lineage (" + level_of_taxa + ")")[samples].sum()
         data["sums"] = data.sum(axis=1)
         data = data.sort_values(by=["sums"], ascending=False)
-        if n_of_genus > len(data.index.tolist()):
-            n = len(data.index.tolist())
-            print('Only {} genus were present in the sample!'.format(str(n)))
-        return data.index.tolist()[:n]
+        if number_of_taxa > len(data.index.tolist()):
+            number_of_taxa = len(data.index.tolist())
+            print('Only {} genus were present in the sample! Returned those'.format(str(n)))
+        return data.index.tolist()[:number_of_taxa]
     
     def kegg_maps_available(self):
         '''
@@ -762,8 +764,7 @@ class KEGGPathway:
                             else cm.get_cmap("Set3", 12) if ncolor <= 12
                             else cm.get_cmap("rainbow", ncolor))                # if ncolor > 12 a continuous colormap is used instead
             return [to_hex(color_scheme(i)) for i in range(ncolor)]
-        else:
-            # validates hex values and returns the original list
+        else:                                                                   # validates hex values and returns the original list
             isvalidhex = True
             for hexvalue in colors:
                 if not re.search(r'^#(?:[0-9a-fA-F]{3}){1,2}$', hexvalue):
@@ -773,8 +774,27 @@ class KEGGPathway:
             else:
                 raise Exception("Colors aren't valid hex codes")
                 
-    def genomic_potential_taxa(self, data, samples, genera = None, number_of_taxa = 10, 
-                               level_of_taxa = 'GENUS', metabolic_maps = None):
+    def potential_legend(self, colors, labels, filename):
+        f = lambda m,c: plt.plot([],[],marker=m, color=c, ls="none")[0]
+        handles = [f("s", colors[i]) for i in range(len(colors))]
+        labels = labels
+        legend = plt.legend(handles, labels, loc=3, framealpha=1, frameon=True)
+
+        def export_legend(legend, filename="legend.png", expand=[-5,-5,5,5]):
+            fig  = legend.figure
+            fig.canvas.draw()
+            bbox  = legend.get_window_extent()
+            bbox = bbox.from_extents(*(bbox.extents + np.array(expand)))
+            bbox = bbox.transformed(fig.dpi_scale_trans.inverted())
+            fig.savefig(filename, dpi="figure", bbox_inches=bbox)
+
+        export_legend(legend, filename)
+    
+    # TODO - test this clusterfuck
+    def genomic_potential_taxa(self, data, samples, output_directory, genera = None, 
+                               number_of_taxa = 10, level_of_taxa = 'GENUS', 
+                               metabolic_maps = None, output_basename = None, 
+                               maxshared = 10):
         '''
         Represents the genomic potential of the dataset for a certain taxa level,
         by coloring each taxon with a unique color
@@ -782,67 +802,93 @@ class KEGGPathway:
         :param samples: list of str column names of the dataset correspoding to
         expression values
         :param genera: list of genus to represent
-        :param threshold: int representing the expression threshold
-        :param threshold: int representing the expression threshold
+        :param number_of_taxa: int representing the number of diferent taxa to 
+        be represented in the maps, in case the taxa are not specified (will always
+        be used in the common MOSCa pipeline)
+        :param level_of_taxa: str - taxonomic level to represent - SPECIES,
+        SUPERKINGDOM, ...
+        :param metabolic_maps: list [str] - IDs of maps to represent
+        :param output_basename: str - basename for map outputs
+        :param maxshared: int - maximum number of different taxa to represent
+        in a single map box
         '''
-        if genera:
-            genera = list(set(genera))
-        else:
-            genera = self.most_abundant_genus(data, samples, number_of_taxa)
-        colors = self.set_colors([], len(genera))
+        if genera is None:
+            genera = self.most_abundant_taxa(data, samples, number_of_taxa)
+        if output_basename is None:
+            output_basename = output_directory + '/kegg_maps'
+        colors = self.taxa_colors(ncolor = len(genera))
         for metabolic_map in metabolic_maps:
-            try:
-                pathway = KeggMap(metabolic_map)
-                dic_boxes = {}
-                present_genus = []
-                for genus in genera:
-                    df = self.data[self.data["Taxonomic lineage (" + level_of_taxa + ")"] == genus][samples]
-                    df = df[df.any(axis=1)]
-                    orthologs = df.index.tolist()
-                    for ortholog in orthologs:
-                        if ortholog in pathway.ko_boxes.keys():
-                            if genus not in present_genus:
-                                present_genus.append(genus)
-                            for box in pathway.ko_boxes[ortholog]:
-                                if box in dic_boxes.keys():
-                                    dic_boxes[box].append(genus)
-                                else:
-                                    dic_boxes[box] = [genus]
-                
-                pathway.pathway_box_list(dic_boxes, present_genus, len(genus), colors)
-                
-                df = self.data[samples]
+            pathway = KeggMap(metabolic_map)
+            taxa_in_box = {}
+            for genus in genera:
+                df = data[data["Taxonomic lineage (" + level_of_taxa + ")"] == genus][samples + ['KO (KEGG Pathway)']]
                 df = df[df.any(axis=1)]
-                
-                orthologs = df.index.tolist()
-                grey_boxes = []
-                for ortholog in orthologs:
+                for ortholog in df['KO (KEGG Pathway)']:
                     if ortholog in pathway.ko_boxes.keys():
                         for box in pathway.ko_boxes[ortholog]:
-                            if box not in dic_boxes.keys() and box not in grey_boxes:
-                                grey_boxes.append(box)
-                pathway.grey_boxes(grey_boxes)
-
-                name_pdf = metabolic_map + "_genomic_potential"
-                pathway.pathway_pdf(name_pdf)
-                print("Map saved to " + name_pdf + ".pdf")
-                if len(grey_boxes) > 0:
-                    temp_colors = colors
-                    temp_colors.append("#7c7272")
-                    temp_genus = genus
-                    temp_genus.append("Present in Samples")
-                    self.potential_legend(temp_colors, temp_genus, str(name_pdf) + ".png")
+                            if box in taxa_in_box.keys():
+                                taxa_in_box[box].append(genus)
+                            else:
+                                taxa_in_box[box] = [genus]
+                                
+            dic_colors = {genera[i] : colors[i] for i in range(len(genera))}
+            
+            for box in taxa_in_box.keys():
+                nrboxes = len(taxa_in_box[box])
+                if nrboxes > maxshared:
+                    nrboxes = maxshared
                     
-                else:
-                    self.potential_legend(colors, genus, str(name_pdf) + ".png")
-            except:
-                print(metabolic_map + " - Failed to process")
+                paired = True if nrboxes % 2 == 0 else False
+                for i in range(nrboxes):
+                    newrecord = pathway.create_box_heatmap(pathway.pathway.orthologs[box], nrboxes, 
+                                                        i * 2 - (nrboxes - 1) if paired     # if nrboxes = 8, i * 2 - (nrboxes - 1) = -7,-5,-3,-1,1,3,5,7
+                                                        else i - int(nrboxes / 2),          # if nrboxes = 9, i - int(nrboxes / 2) = -4,-3,-2,-1,0,1,2,3,4
+                                                        paired = paired)
+                    newrecord.bgcolor = dic_colors[taxa_in_box[box][i]]
+                    pathway.pathway.orthologs[box].graphics.append(newrecord)
+                pathway.create_tile_box(pathway.pathway.orthologs[box])
+
+            df = data[samples]
+            df = df[df.any(axis=1)]
+            
+            orthologs = df.index.tolist()
+            grey_boxes = []
+            for ortholog in orthologs:
+                if ortholog in pathway.ko_boxes.keys():
+                    for box in pathway.ko_boxes[ortholog]:
+                        if box not in taxa_in_box.keys() and box not in grey_boxes:
+                            grey_boxes.append(box)
+            pathway.grey_boxes(grey_boxes)
+
+            name_pdf = '{}_{}.pdf'.format(output_basename, metabolic_map)
+            pathway.pathway_pdf(name_pdf)
+            print("Map saved to " + name_pdf)
+            
+            if len(grey_boxes) > 0:
+                temp_colors = colors
+                temp_colors.append("#7c7272")
+                temp_genus = genus
+                temp_genus.append("Present in Samples")
+                self.potential_legend(temp_colors, temp_genus, name_pdf.replace('pdf','.png'))
+                
+            else:
+                self.potential_legend(colors, genus, name_pdf.replace('pdf','.png'))
 
     
     def run(self, input_file, output_directory):
+        '''
         data = pd.read_csv(input_file, sep = '\t')
-        data = pd.merge(data, self.keggid2ko_mapping(data['Cross-reference (KEGG)'].tolist()),
+        ides = [ide for ide in data['Cross-reference (KEGG)'] if type(ide) != float]    #remove nans, couldn't compare with np.nan
+        added = self.keggid2ko_mapping(ides)
+        data = pd.merge(data, added,
                         on = 'Cross-reference (KEGG)', how = 'outer')
+        data.to_csv(input_file.replace('.tsv','_addedinfo.tsv'),index=False,sep='\t')
+        '''
+        data = pd.read_csv(input_file, sep='\t')
+        mg_samples = ['grinder-reads']
+        mt_samples = ["grinder-reads{}{}".format(i, j) for i in ['0.17','1','3'] for j in ['a','b','c']]
+        self.genomic_potential_taxa(data, mg_samples, output_directory, metabolic_maps = ["map00680"])
+        self.genomic_potential_taxa(data, mt_samples, output_directory, metabolic_maps = ["map00680"])
         
 ################################################################################
 ################################################################################
@@ -930,23 +976,6 @@ class MoscaData():
             print("Map saved to " + name_pdf + ".pdf")
             self.differential_colorbar(new_df, name_pdf.replace(".pdf",'png'))
                 
-    
-    def potential_legend(self, colors, labels, filename):
-        colors = colors
-        f = lambda m,c: plt.plot([],[],marker=m, color=c, ls="none")[0]
-        handles = [f("s", colors[i]) for i in range(len(colors))]
-        labels = labels
-        legend = plt.legend(handles, labels, loc=3, framealpha=1, frameon=True)
-
-        def export_legend(legend, filename="legend.png", expand=[-5,-5,5,5]):
-            fig  = legend.figure
-            fig.canvas.draw()
-            bbox  = legend.get_window_extent()
-            bbox = bbox.from_extents(*(bbox.extents + np.array(expand)))
-            bbox = bbox.transformed(fig.dpi_scale_trans.inverted())
-            fig.savefig(filename, dpi="figure", bbox_inches=bbox)
-
-        export_legend(legend, filename)
 
     def differential_colorbar(self, dataframe, filename):
         FIGSIZE = (2,3)
@@ -1159,7 +1188,8 @@ class KeggMap():
         newrecord = KGML_pathway.Graphics(rec_old)
         newrecord.name = ""
         newrecord.type = "rectangle"
-        newrecord.width = movement_steps * 1.3 * (2 if paired else 1)           # sub-boxes width, adjusted by a factor that experimentally fixed well in the representations
+        adjustment_factor = 1.3 if nrboxes > 2 else 1.1 if nrboxes > 1 else 1   # sub-boxes width, adjusted by a factor that experimentally fixed well in the representations
+        newrecord.width = movement_steps * adjustment_factor * (2 if paired else 1)
         newrecord.height = rec_old.graphics[0].height
         newrecord.y = rec_old.graphics[0].y
         newrecord.x = (i * movement_steps) + rec_old.graphics[0].x
@@ -1183,137 +1213,40 @@ class KeggMap():
         :return: creates PDF file with current pathway
         '''
         #TODO Verificar o parametro reactions
-        pathway_pdf = KGMLCanvas(self.pathway)
-        pathway_pdf.import_imagemap = imagemap
-        pathway_pdf.label_orthologs = orthologs
-        pathway_pdf.label_compounds = compounds
-        pathway_pdf.label_maps = maps
-        pathway_pdf.label_reaction_entries = reactions
-        pathway_pdf.draw(filename)
+        pdf_object = KGMLCanvas(self.pathway)
+        pdf_object.import_imagemap = imagemap
+        pdf_object.label_orthologs = orthologs
+        pdf_object.label_compounds = compounds
+        pdf_object.label_maps = maps
+        pdf_object.label_reaction_entries = reactions
+        pdf_object.draw(filename)
 
-    def taxon_map(self, organism_ID, color = ""):
-        '''
-        Paints a map with the boxes for which the given taxon has KOs identified
-        :param organism_ID: KEGG ID of the taxon
-        :param color: hex color code
-        '''
-        #TODO adaptar para recolher varios organismos
-
-        color1 = self.set_colors(color)[0]
-
-        pathway_organism = self.load_pathway(self.pathway_ID, organism_ID)
-        organism_kegg_ID = []
-        for gene_rec in pathway_organism.genes:
-            for gene in gene_rec.name.split(" "):
-                organism_kegg_ID.append(gene)
-        organism_ortholog_ID = kp.keggid2ko_mapping(
-                organism_kegg_ID, output_file = self.output + '/kegg2ko.tsv')
-
-        for ortholog_rec in self.pathway.orthologs:
-            for ortholog in ortholog_rec.name.split(" "):
-                if ortholog in organism_ortholog_ID['KO']:
-                    self.set_bgcolor(ortholog_rec, color1)
-                    self.set_fgcolor(ortholog_rec, color1)
-
-    def pathway_genes_organismo(self, KEGG_ID, maxshared = 5, color = []):
-        '''
-        Given a list of gene_kegg ids colors the the pathway map with
-        a specific color for organism
-        :param KEGG_ID: list of kegg gene id
-        :param maxshared: naximum number of boxes to be drawed
-        :param color: list of hex color codes to be used to color the pathway map
-        '''
-        coverted_KEGG_ID, orthologs_ID = kp.keggid2ko_mapping(
-                KEGG_ID, output_file = self.output + '/kegg2ko.tsv')
-        organisms = self.organismo_genes(coverted_KEGG_ID)
-
-        # Set colors
-        organism_colors = {}
-        if len(color) < len(organisms):
-            colors = self.set_colors([], len(organisms))
-        else:
-            colors = self.set_colors(color)
-        i = 0
-        for organism in organisms:
-            if organism not in organism_colors.keys():
-                organism_colors[organism] = colors[i]
-                i += 1
-
-        # Dictionario Ortholog - [organismo]
-        ortholog_dic = {}
-        for i in range(len(orthologs_ID)):
-            if orthologs_ID[i-1] in ortholog_dic.keys():
-                ortholog_dic[orthologs_ID[i - 1]].append(organisms[i - 1])
-            else:
-                ortholog_dic[orthologs_ID[i - 1]] = [organisms[i - 1]]
-
-        for ortholog_rec in self.pathway.orthologs:
-            # organismos por ortholog_rec
-            organisms = []
-            for ortholog in ortholog_rec.name.split(" "):
-                if ortholog in ortholog_dic.keys():
-                    organisms += ortholog_dic[ortholog]
-            # Se tiver organismos para o ortholog_rec
-            if len(organisms) > 0:
-                if len(organisms) <= maxshared:
-                    organism_size = len(organisms)
-                else:
-                    organism_size = maxshared
-                organisms.sort()
-                if organism_size%2==0:
-                    n = 0
-                    for i in range(-organism_size+1, organism_size,2):
-                        newrecord = self.create_pair_boxes(ortholog_rec, organism_size, i)
-                        newrecord.bgcolor = organism_colors[organisms[n]]
-                        ortholog_rec.graphics.append(newrecord)
-                        n+=1
-                    self.create_tile_box(ortholog_rec)
-
-                if organism_size% 2 != 0:
-                    n= 0
-                    for i in range(int(-(organism_size-1)/2),int((organism_size+1)/2)):
-                        newrecord = self.create_odd_boxes(ortholog_rec, organism_size, i)
-                        newrecord.bgcolor = organism_colors[organisms[n]]
-                        ortholog_rec.graphics.append(newrecord)
-                        n += 1
-                    self.create_tile_box(ortholog_rec)
-
-    def pathway_box_list(self, dic_box_items, items, maxshared = 10, color = []):
+    def pathway_box_list(self, taxa_in_box, taxa, maxshared = 10, colors = None):
         '''
         Represents items in the pathway map
-        :param dic_box_items: dic with keys correspoding to int index of the list
-        of ortholog elements in pathway and values correspoding to elements
-        of items
-        :param items: list of items to be represented and given a specific color
-        :param maxshared: int representing the maximum number of boxes to be
-        represented in each element in the pathway map
+        :param taxa_in_box: dict - {box : list of taxa in box}
+        :param taxa: list - of taxa to be represented and given a specific color
+        :param maxshared: int - maximum number of taxa sharing one box
         :param color: list of costum colors to be used to color the elements
         '''
-        colors = self.set_colors(color, len(items))
-        dic_colors = {items[i] : colors[i] for i in range(len(items))}
+        if colors is None:
+            colors = KEGGPathway.taxa_colors(ncolor = len(taxa))
+        dic_colors = {taxa[i] : colors[i] for i in range(len(taxa))}
 
-        for box in dic_box_items.keys():
-            number_types = len(dic_box_items[box])
-            if number_types > maxshared:
-                number_types = maxshared
-            if number_types % 2 == 0:
-                n = 0
-                for i in range(-number_types + 1, number_types, 2):
-                    newrecord = self.create_pair_boxes(self.pathway.orthologs[box], number_types, i)
-                    newrecord.bgcolor = dic_colors[dic_box_items[box][n]]
-                    self.pathway.orthologs[box].graphics.append(newrecord)
-                    n += 1
-                self.create_tile_box(self.pathway.orthologs[box])
-
-            else:
-                n = 0
-                for i in range(int(-(number_types - 1) / 2),
-                               int((number_types + 1) / 2)):
-                    newrecord = self.create_odd_boxes(self.pathway.orthologs[box], number_types, i)
-                    newrecord.bgcolor = dic_colors[dic_box_items[box][n]]
-                    self.pathway.orthologs[box].graphics.append(newrecord)
-                    n += 1
-                self.create_tile_box(self.pathway.orthologs[box])
+        for box in taxa_in_box.keys():
+            nrboxes = len(taxa_in_box[box])
+            if nrboxes > maxshared:
+                nrboxes = maxshared
+                
+            paired = True if nrboxes % 2 == 0 else False
+            for i in range(nrboxes):
+                newrecord = self.create_box_heatmap(self.pathway.orthologs[box], nrboxes, 
+                                                    i * 2 - (nrboxes - 1) if paired     # if nrboxes = 8, i * 2 - (nrboxes - 1) = -7,-5,-3,-1,1,3,5,7
+                                                    else i - int(nrboxes / 2),          # if nrboxes = 9, i - int(nrboxes / 2) = -4,-3,-2,-1,0,1,2,3,4
+                                                    paired = paired)
+                newrecord.bgcolor = dic_colors[taxa_in_box[box][i]]
+                self.pathway.orthologs[box].graphics.append(newrecord)
+            self.create_tile_box(self.pathway.orthologs[box])
 
     def pathway_boxes_diferential(self, dataframe, log = False, colormap = "coolwarm"):
         '''
@@ -1405,6 +1338,9 @@ if __name__ == '__main__':
     #kegg_link("ko", "ppg:PputGB1_2248")
     ## Test Functions
     #test_pathway_organismo()
-    test_genomic_potential_genus()
+    #test_genomic_potential_genus()
     #test_genomic_potential_sample()
     #test_differential_expression_sample()
+    kp = KEGGPathway()
+    kp.run(input_file = 'debugKEGG/marosca_addedinfo.tsv',
+           output_directory = 'debugKEGG')
