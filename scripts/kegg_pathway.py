@@ -10,6 +10,8 @@ import matplotlib.pyplot as plt
 import re, pandas as pd, numpy as np, os
 from progressbar import ProgressBar
 
+os.chdir('..\\..')
+
 __author__ = "Tiago Oliveira"
 __credits__ = ["Tiago Oliveira", "Joao Sequeira"]
 __version__ = "1.0"
@@ -671,54 +673,43 @@ class KEGGPathway:
         :param step: (int) - will convert "step" KEGG IDs at a time
         :return: (list) - (list,list) - KEGG ID genes converted and ko IDs
         '''
-        result = list()
-        i = 0
         print('Converting {:d} KEGG IDs to KOs through the KEGG API.'.format(len(kegg_ids)))
+        result = list()
         pbar = ProgressBar()
         for i in pbar(range(0, len(kegg_ids) - step, step)):
             try:
                 result += kegg_link("ko", kegg_ids[i:i+step]).read().split("\n")[:-1]
             except:
                 print('KEGG ID to KO broke at index ' + str(i))
-                result = [relation.split('\t') for relation in result]
-                return list(map(list, zip(*result)))
-            
+                result = [[part[0] + ';', part[1].strip('ko:')] for part in
+                   [relation.split('\t') for relation in result]]
+                return pd.DataFrame(result, columns = ['Cross-reference (KEGG)', 'KO (KEGG Pathway)'])
         result += kegg_link("ko", kegg_ids[len(kegg_ids) - step:]).read().split("\n")[:-1]
-        result = [relation.split('\t') for relation in result]
-        return list(map(list, zip(*result)))
+        result = [[part[0] + ';', part[1].strip('ko:')] for part in
+                   [relation.split('\t') for relation in result]]
+        return pd.DataFrame(result, columns = ['Cross-reference (KEGG)', 'KO (KEGG Pathway)'])
 
-    def keggid2ko_mapping(self, kegg_ids, step = 150, output_file = None):
+    def ko2ec(self, kos, step = 150):
         '''
-        Adaptation from keggid2ko to include writing of mapping if it has already
-        been performed
-        :param KEGG_ID: (list) - KEGG ID genes
-        :param step: (int) - will convert "step" KEGG IDs at a time
-        :param output_file: (str) - Name of file to output mapping to
-        :return: (pandas.DataFrame) - columns KEGG ID, KO
-        '''
-        if output_file and os.path.isfile(output_file):
-            return pd.read_csv(output_file, sep = '\t')
-        mapping = pd.DataFrame(self.keggid2ko(kegg_ids, step = step)).transpose()
-        mapping.columns = ['Cross-reference (KEGG)', 'KO']
-        mapping['Cross-reference (KEGG)'] += ';'
-        mapping['KO (KEGG Pathway)'] = [ide.split(':')[1] for ide in mapping['KO']]     # ko:K00001 -> K00001
-        del mapping['KO']
-        if output_file:
-            mapping.to_csv(output_file, sep = '\t', index = False)
-        return mapping
-    
-    def ko2ec(self, kos):
-        '''
-        Converts kegg ortholog id to EC numers
+        Converts KOs to EC numbers
         :param kos: list of kegg orthologs
         :return: dic associating ortholog kegg id with list
         of assotiated EC numbers
         '''
         print('Retrieving EC numbers from {} KOs.'.format(len(kos)))
-        conversion = kegg_link("enzyme", kos).read().split("\n")[:-1]
-        ko_dic = {result.split("\t")[0].strip("ko:"):result.split("\t")[1].upper()
-                for result in conversion if len(result) > 1}                    # if len(result) > 1 -> some KOs might not have EC numbers
-        return ko_dic
+        result = list()
+        pbar = ProgressBar()
+        for i in pbar(range(0, len(kos), step)):
+            try:
+                result += kegg_link("enzyme", kos[i:i+step]).read().split("\n")[:-1]
+            except:
+                print('KO to EC number broke at index ' + str(i))
+                result = [relation.split('\t') for relation in result]
+                return list(map(list, zip(*result)))
+        result += kegg_link("enzyme", kos[len(kos) - step:]).read().split("\n")[:-1]
+        result = [[part[0].strip('ko:'),part[1].upper()] for part in
+                   [relation.split('\t') for relation in result]]
+        return pd.DataFrame(result, columns = ['KO (KEGG Pathway)', 'EC number (KEGG Pathway)'])
     
     def most_abundant_taxa(self, data, samples, number_of_taxa = 10, 
                            level_of_taxa = 'GENUS'):
@@ -753,8 +744,7 @@ class KEGGPathway:
     
     def taxa_colors(self, colors = None, ncolor = 1):
         '''
-        Creates list of hex colors to be used,
-        using matplotlib or using costum colors
+        Creates list of hex colors to be used, using matplotlib or using custom colors
         :param colors: list of hex colors
         :param ncolor: int indicating the ammount of hex colors should be created
         :return: returns list with hex color codes
@@ -774,21 +764,23 @@ class KEGGPathway:
             else:
                 raise Exception("Colors aren't valid hex codes")
                 
-    def potential_legend(self, colors, labels, filename):
+    def potential_legend(self, colors, labels, filename, expand = [-5,-5,5,5]):
+        '''
+        Draws the color to taxa labels of genomic potential representations
+        :param colors: list - list of colors of the different taxa
+        :param labels: list - list of taxa corresponding to the colors
+        :param filename: string - filename to output
+        :param expand: list(4 ints) -
+        '''
         f = lambda m, c: plt.plot([], [], marker = m, color = c, ls = "none")[0]
         handles = [f("s", color) for color in colors]
         legend = plt.legend(handles, labels, loc=3, framealpha=1, frameon=True)
-
-        def export_legend(legend, filename = "legend.png", expand = [-5,-5,5,5]):
-            fig = legend.figure
-            fig.canvas.draw()
-            bbox  = legend.get_window_extent()
-            bbox = bbox.from_extents(*(bbox.extents + np.array(expand)))
-            bbox = bbox.transformed(fig.dpi_scale_trans.inverted())
-            fig.savefig(filename, dpi="figure", bbox_inches=bbox)
-
-        export_legend(legend, filename)
-
+        fig = legend.figure
+        fig.canvas.draw()
+        bbox  = legend.get_window_extent()
+        bbox = bbox.from_extents(*(bbox.extents + np.array(expand)))
+        bbox = bbox.transformed(fig.dpi_scale_trans.inverted())
+        fig.savefig(filename, dpi="figure", bbox_inches=bbox)
 
     def genomic_potential_taxa(self, data, samples, output_directory, genera = None, 
                                number_of_taxa = 10, level_of_taxa = 'GENUS', 
@@ -828,7 +820,8 @@ class KEGGPathway:
                     if ortholog in pathway.ko_boxes.keys():
                         for box in pathway.ko_boxes[ortholog]:
                             if box in taxa_in_box.keys():
-                                taxa_in_box[box].append(genus)
+                                if genus not in taxa_in_box[box]:
+                                    taxa_in_box[box].append(genus)
                             else:
                                 taxa_in_box[box] = [genus]
                                 
@@ -864,7 +857,7 @@ class KEGGPathway:
             # TODO - legend must be integrated in map
             if len(grey_boxes) > 0:
                 colors.append("#7c7272")
-                genera.append("Present in Samples")
+                genera.append("Present in samples")
                 self.potential_legend(colors, genera, name_pdf.replace('.pdf','.png'))
                 
             else:
@@ -924,15 +917,21 @@ class KEGGPathway:
     def run(self, input_file, output_directory):
         '''
         data = pd.read_csv(input_file, sep = '\t')
-        ides = [ide for ide in data['Cross-reference (KEGG)'] if type(ide) != float]    #remove nans, couldn't compare with np.nan
-        added = self.keggid2ko_mapping(ides)
-        data = pd.merge(data, added,
-                        on = 'Cross-reference (KEGG)', how = 'outer')
-        data.to_csv(input_file.replace('.tsv','_addedinfo.tsv'),index=False,sep='\t')
+        
+        kegg_ids = data['Cross-reference (KEGG)']; kegg_ids = kegg_ids[kegg_ids.notnull()].tolist()
+        kos = self.keggid2ko_mapping(kegg_ids)
+        data = pd.merge(data, kos, on = 'Cross-reference (KEGG)', how = 'outer')
+        data.to_csv(input_file.replace('.tsv','_addedinfo.tsv'), sep='\t', index=False)
+        kos = data['KO (KEGG Pathway)']; kos = kos[kos.notnull()].tolist()
+        ecs = self.ko2ec(kos)
+        data = pd.merge(data, ecs, on = 'KO (KEGG Pathway)', how = 'outer')
         '''
+
         data = pd.read_csv(input_file.replace('.tsv','_addedinfo.tsv'), sep='\t')
+        
         mg_samples = ['grinder-reads']
         mt_samples = ["grinder-reads{}{}".format(i, j) for i in ['0.17','1','3'] for j in ['a','b','c']]
+        
         self.genomic_potential_taxa(data, mg_samples, output_directory, metabolic_maps = ["map00680"])
         self.genomic_potential_taxa(data, mt_samples, output_directory, metabolic_maps = ["map00680"])
         
