@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from mosca_tools import MoscaTools
 from Bio.KEGG.REST import kegg_get, kegg_link, kegg_list
 from Bio.KEGG.KGML import KGML_parser, KGML_pathway
 from Bio.Graphics.KGML_vis import KGMLCanvas
@@ -7,8 +8,10 @@ from matplotlib import cm
 from matplotlib.colors import to_hex
 from io import StringIO
 import matplotlib.pyplot as plt
-import re, pandas as pd, numpy as np, os
+import re, pandas as pd, numpy as np, os, PIL
 from progressbar import ProgressBar
+
+mtools = MoscaTools()
 
 os.chdir('..\\..')
 
@@ -764,23 +767,93 @@ class KEGGPathway:
             else:
                 raise Exception("Colors aren't valid hex codes")
                 
-    def potential_legend(self, colors, labels, filename, expand = [-5,-5,5,5]):
+    def potential_legend(self, colors, labels, filename, resize_factor = 10):
         '''
         Draws the color to taxa labels of genomic potential representations
         :param colors: list - list of colors of the different taxa
         :param labels: list - list of taxa corresponding to the colors
         :param filename: string - filename to output
-        :param expand: list(4 ints) -
+        :param size: int - how big you want your legend?
         '''
         f = lambda m, c: plt.plot([], [], marker = m, color = c, ls = "none")[0]
         handles = [f("s", color) for color in colors]
-        legend = plt.legend(handles, labels, loc=3, framealpha=1, frameon=True)
+        legend = plt.legend(handles, labels, loc=3, framealpha=1, frameon = True)
         fig = legend.figure
-        fig.canvas.draw()
-        bbox  = legend.get_window_extent()
-        bbox = bbox.from_extents(*(bbox.extents + np.array(expand)))
+        # The bbox manipulation removes the axis
+        bbox = legend.get_window_extent()
+        bbox = bbox.from_extents(*(bbox.extents + np.array([-2,-2,2,2])))
         bbox = bbox.transformed(fig.dpi_scale_trans.inverted())
-        fig.savefig(filename, dpi="figure", bbox_inches=bbox)
+        fig.savefig(filename, dpi="figure", bbox_inches=bbox)   #, dpi="figure", bbox_inches=bbox)
+
+    def add_blank_space(self, image_pil, width, height, image_mode = 'RGBA'):
+        '''
+        Resizes an image with white background, keeping image size ratio
+        :param image_pil: PIL.Image - image to be resized
+        :param width: int - width of final image
+        :param height: int - heigth of final image
+        :param image_mode: str - image mode of image (RGBA, RGB, ...)
+        '''
+        ratio_w = width / image_pil.width
+        ratio_h = height / image_pil.height
+        if ratio_w < ratio_h:
+            # It must be fixed by width
+            resize_width = width
+            resize_height = round(ratio_w * image_pil.height)
+        else:
+            # Fixed by height
+            resize_width = round(ratio_h * image_pil.width)
+            resize_height = height
+        image_resize = image_pil.resize((resize_width, resize_height), 
+                                        PIL.Image.ANTIALIAS)
+        background = PIL.Image.new('RGBA', (width, height), (255, 255, 255, 255))
+        offset = (round((width - resize_width) / 2), 
+                  round((height - resize_height) / 2))
+        background.paste(image_resize, offset)
+        return background.convert(image_mode)
+    
+    def resize_image(self, image_pil, ratio = None, width = None, height = None):
+        '''
+        Resizes an image with alteration to image size ratio
+        :param ratio: int - ratio of resize - how bigger or smaller will the output be?
+        :param image_pil: PIL.Image - image to be resized
+        :param width: int - width of final image
+        :param height: int - heigth of final image
+        '''
+        if ratio:
+            return image_pil.resize((image_pil.width * ratio, 
+                                     image_pil.height * ratio), PIL.Image.ANTIALIAS)
+        elif width and height:
+            return image_pil.resize((width, height), PIL.Image.ANTIALIAS)
+        else:
+            return None
+        
+    def pdf2png(self, pdf_filename, output):
+        '''
+        Converts a pdf file to a png file
+        :param pdf_filename: str - filename of PDF file
+        :param output: str - filename of PNG output
+        '''
+        mtools.run_command('pdftoppm {} {} -png'.format(pdf_filename, output))
+    
+    def add_legend(self, kegg_map_file, legend_file, output):
+        '''
+        Merges the two files - KEGG metabolic map and respective legend - into
+        one file file
+        :param kegg_map_file: str - filename of PDF kegg metabolic map
+        :param legend_file: str - filename of PNG legend
+        '''
+        kegg_map_png = kegg_map_file.replace('.pdf', '.png')
+        self.pdf2png(kegg_map_file, kegg_map_png)
+        imgs = [PIL.Image.open(file) for file in [kegg_map_png, legend_file]]
+        imgs[0] = imgs[0].convert('RGBA')                                       # KEGG Maps are converted to RGB by pdftoppm, dunno if this adds any transparency
+        imgs[1] = self.resize_image(imgs[1], ratio = 3)
+        imgs[1] = self.add_blank_space(imgs[1], imgs[1].width, imgs[0].height)
+        min_shape = sorted([(np.sum(i.size), i.size ) for i in imgs])[0][1]
+        imgs_comb = np.hstack([np.asarray(i) for i in imgs])
+        
+        # save that beautiful picture
+        imgs_comb = PIL.Image.fromarray( imgs_comb)
+        imgs_comb.save(output)
 
     def genomic_potential_taxa(self, data, samples, output_directory, genera = None, 
                                number_of_taxa = 10, level_of_taxa = 'GENUS', 
@@ -811,7 +884,7 @@ class KEGGPathway:
         colors = self.taxa_colors(ncolor = len(genera))
         dic_colors = {genera[i] : colors[i] for i in range(len(genera))}
         for metabolic_map in metabolic_maps:
-            pathway = KeggMap(metabolic_map)
+            pathway = KeggMap(data, metabolic_map)
             taxa_in_box = {}
             for genus in genera:
                 df = data[data["Taxonomic lineage (" + level_of_taxa + ")"] == genus][samples + ['KO (KEGG Pathway)']]
@@ -829,7 +902,6 @@ class KEGGPathway:
                 nrboxes = len(taxa_in_box[box])
                 if nrboxes > maxshared:
                     nrboxes = maxshared
-                    
                 paired = True if nrboxes % 2 == 0 else False
                 for i in range(nrboxes):
                     newrecord = pathway.create_box_heatmap(pathway.pathway.orthologs[box], nrboxes, 
@@ -858,12 +930,8 @@ class KEGGPathway:
             if len(grey_boxes) > 0:
                 colors.append("#7c7272")
                 genera.append("Present in samples")
-                self.potential_legend(colors, genera, name_pdf.replace('.pdf','.png'))
+            self.potential_legend(colors, genera, name_pdf.replace('.pdf','_legend.png'))
                 
-            else:
-                self.potential_legend(colors, genus, name_pdf.replace('.pdf','.png'))
-
-
     def differential_expression_sample(self, samples, output_folder,
                                        log = False, pathways = None):
         '''
@@ -916,7 +984,7 @@ class KEGGPathway:
 
     def run(self, input_file, output_directory):
         '''
-        data = pd.read_csv(input_file, sep = '\t')
+        data = pd.read_csv(input_file, sep = '\t', low_memory=False)
         
         kegg_ids = data['Cross-reference (KEGG)']; kegg_ids = kegg_ids[kegg_ids.notnull()].tolist()
         kos = self.keggid2ko_mapping(kegg_ids)
@@ -925,15 +993,16 @@ class KEGGPathway:
         kos = data['KO (KEGG Pathway)']; kos = kos[kos.notnull()].tolist()
         ecs = self.ko2ec(kos)
         data = pd.merge(data, ecs, on = 'KO (KEGG Pathway)', how = 'outer')
+        data.to_csv(input_file.replace('.tsv','_addedinfo.tsv'), sep='\t', index=False)
         '''
 
-        data = pd.read_csv(input_file.replace('.tsv','_addedinfo.tsv'), sep='\t')
+        data = pd.read_csv(input_file.replace('.tsv','_addedinfo.tsv'), sep='\t',
+                           low_memory = False)
         
         mg_samples = ['grinder-reads']
         mt_samples = ["grinder-reads{}{}".format(i, j) for i in ['0.17','1','3'] for j in ['a','b','c']]
         
         self.genomic_potential_taxa(data, mg_samples, output_directory, metabolic_maps = ["map00680"])
-        self.genomic_potential_taxa(data, mt_samples, output_directory, metabolic_maps = ["map00680"])
         
 
 class KeggMap():
@@ -941,14 +1010,14 @@ class KeggMap():
     This class 
     '''
 
-    def __init__(self, pathway_ID, **kwargs):
+    def __init__(self, data, pathway_ID, **kwargs):
         '''
         Initialize object
         :param pathway_ID: (str) - KEGG Pathway ID
         '''
         self.__dict__ = kwargs
         self.pathway_ID = pathway_ID[-5:] if len(pathway_ID) > 5 else pathway_ID
-        self.set_pathway(pathway_ID)
+        self.set_pathway(data, pathway_ID)
 
     ############################################################################
     ####                              Helper                                ####
@@ -1076,7 +1145,7 @@ class KeggMap():
     ####                            Sets                                    ####
     ############################################################################
 
-    def set_pathway(self, pathway_ID):
+    def set_pathway(self, data, pathway_ID):
         '''
         Set pathway with Kegg Pathway ID
         :param pathway_ID: (str) Kegg Pathway ID
@@ -1095,7 +1164,9 @@ class KeggMap():
             ko.append(self.pathway.orthologs[i].graphics[0].name.strip("."))    # 'K16157...' -> 'K16157'
         
         # Set text in boxes to EC numbers
-        ko_to_ec = kp.ko2ec(ko)                                                 # {'K16157':'ec:1.14.13.25'}
+        data = data[data['EC number (KEGG Pathway)'].notnull()][[
+                'KO (KEGG Pathway)', 'EC number (KEGG Pathway)']]
+        ko_to_ec = {data.iloc[i]['KO (KEGG Pathway)']:data.iloc[i]['EC number (KEGG Pathway)']}     # {'K16157':'ec:1.14.13.25'}
         for ortholog_rec in self.pathway.orthologs:
             ko = ortholog_rec.graphics[0].name.strip(".")
             if ko in ko_to_ec.keys():
@@ -1163,13 +1234,12 @@ class KeggMap():
         :return: creates PDF file with current pathway
         '''
         #TODO Verificar o parametro reactions
-        pdf_object = KGMLCanvas(self.pathway)
-        pdf_object.import_imagemap = imagemap
-        pdf_object.label_orthologs = orthologs
-        pdf_object.label_compounds = compounds
-        pdf_object.label_maps = maps
-        pdf_object.label_reaction_entries = reactions
-        pdf_object.draw(filename)
+        KGMLCanvas(self.pathway, 
+                   import_imagemap = imagemap,
+                   label_orthologs = orthologs, 
+                   label_compounds = compounds,
+                   label_maps = maps, 
+                   label_reaction_entries = reactions).draw(filename)
 
     def pathway_box_list(self, taxa_in_box, taxa, maxshared = 10, colors = None):
         '''
