@@ -637,7 +637,8 @@ class KEGGPathway:
             '07114':'Naphthalene family',
             '07117':'Benzodiazepine family'}
     
-        self.default_maps = ['00010','00020','00030','00040','00051','00052','00053',
+        def default_maps(self):
+            return ['00010','00020','00030','00040','00051','00052','00053',
             '00500','00520','00620','00630','00640','00650','00660','00562','00190',
             '00195','00196','00710','00720','00680','00910','00920','00061','00062',
             '00071','00072','00073','00100','00120','00121','00140','00561','00564',
@@ -726,8 +727,6 @@ class KEGGPathway:
         data = data.sort_values(by=["sums"], ascending=False)
         if number_of_taxa > len(data.index.tolist()):
             number_of_taxa = len(data.index.tolist())
-            print('Only {} genus were present in the sample! Returned those'.format(
-                    str(number_of_taxa)))
         return data.index.tolist()[:number_of_taxa]
     
     def kegg_maps_available(self):
@@ -923,7 +922,6 @@ class KEGGPathway:
         
         name_pdf = '{}_{}.pdf'.format(output_basename, metabolic_map)
         pathway.pathway_pdf(name_pdf)
-        print("Map saved to " + name_pdf)
         
         if len(grey_boxes) > 0:
             colors.append("#7c7272")
@@ -963,7 +961,6 @@ class KEGGPathway:
                     '_log' if log else '')
         pathway.pathway_pdf(name_pdf)
             
-        print("Map saved to " + name_pdf)
         self.differential_colorbar(df, name_pdf.replace(".pdf",'_legend.png'))
         
         self.add_legend(name_pdf, name_pdf.replace('.pdf','_legend.png'), 
@@ -979,7 +976,7 @@ class KEGGPathway:
         plt.savefig(filename,bbox_inches='tight')
 
 
-    def run(self, input_file, output_directory, mg_samples, mt_samples, metabolic_maps):
+    def run(self, input_file, output_directory, mg_samples, mt_samples, metabolic_maps = None):
         '''
         Represents in small heatmaps the expression levels of each sample on the
         dataset present in the given pathway map. The values can be transford to
@@ -991,7 +988,10 @@ class KEGGPathway:
         :param mt_samples: list [str] - name of columns containing MT quantification
         for differential expression representations
         '''
-        data = pd.read_csv(input_file, sep = '\t', low_memory=False)
+        if metabolic_maps is None:
+            metabolic_maps = self.default_maps()
+        
+        data = pd.read_csv(self.input_file, sep = '\t', low_memory=False)
         
         kegg_ids = data['Cross-reference (KEGG)']
         kegg_ids = kegg_ids[kegg_ids.notnull()].tolist()
@@ -1003,15 +1003,19 @@ class KEGGPathway:
         ecs = self.ko2ec(kos)
         data = pd.merge(data, ecs, on = 'KO (KEGG Pathway)', how = 'outer')
         
-        data.to_csv(input_file.replace('.tsv','_addedinfo.tsv'), sep='\t', index=False)
+        data.to_csv(self.input_file.replace('.tsv','_addedinfo.tsv'), sep='\t', index=False)
         
-        for metabolic_map in metabolic_maps:
-            self.genomic_potential_taxa(data, mg_samples, 
-                        output_basename = output_directory + '/potential',
+        pbar = ProgressBar()
+        
+        print('Creating KEGG Pathway representations for ' + len(metabolic_maps) + 
+              ' metabolic pathways.')
+        for metabolic_map in pbar(metabolic_maps):
+            self.genomic_potential_taxa(data, self.mg_samples, 
+                        output_basename = self.output_directory + '/potential',
                         metabolic_map = metabolic_map)
 
-            self.differential_expression_sample(data, mt_samples, 
-                        output_basename = output_directory + '/differential',
+            self.differential_expression_sample(data, self.mt_samples, 
+                        output_basename = self.output_directory + '/differential',
                         metabolic_map = metabolic_map)
 
 class KeggMap():
@@ -1118,7 +1122,7 @@ class KeggMap():
                 pathway = kegg_get(organism_ID + pathway_ID, "kgml")
                 return KGML_parser.read(pathway)
             except:
-                print("Invalid IDs")
+                print("Invalid KEGG map ID")
                 
     def reset_pathway(self):
         '''
@@ -1319,41 +1323,3 @@ class KeggMap():
         for i in box_list:
             self.set_bgcolor(self.pathway.orthologs[i], "#7c7272")
             self.set_fgcolor(self.pathway.orthologs[i], "#7c7272")
-                
-############################################################################
-####                            Test                                    ####
-############################################################################
-    
-def test_pathway_organismo():
-    test_pathway = KeggMap("map00680", output = 'debugKEGG')
-    test_pathway.pathway_organismo("eco")
-    test_pathway.pathway_pdf("debugKEGG/test_pathway_organismo.pdf")
-    test_pathway.reset_pathway()
-    test_pathway.pathway_organismo("eco", color = ["#ef0000"])
-    test_pathway.pathway_pdf("debugKEGG/test_pathway_organismo_vermelho.pdf")
-
-def test_pathway_genes_organismo():
-    test_pathway = KeggMap("map00680")
-    kegg_IDs = ["ppg:PputGB1_2248","ppt:PPS_3154","ppx:T1E_2051","ppun:PP4_21640","ppud:DW66_3426","sme:SMc02610", "mby:MSBRM_0152"]
-    test_pathway.pathway_genes_organismo(kegg_IDs)
-    test_pathway.pathway_pdf("debugKEGG/test_pathway_genes_organismo.pdf")
-
-############################################################################
-####                            Main                                    ####
-############################################################################
-
-if __name__ == '__main__':
-    #kegg_link("ko", "ppg:PputGB1_2248")
-    ## Test Functions
-    #test_pathway_organismo()
-    #test_genomic_potential_genus()
-    #test_genomic_potential_sample()
-    #test_differential_expression_sample()
-    
-    kp = KEGGPathway()
-    kp.run(input_file = 'marosca.tsv',
-           output_directory = 'debugKEGG',
-           mg_samples = ['grinder-reads'],
-           mt_samples = ["grinder-reads{}{}".format(i, j) 
-           for i in ['0.17','1','3'] for j in ['a','b','c']],
-           metabolic_maps = ["map00680"])

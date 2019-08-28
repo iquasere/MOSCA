@@ -14,6 +14,7 @@ from annotation import Annotater
 from binning import Binner
 from metatranscriptomics_analyser import MetaTranscriptomicsAnalyser
 from metaproteomics_analyser import MetaProteomicsAnalyser
+from kegg_pathway import KEGGPathway
 from time import gmtime, strftime
 
 import argparse, pathlib, os, glob, multiprocessing
@@ -352,17 +353,24 @@ if len(experiment.split(':')) > 1:
         pass
     
 samples = mg_processed + expression_analysed
-print(samples)
+
 joined[samples].to_csv(args.output + '/readcounts.table',
       sep = '\t', index = False)
 
 joined = mtools.normalize_readcounts(args.output + '/readcounts.table', samples,
                             args.output + '/normalization_factors.txt')
 
-joined.to_csv(args.output + '/mosca_resulsts.tsv', sep = '\t', index = False)
-joined.to_excel(args.output + '/mosca_resulsts.xlsx', index = False)
+joined.to_csv(args.output + '/mosca_results.tsv', sep = '\t', index = False)
+joined.to_excel(args.output + '/mosca_results.xlsx', index = False)
+
+# KEGG Pathway representations
+kp = KEGGPathway(input_file = args.output + '/mosca_results.tsv',
+                 output_directory = args.output + '/Metatranscriptomics/KEGG Pathway',
+                 mg_samples = mg_processed,
+                 mt_samples = expression_analysed)
+kp.run()
 
 mtools.timed_message('Analysis with MOSCA was concluded with success!')
 
-mtools.write_technical_report(args.output + 'technical_report.txt')
+mtools.write_technical_report(args.output + 'technical_report.txt')             # TODO - must be improved
 print('Versions of the tools used is available at {}/technical_report.txt'.format(args.output))
