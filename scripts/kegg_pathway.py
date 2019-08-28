@@ -8,7 +8,7 @@ from matplotlib import cm
 from matplotlib.colors import to_hex
 from io import StringIO
 import matplotlib.pyplot as plt
-import re, pandas as pd, numpy as np, PIL
+import re, pandas as pd, numpy as np, PIL, os
 from progressbar import ProgressBar
 
 mtools = MoscaTools()
@@ -828,13 +828,15 @@ class KEGGPathway:
         else:
             return None
         
-    def pdf2png(self, pdf_filename, output):
+    def pdf2png(self, pdf_filename):
         '''
-        Converts a pdf file to a png file, RGB format
+        Converts a pdf file to a png file, RGB format - name changes, .pdf to .png
         :param pdf_filename: str - filename of PDF file
-        :param output: str - filename of PNG output
         '''
-        mtools.run_command('pdftoppm {} {} -png'.format(pdf_filename, output))
+        mtools.run_command('pdftoppm {} {} -png'.format(pdf_filename, 
+                           pdf_filename.split('.pdf')[0]))
+        os.rename(pdf_filename.replace('.pdf', '-1.png'), 
+                  pdf_filename.replace('.pdf', '.png'))
     
     def add_legend(self, kegg_map_file, legend_file, output):
         '''
@@ -843,9 +845,9 @@ class KEGGPathway:
         :param kegg_map_file: str - filename of PDF kegg metabolic map
         :param legend_file: str - filename of PNG legend
         '''
-        kegg_map_png = kegg_map_file.replace('.pdf', '.png')
-        self.pdf2png(kegg_map_file, kegg_map_png)
-        imgs = [PIL.Image.open(file) for file in [kegg_map_png, legend_file]]
+        self.pdf2png(kegg_map_file)
+        imgs = [PIL.Image.open(file) for file in 
+                [kegg_map_file.replace('.pdf', '.png'), legend_file]]
         imgs[0] = imgs[0].convert('RGBA')                                       # KEGG Maps are converted to RGB by pdftoppm, dunno if converting to RGBA adds any transparency
         imgs[1] = self.resize_image(imgs[1], ratio = 5)
         imgs[1] = self.add_blank_space(imgs[1], imgs[1].width, imgs[0].height)
@@ -855,7 +857,7 @@ class KEGGPathway:
         imgs_comb = PIL.Image.fromarray(imgs_comb)
         imgs_comb.save(output)
 
-    def genomic_potential_taxa(self, data, samples, output_directory, genera = None, 
+    def genomic_potential_taxa(self, data, samples, genera = None, 
                                number_of_taxa = 10, level_of_taxa = 'GENUS', 
                                metabolic_map = None, output_basename = None, 
                                maxshared = 10):
@@ -877,14 +879,12 @@ class KEGGPathway:
         '''
         if genera is None:
             genera = self.most_abundant_taxa(data, samples, number_of_taxa)
-        if output_basename is None:
-            output_basename = output_directory + '/kegg_maps'
             
         colors = self.taxa_colors(ncolor = len(genera))
         dic_colors = {genera[i] : colors[i] for i in range(len(genera))}
         
         pathway = KeggMap(data, metabolic_map)
-        taxa_in_box = {}
+        taxa_in_box = dict()
         for genus in genera:
             df = data[data["Taxonomic lineage (" + level_of_taxa + ")"] == genus][samples + ['KO (KEGG Pathway)']]
             df = df[df.any(axis=1)]
@@ -935,7 +935,7 @@ class KEGGPathway:
         self.add_legend(name_pdf, name_pdf.replace('.pdf','_legend.png'), 
                         name_pdf.replace('.pdf', '_with_legend.png'))
             
-    def differential_expression_sample(self, data, samples, output_folder,
+    def differential_expression_sample(self, data, samples, output_basename = None,
                                        log = False, metabolic_map = None):
         '''
         Represents in small heatmaps the expression levels of each sample on the
@@ -948,29 +948,23 @@ class KEGGPathway:
         :param log: bol - convert the expression values to logarithmic scale?
         '''
         pathway = KeggMap(data, metabolic_map)
-        new_data = list()
-        new_index = []
-        df = data.groupby(level = 0)[samples + ['KO (KEGG Pathway)']].sum()
+        df = data.groupby('KO (KEGG Pathway)')[samples + ['KO (KEGG Pathway)']].sum()
         df = df[df.any(axis=1)]
-        for ortholog in df.index.tolist():
-            if ortholog in pathway.ko_boxes.keys():
-                for box in pathway.ko_boxes[ortholog]:
-                    for ko in df.index.tolist():
-                        new_data.append(df.loc[ko].tolist())
-                        new_index.append(box)
+        df['Boxes'] = [pathway.ko_boxes[ko] if ko in pathway.ko_boxes.keys()
+                        else np.nan for ko in df.index]
+        df = df[df['Boxes'].notnull()]
+        df = mtools.expand_by_list_column(df, column = 'Boxes')                 #                sample1
+                                                                                # 6              151800.0
+        df = df.groupby('Boxes')[samples].sum()
+
+        pathway.pathway_boxes_diferential(df, log)
         
-        new_df = pd.DataFrame(new_data, columns=samples, index=new_index)       #                sample1
-                                                                            # 6              151800.0
-        new_df = new_df[new_df.any(axis=1)]
-        new_df = new_df.groupby(level=0).sum()
-        
-        pathway.pathway_boxes_diferential(new_df, log)
-        name_pdf = '{}/{}_differential_expression{}.pdf'.format(output_folder, 
-                    metabolic_map, '_log' if log else '')
+        name_pdf = '{}_{}{}.pdf'.format(output_basename, metabolic_map, 
+                    '_log' if log else '')
         pathway.pathway_pdf(name_pdf)
             
-        print("Map saved to " + name_pdf + ".pdf")
-        self.differential_colorbar(new_df, name_pdf.replace(".pdf",'.png'))
+        print("Map saved to " + name_pdf)
+        self.differential_colorbar(df, name_pdf.replace(".pdf",'_legend.png'))
         
         self.add_legend(name_pdf, name_pdf.replace('.pdf','_legend.png'), 
                         name_pdf.replace('.pdf', '_with_legend.png'))
@@ -999,29 +993,36 @@ class KEGGPathway:
         '''
         data = pd.read_csv(input_file, sep = '\t', low_memory=False)
         
-        kegg_ids = data['Cross-reference (KEGG)']; kegg_ids = kegg_ids[kegg_ids.notnull()].tolist()
+        kegg_ids = data['Cross-reference (KEGG)']
+        kegg_ids = kegg_ids[kegg_ids.notnull()].tolist()
         kos = self.keggid2ko(kegg_ids)
         data = pd.merge(data, kos, on = 'Cross-reference (KEGG)', how = 'outer')
-        kos = data['KO (KEGG Pathway)']; kos = kos[kos.notnull()].tolist()
+        
+        kos = data['KO (KEGG Pathway)']
+        kos = kos[kos.notnull()].tolist()
         ecs = self.ko2ec(kos)
         data = pd.merge(data, ecs, on = 'KO (KEGG Pathway)', how = 'outer')
+        
         data.to_csv(input_file.replace('.tsv','_addedinfo.tsv'), sep='\t', index=False)
         
-        data = pd.read_csv(input_file.replace('.tsv','_addedinfo.tsv'), sep='\t',
-                           low_memory = False)
-        
         for metabolic_map in metabolic_maps:
-            self.genomic_potential_taxa(data, mg_samples, output_directory, metabolic_map)
-            self.differential_expression_sample(data, mt_samples, output_directory, metabolic_map)
+            self.genomic_potential_taxa(data, mg_samples, 
+                        output_basename = output_directory + '/potential',
+                        metabolic_map = metabolic_map)
+
+            self.differential_expression_sample(data, mt_samples, 
+                        output_basename = output_directory + '/differential',
+                        metabolic_map = metabolic_map)
 
 class KeggMap():
     '''
-    This class 
+    This class retrieves and manipulates KEGG metabolic maps from KEGG Pathway
     '''
 
     def __init__(self, data, pathway_ID, **kwargs):
         '''
         Initialize object
+        :param data: pd.DataFrame - data from MOSCA analysis
         :param pathway_ID: (str) - KEGG Pathway ID
         '''
         self.__dict__ = kwargs
@@ -1102,7 +1103,7 @@ class KeggMap():
         '''
         return rgb.apply(to_hex)
 
-    def load_pathway(self, pathway_ID, organism_ID = ""):
+    def load_kegg_map(self, pathway_ID, organism_ID = ""):
         '''
         Downloads pathway kgml from KEGG and reads it
         :param pathway_ID: (str) - suffix Pathway ID, int part
@@ -1159,7 +1160,7 @@ class KeggMap():
         Set pathway with Kegg Pathway ID
         :param pathway_ID: (str) Kegg Pathway ID
         '''
-        self.pathway = self.load_pathway(self.pathway_ID)                       # get the KGML
+        self.pathway = self.load_kegg_map(self.pathway_ID)                       # get the KGML
         ko = []
         self.ko_boxes = {}
         for i in range(len(self.pathway.orthologs)):
@@ -1170,12 +1171,13 @@ class KeggMap():
                 if ortholog not in self.ko_boxes.keys():
                     self.ko_boxes[ortholog] = list()
                 self.ko_boxes[ortholog].append(i)                               # {'K16157':[0,13,432], 'K16158':[4,13,545]}
-            ko.append(self.pathway.orthologs[i].graphics[0].name.strip("."))    # 'K16157...' -> 'K16157'
+            ko.append(self.pathway.orthologs[i].graphics[0].name.rstrip("."))   # 'K16157...' -> 'K16157'
         
         # Set text in boxes to EC numbers
         data = data[data['EC number (KEGG Pathway)'].notnull()][[
                 'KO (KEGG Pathway)', 'EC number (KEGG Pathway)']]
-        ko_to_ec = {data.iloc[i]['KO (KEGG Pathway)']:data.iloc[i]['EC number (KEGG Pathway)']}     # {'K16157':'ec:1.14.13.25'}
+        ko_to_ec = {data.iloc[i]['KO (KEGG Pathway)']:data.iloc[i]['EC number (KEGG Pathway)']
+                    for i in range(len(data))}     # {'K16157':'ec:1.14.13.25'}
         for ortholog_rec in self.pathway.orthologs:
             ko = ortholog_rec.graphics[0].name.strip(".")
             if ko in ko_to_ec.keys():
@@ -1282,12 +1284,12 @@ class KeggMap():
         Represents expression values present in a dataframe in the
         pathway map
         :param dataframe: pandas DataFrame with each column representing a sample
-        and index corresponding to int list index of the ortholog elment in the
+        and index corresponding to int list index of the ortholog element in the
         pathway
         :param log: bol providing the option for a log normalization of data
         :param colormap: str representing a costum matplotlib colormap to be used
         '''
-        
+
         if log:
             norm = cm.colors.LogNorm(vmin=dataframe.min().min(), vmax=dataframe.max().max())
         else:
@@ -1300,7 +1302,7 @@ class KeggMap():
         dataframe = dataframe[dataframe.columns.tolist()]
         
         nrboxes = len(dataframe.columns.tolist())                               # number of samples
-
+        
         for box in dataframe.index.tolist():
             colors = dataframe.loc[box].tolist()
             paired = True if nrboxes % 2 == 0 else False

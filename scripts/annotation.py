@@ -252,8 +252,6 @@ class Annotater:
         individual 'Pathway' elements, each with its row
     '''    
     def using_repeat(self, df, column = 'Pathway'):
-        import numpy as np
-        import pandas as pd
         lens = [len(item) for item in df[column]]
         dictionary = dict()
         for column in df.columns:

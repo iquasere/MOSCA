@@ -7,9 +7,7 @@ By João Sequeira
 Jun 2017
 '''
 
-from io import StringIO
-import pandas as pd
-import subprocess, glob, re, os, gzip, time
+import pandas as pd, subprocess, glob, os, gzip, time, numpy as np
 
 class MoscaTools:
     
@@ -151,6 +149,23 @@ class MoscaTools:
                             if blast is None else blast.replace('.blast', '.gff'),
                             basename + '.readcounts', 
                             stranded = False if blast is None else True)
+    
+    '''
+    Input:
+        df: pandas.DataFrame to manipulate
+        column: column composed of lists from where to expand the dataframe
+    Output:
+        Returns the DataFrame expanded through one column by repeating all the
+        values of the row where in 'column' there is a list with more than one 
+        element
+    '''    
+    def expand_by_list_column(self, df, column = 'Pathway'):
+        lens = [len(item) for item in df[column]]
+        dictionary = dict()
+        for column in df.columns:
+            dictionary[column] = np.repeat(df[column].values,lens)
+        dictionary[column] = np.concatenate(df[column].values)
+        return pd.DataFrame(dictionary) 
     
     def generate_mg_index(self, reference, index_prefix):
         self.run_command('bowtie2-build ' + reference + ' ' + index_prefix)
