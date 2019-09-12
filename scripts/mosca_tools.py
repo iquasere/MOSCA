@@ -188,8 +188,9 @@ class MoscaTools:
             print('Deleting file', file)
             os.remove(file)
     
-    def run_command(self, bashCommand, file = '', mode = 'w', sep = ' '):
-        print(bashCommand)
+    def run_command(self, bashCommand, file = '', mode = 'w', sep = ' ', print_message = True):
+        if print_message:
+            print(bashCommand)
         if file == '':
                 subprocess.run(bashCommand.split(sep), stdout=subprocess.PIPE, check = True)       # was subprocess.Popen
         else:

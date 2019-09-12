@@ -637,8 +637,7 @@ class KEGGPathway:
             '07114':'Naphthalene family',
             '07117':'Benzodiazepine family'}
     
-        def default_maps(self):
-            return ['00010','00020','00030','00040','00051','00052','00053',
+        self.default_maps = ['00010','00020','00030','00040','00051','00052','00053',
             '00500','00520','00620','00630','00640','00650','00660','00562','00190',
             '00195','00196','00710','00720','00680','00910','00920','00061','00062',
             '00071','00072','00073','00100','00120','00121','00140','00561','00564',
@@ -656,7 +655,7 @@ class KEGGPathway:
             '00331','00521','00524','00525','00231','00401','00404','00405','00333',
             '00254','00998','00999','00362','00627','00364','00625','00361','00623',
             '00622','00633','00642','00643','00791','00930','00363','00621','00626',
-            '00624','00365','00984','00980','00098','00098','01010','01060','01061',
+            '00624','00365','00984','00980','01010','01060','01061',
             '01062','01063','01064','01065','01066','01070','03020','03022','03040',
             '03010','00970','03013','03015','03008','03060','04141','04130','04120',
             '04122','03050','03018','03030','03410','03420','03430','03440','03450',
@@ -833,7 +832,7 @@ class KEGGPathway:
         :param pdf_filename: str - filename of PDF file
         '''
         mtools.run_command('pdftoppm {} {} -png'.format(pdf_filename, 
-                           pdf_filename.split('.pdf')[0]))
+                           pdf_filename.split('.pdf')[0]), print_message = False)
         os.rename(pdf_filename.replace('.pdf', '-1.png'), 
                   pdf_filename.replace('.pdf', '.png'))
     
@@ -851,7 +850,7 @@ class KEGGPathway:
         imgs[1] = self.resize_image(imgs[1], ratio = 5)
         imgs[1] = self.add_blank_space(imgs[1], imgs[1].width, imgs[0].height)
         imgs_comb = np.hstack([np.asarray(i) for i in imgs])
-        
+
         # save that beautiful picture
         imgs_comb = PIL.Image.fromarray(imgs_comb)
         imgs_comb.save(output)
@@ -920,7 +919,7 @@ class KEGGPathway:
                         grey_boxes.append(box)
         pathway.grey_boxes(grey_boxes)
         
-        name_pdf = '{}_{}.pdf'.format(output_basename, metabolic_map)
+        name_pdf = '{}_{}.pdf'.format(output_basename, metabolic_map)              #maps[metabolic_map].replace('/','|').replace(' ','_'), 
         pathway.pathway_pdf(name_pdf)
         
         if len(grey_boxes) > 0:
@@ -931,7 +930,7 @@ class KEGGPathway:
                                      name_pdf.replace('.pdf','_legend.png'))
             
         self.add_legend(name_pdf, name_pdf.replace('.pdf','_legend.png'), 
-                        name_pdf.replace('.pdf', '_with_legend.png'))
+                        name_pdf.replace(metabolic_map, self.maps[metabolic_map].replace('/','_')))
             
     def differential_expression_sample(self, data, samples, output_basename = None,
                                        log = False, metabolic_map = None):
@@ -957,14 +956,15 @@ class KEGGPathway:
 
         pathway.pathway_boxes_diferential(df, log)
         
-        name_pdf = '{}_{}{}.pdf'.format(output_basename, metabolic_map, 
+        name_pdf = '{}_{}{}.pdf'.format(output_basename, metabolic_map,               #maps[metabolic_map].replace('/','|').replace(' ','_'), 
                     '_log' if log else '')
         pathway.pathway_pdf(name_pdf)
             
         self.differential_colorbar(df, name_pdf.replace(".pdf",'_legend.png'))
         
         self.add_legend(name_pdf, name_pdf.replace('.pdf','_legend.png'), 
-                        name_pdf.replace('.pdf', '_with_legend.png'))
+                        name_pdf.replace(metabolic_map + '.pdf', 
+                            self.maps[metabolic_map].replace('/','_') + '.png'))
 
 
     def differential_colorbar(self, dataframe, filename):
@@ -974,9 +974,53 @@ class KEGGPathway:
         plt.colorbar(mpb,ax=ax)
         ax.remove()
         plt.savefig(filename,bbox_inches='tight')
+        
+    def solve_ec_numbers(self, data):
+        '''
+        The KEGG API manipulation requires alterations of the data that end up
+        with many repeated lines for where there are many EC numbers. 
+        Also, UniProt's mapping retrieves a list of EC numbers that may (and will,
+        most likely) differ from the list from the KEGG API. In this method, all
+        all this information is merged in one column, "EC numbers", and the 
+        information of both methods is compared and merged.
+        :param data: pd.DataFrame - with 'EC number' and 'EC number (KEGG Pathway)'
+        columns
+        '''
+        data = pd.read_csv('formicicum_analysis_addedinfo.tsv',sep='\t')
+        notnan = data[data['EC number (KEGG Pathway)'].notnull()]
+        notnan.drop_duplicates(inplace = True)
+        notnan = notnan.groupby('Entry')['EC number (KEGG Pathway)'].apply(
+                lambda ecs:'; '.join([ec.split(':')[1] for ec in ecs]))
+        del data['EC number (KEGG Pathway)']
+        data.drop_duplicates(inplace = True)
+        data = pd.merge(data, notnan, on = 'Entry', how = 'outer')
+        joined_ecs = list()
+        for i in range(len(data)):
+            if data.iloc[i]['EC number'] == data.iloc[i]['EC number (KEGG Pathway)']:   # EC number is the same for both methods
+                joined_ecs.append(data.iloc[i]['EC number'])
+            else:
+                if type(data.iloc[i]['EC number']) == float:                            # No EC number from UniProt's mapping...
+                    if type(data.iloc[i]['EC number (KEGG Pathway)']) == float:         # ... and none from KEGG API either
+                        joined_ecs.append(np.nan)
+                    else:                                                               # ... and KEGG API's got it
+                        joined_ecs.append(data.iloc[i]['EC number (KEGG Pathway)'])
+                else:                                                                   # There is EC number from UniProt ...
+                    if type(data.iloc[i]['EC number (KEGG Pathway)']) == float:         # ... and there is none from KEGG API
+                        joined_ecs.append(data.iloc[i]['EC number'])
+                    else:                                                               # ... and there a different one from KEGG API. uh-oh
+                        uniprot_ecs = data.iloc[i]['EC number'].split('; ')
+                        kegg_ecs = data.iloc[i]['EC number (KEGG Pathway)'].split('; ')
+                        result = '; '.join(ec for ec in uniprot_ecs if ec in kegg_ecs)  # The EC numbers present in both methods are added as is
+                        result += ' (uniprot_map);'.join([ec for ec in uniprot_ecs if ec not in kegg_ecs]) + ' (uniprot_map); '
+                        result += ' (kegg_api); '.join([ec for ec in kegg_ecs if ec not in uniprot_ecs]) + ' (kegg_api); '
+                        joined_ecs.append(result[:-2])
+        data['EC numbers'] = joined_ecs
+        return data
+                        
 
-
-    def run(self, input_file, output_directory, mg_samples, mt_samples, metabolic_maps = None):
+    # TODO - added ec numbers should go to already existing "EC number" column. Always added as originally come, EC:X.X.X.X, to differentiate from UniProt mapping API. If confirmed, should go as well, added with and. If conflict arises, by having two different options, should be added as uniprot or kegg_api (ec numbers in place)
+    def run(self, input_file, output_directory, mg_samples = None, mt_samples = None, 
+            metabolic_maps = None):
         '''
         Represents in small heatmaps the expression levels of each sample on the
         dataset present in the given pathway map. The values can be transford to
@@ -989,9 +1033,9 @@ class KEGGPathway:
         for differential expression representations
         '''
         if metabolic_maps is None:
-            metabolic_maps = self.default_maps()
+            metabolic_maps = self.default_maps
         
-        data = pd.read_csv(self.input_file, sep = '\t', low_memory=False)
+        data = pd.read_csv(input_file, sep = '\t', low_memory = False)
         
         kegg_ids = data['Cross-reference (KEGG)']
         kegg_ids = kegg_ids[kegg_ids.notnull()].tolist()
@@ -1003,20 +1047,29 @@ class KEGGPathway:
         ecs = self.ko2ec(kos)
         data = pd.merge(data, ecs, on = 'KO (KEGG Pathway)', how = 'outer')
         
-        data.to_csv(self.input_file.replace('.tsv','_addedinfo.tsv'), sep='\t', index=False)
+        data = self.solve_ec_numbers(data)
+        data.to_csv(input_file, sep = '\t', index = False)
         
-        pbar = ProgressBar()
-        
-        print('Creating KEGG Pathway representations for ' + len(metabolic_maps) + 
+        print('Creating KEGG Pathway representations for ' + str(len(metabolic_maps)) + 
               ' metabolic pathways.')
-        for metabolic_map in pbar(metabolic_maps):
-            self.genomic_potential_taxa(data, self.mg_samples, 
-                        output_basename = self.output_directory + '/potential',
+        i = 0
+        for metabolic_map in metabolic_maps:
+            print('Creating representation for pathway: ' + self.maps[metabolic_map])
+            if mg_samples:
+                try:
+                    self.genomic_potential_taxa(data, mg_samples, 
+                            output_basename = output_directory + '/potential',
+                            metabolic_map = metabolic_map)
+                except:
+                    i += 1
+            if mt_samples:
+                try:
+                    self.differential_expression_sample(data, mt_samples, 
+                        output_basename = output_directory + '/differential',
                         metabolic_map = metabolic_map)
-
-            self.differential_expression_sample(data, self.mt_samples, 
-                        output_basename = self.output_directory + '/differential',
-                        metabolic_map = metabolic_map)
+                except:
+                    i += 1
+        print('Failed ' + str(i) + ' maps.')
 
 class KeggMap():
     '''
@@ -1323,3 +1376,11 @@ class KeggMap():
         for i in box_list:
             self.set_bgcolor(self.pathway.orthologs[i], "#7c7272")
             self.set_fgcolor(self.pathway.orthologs[i], "#7c7272")
+
+if __name__ == '__main__':
+
+    kp = KEGGPathway()
+    kp.run(input_file = 'formicicum_analysis.tsv',
+           output_directory = 'formicicum_kegg_maps',
+           mt_samples = ['sample1_9','sample2_4','sample3_9','sample4_9',
+                         'sample5_9','sample6_9'])
