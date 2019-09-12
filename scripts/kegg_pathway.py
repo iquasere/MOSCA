@@ -986,7 +986,6 @@ class KEGGPathway:
         :param data: pd.DataFrame - with 'EC number' and 'EC number (KEGG Pathway)'
         columns
         '''
-        data = pd.read_csv('formicicum_analysis_addedinfo.tsv',sep='\t')
         notnan = data[data['EC number (KEGG Pathway)'].notnull()]
         notnan.drop_duplicates(inplace = True)
         notnan = notnan.groupby('Entry')['EC number (KEGG Pathway)'].apply(
