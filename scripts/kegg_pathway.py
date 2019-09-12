@@ -1009,15 +1009,18 @@ class KEGGPathway:
                     else:                                                               # ... and there a different one from KEGG API. uh-oh
                         uniprot_ecs = data.iloc[i]['EC number'].split('; ')
                         kegg_ecs = data.iloc[i]['EC number (KEGG Pathway)'].split('; ')
-                        result = '; '.join(ec for ec in uniprot_ecs if ec in kegg_ecs)  # The EC numbers present in both methods are added as is
-                        result += ' (uniprot_map);'.join([ec for ec in uniprot_ecs if ec not in kegg_ecs]) + ' (uniprot_map); '
-                        result += ' (kegg_api); '.join([ec for ec in kegg_ecs if ec not in uniprot_ecs]) + ' (kegg_api); '
+                        result = str()
+                        if len([ec for ec in uniprot_ecs if ec in kegg_ecs]) > 0:       # The EC numbers present in both methods are added as is
+                            result += '; '.join(ec for ec in uniprot_ecs if ec in kegg_ecs) + '; '
+                        if len(set(uniprot_ecs) - set(kegg_ecs)) > 0:                   # Checks if there are any UniProt EC numbers not in KEGG API and adds those
+                            result += ' (uniprot_map); '.join([ec for ec in uniprot_ecs if ec not in kegg_ecs]) + ' (uniprot_map); '
+                        if len(set(kegg_ecs) - set(uniprot_ecs)) > 0:                   # Checks if there are any KEGG API EC numbers not in UniProt and adds those
+                            result += ' (kegg_api); '.join([ec for ec in kegg_ecs if ec not in uniprot_ecs]) + ' (kegg_api); '
                         joined_ecs.append(result[:-2])
         data['EC numbers'] = joined_ecs
         return data
                         
 
-    # TODO - added ec numbers should go to already existing "EC number" column. Always added as originally come, EC:X.X.X.X, to differentiate from UniProt mapping API. If confirmed, should go as well, added with and. If conflict arises, by having two different options, should be added as uniprot or kegg_api (ec numbers in place)
     def run(self, input_file, output_directory, mg_samples = None, mt_samples = None, 
             metabolic_maps = None):
         '''
