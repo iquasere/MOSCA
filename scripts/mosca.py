@@ -147,7 +147,7 @@ for experiment in experiments:
             if hasattr(args, 'quality_score'):
                 setattr(preprocesser, 'quality_score', args.quality_score)
                 
-            #preprocesser.run()
+            preprocesser.run()
             
             mtools.task_is_finished(task = 'Preprocessing',
                     file = monitorization_file, 
@@ -180,7 +180,7 @@ for experiment in experiments:
             if args.memory not in [None, 'None']:
                 setattr(assembler, 'memory', args.memory)
             
-            #assembler.run()
+            assembler.run()
             
             mtools.task_is_finished(task = 'Assembly',
                     file = monitorization_file, 
