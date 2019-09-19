@@ -10,7 +10,7 @@ option_list = list(
     make_option(c("-c", "--conditions"), type="list", metavar="character",
                 help="The conditions to define duplicates (e.g. 'c1 c1 c2 c2')",
                 default=NULL),
-    make_option(c("-m,", "--method"), default="differential", type="character", 
+    make_option(c("-m", "--method"), default="differential", type="character", 
                 help="Method for ordering rows in protein expression heatmap 
                 [differential/abundance]", metavar="character",),
     make_option(c("-o", "--output"), type="character", default=NULL, 
