@@ -17,13 +17,12 @@ class Assembler:
     
     def __init__ (self, **kwargs):
         self.__dict__ = kwargs
-        self.out_dir += '/Assembly/' + self.name
         if hasattr(self, 'memory') and self.assembler == 'metaspades':          # Megahit reads max memory in byte, metaspades reads in Gb
             self.memory /= 1.25e8
         
     def set_argument(self, x, assembler):
         if isinstance(self.__dict__[x], str):
-            if x is not 'threads':
+            if x != 'threads':
                 return ' --' + x.replace('_','-') + ' ' + self.__dict__[x]
             else:
                 return (' --threads ' + self.__dict__[x] if assembler == 'metaspades' 
@@ -74,7 +73,6 @@ class Assembler:
         self.out_dir = out_dir
         self.assembler = assembler
         self.forward, self.reverse = forward, reverse
-        self.name = name
         return result
     
     def megahit_command(self):
@@ -111,14 +109,14 @@ class Assembler:
         lines = handler.readlines()
         return lines[-1].split('%')[0]
     
-    def metaquast(self, contigs, out_dir):
-        bashCommand = ('metaquast --threads ' + self.threads + ' --output-dir ' + 
+    def run_metaquast(self, contigs, out_dir):
+        bashCommand = ('metaquast.py --threads ' + self.threads + ' --output-dir ' + 
                        out_dir + ' ' + contigs)
         mtools.run_command(bashCommand)
      
     def quality_control(self):
         contigs = self.out_dir + '/contigs.fasta'
-        self.metaquast(contigs, self.out_dir + '/quality_control')
+        self.run_metaquast(contigs, self.out_dir + '/quality_control')
         mtools.perform_alignment(contigs, [self.forward, self.reverse], 
                                  self.out_dir + '/quality_control/alignment', 
                                  threads = self.threads)

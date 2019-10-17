@@ -39,8 +39,9 @@ class KEGGPathway:
         self.maps = dict()
         for line in open('MOSCA/Databases/kegg_pathway/metabolic_maps.txt'
                          ).read().split('\n'):
-            parts = line.split('\t')
-            self.maps[parts[0]] = parts[1]
+            if not line.startswith('#'):
+                parts = line.split('\t')
+                self.maps[parts[0]] = parts[1]
     
         self.default_maps = open('MOSCA/Databases/kegg_pathway/default_maps.txt'
                                  ).read().split('\n')
@@ -220,14 +221,14 @@ class KEGGPathway:
         :param kegg_map_file: str - filename of PDF kegg metabolic map
         :param legend_file: str - filename of PNG legend
         '''
-        self.pdf2png(kegg_map_file)
+        #self.pdf2png(kegg_map_file)
         imgs = [PIL.Image.open(file) for file in 
                 [kegg_map_file.replace('.pdf', '.png'), legend_file]]
         imgs[0] = imgs[0].convert('RGBA')                                       # KEGG Maps are converted to RGB by pdftoppm, dunno if converting to RGBA adds any transparency
         imgs[1] = self.resize_image(imgs[1], ratio = 5)
         imgs[1] = self.add_blank_space(imgs[1], imgs[1].width, imgs[0].height)
         imgs_comb = np.hstack([np.asarray(i) for i in imgs])
-
+        
         # save that beautiful picture
         imgs_comb = PIL.Image.fromarray(imgs_comb)
         imgs_comb.save(output)
@@ -257,7 +258,7 @@ class KEGGPathway:
             
         colors = self.taxa_colors(ncolor = len(genera))
         dic_colors = {genera[i] : colors[i] for i in range(len(genera))}
-        
+        '''
         pathway = KeggMap(data, metabolic_map)
         taxa_in_box = dict()
         for genus in genera:
@@ -298,16 +299,22 @@ class KEGGPathway:
         
         name_pdf = '{}_{}.pdf'.format(output_basename, metabolic_map)              #maps[metabolic_map].replace('/','|').replace(' ','_'), 
         pathway.pathway_pdf(name_pdf)
-        
+        '''
+        grey_boxes = [1]
+        name_pdf = '{}_{}.pdf'.format(output_basename, metabolic_map)
         if len(grey_boxes) > 0:
             colors.append("#7c7272")
             genera.append("Present in samples")
-            
+        
         self.create_potential_legend(colors, genera, 
                                      name_pdf.replace('.pdf','_legend.png'))
             
         self.add_legend(name_pdf, name_pdf.replace('.pdf','_legend.png'), 
                         name_pdf.replace(metabolic_map, self.maps[metabolic_map].replace('/','_')))
+        
+        for file in [name_pdf, name_pdf.replace('.pdf','_legend.png'), 
+                     name_pdf.replace('.pdf', '.png')]:
+            os.remove(file)
             
     def differential_expression_sample(self, data, samples, output_basename = None,
                                        log = False, metabolic_map = None):
@@ -342,6 +349,10 @@ class KEGGPathway:
         self.add_legend(name_pdf, name_pdf.replace('.pdf','_legend.png'), 
                         name_pdf.replace(metabolic_map + '.pdf', 
                             self.maps[metabolic_map].replace('/','_') + '.png'))
+        
+        for file in [name_pdf, name_pdf.replace('.pdf','_legend.png'), 
+                     name_pdf.replace('.pdf', '.png')]:
+            os.remove(file)
 
 
     def differential_colorbar(self, dataframe, filename):
@@ -440,12 +451,12 @@ class KEGGPathway:
         :param mt_samples: list [str] - name of columns containing MT quantification
         for differential expression representations
         '''
+        
         if metabolic_maps is None:
             metabolic_maps = self.default_maps
         
         data = pd.read_csv(input_file, sep = '\t', low_memory = False)
-        del data['EC number (KEGG Pathway)']; del data['KO (KEGG Pathway)']
-        
+        '''
         kegg_ids = data[data['Cross-reference (KEGG)'].notnull()]['Cross-reference (KEGG)']
         kegg_ids = [ide.split(';')[0] for ide in kegg_ids]                      # should be fixed by 'solve_kegg_ids', but not yet possible because of UniProt
         kos = self.keggid2ko(kegg_ids)
@@ -457,10 +468,11 @@ class KEGGPathway:
         
         data = self.solve_ec_numbers(data)
         data.to_csv(input_file, sep = '\t', index = False)
-        
+        '''
         print('Creating KEGG Pathway representations for ' + str(len(metabolic_maps)) + 
               ' metabolic pathways.')
         genomic = list(); differential = list()
+        mt_samples = None
         for metabolic_map in metabolic_maps:
             print('Creating representation for pathway: ' + self.maps[metabolic_map])
             if mg_samples:
@@ -796,13 +808,14 @@ class KeggMap():
 if __name__ == '__main__':
 
     kp = KEGGPathway()
-    kp.run(input_file = 'formicicum_analysis.tsv',
+    '''
+    kp.run(input_file = 'MGMP/all_info_normalized.tsv',
            output_directory = 'MGMP/KEGGPathway',
            mg_samples = ['EST6_S1_L001', 'OL6_S3_L001', 'OLDES6_S4_L001', 'PAL6_S2_L001'])
-            
-    kp.run(input_file = 'formicicum_analysis.tsv',
+    '''
+    kp.run(input_file = 'MOSCAfinal/all_info_normalized.tsv',
            output_directory = 'MOSCAfinal/KEGGPathway',
-           mg_samples = ['sample1_9','sample2_4','sample3_9','sample4_9',
-                         'sample5_9','sample6_9'],
-           mg_samples = ['sample1_9','sample2_4','sample3_9','sample4_9',
-                         'sample5_9','sample6_9'])
+           mg_samples = ['4478-DNA-S1613-MiSeqKapa', '4478-DNA-S1616-MiSeqKapa', 
+                         '4478-DNA-S1618-MiSeqKapa'],
+           mt_samples = ['4478-R1-1-MiSeqKapa_normalized','4478-R2-1-MiSeqKapa_normalized', 
+                         '4478-R3-1-MiSeqKapa_normalized','4478-R4-1-MiSeqKapa_normalized'])

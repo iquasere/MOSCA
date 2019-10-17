@@ -51,11 +51,11 @@ class Annotater:
     def annotation(self):
         diamond = DIAMOND(threads = self.threads,
                           db = self.db,
-                          out = self.out_dir + '/Annotation/' + self.name + '/aligned.blast',
-                          query = self.out_dir + '/Annotation/' + self.name + '/fgs.faa',
-                          un = self.out_dir + '/Annotation/' + self.name + '/unaligned.fasta',
+                          out = self.out_dir + '/aligned.blast',
+                          query = self.out_dir + '/fgs.faa',
+                          un = self.out_dir + '/unaligned.fasta',
                           unal = '1',
-                          max_target_seqs = '1')
+                          max_target_seqs = '50')
         
         if self.db[-6:] == '.fasta':
             print('FASTA database was inputed')
@@ -147,7 +147,8 @@ class Annotater:
                 time.sleep(sleep)
         return result
     
-    def recursive_uniprot_fasta(self, output, fasta = None, blast = None, max_iter = 5):
+    def recursive_uniprot_fasta(self, output, fasta = None, blast = None, 
+                                entries = None, max_iter = 5):
         if fasta is not None:
             fasta = mtools.parse_fasta(fasta)
             all_ids = list(set(fasta.keys()))
@@ -155,6 +156,11 @@ class Annotater:
             blast = mtools.parse_blast(blast)
             all_ids = list(set([ide.split('|')[1] if ide != '*' else ide 
                                 for ide in blast.sseqid]))
+        elif entries is not None:
+            all_ids = list(set(entries))
+        else:
+            print('Must specify either fasta or blast!')
+            return
         i = 0
         ids_done = ([ide.split('|')[1] for ide in mtools.parse_fasta(output).keys()]
                     if os.path.isfile(output) else list())
@@ -590,7 +596,7 @@ class Annotater:
         return result
     
     def run(self):
-        self.gene_calling(self.file, self.out_dir + '/Annotation/' + self.name, self.assembled)
+        self.gene_calling(self.file, self.out_dir + '/Annotation', self.assembled)
         self.annotation()
     
     '''
@@ -810,6 +816,84 @@ class Annotater:
             partial.to_csv(output + '_{}_fun.tsv'.format(name), sep = '\t', 
                            index = False, header = False)
             self.create_krona_plot(output + '_fun.tsv')
+            
+    '''
+    Input:
+        data: str - result from MOSCA analysis
+        seqs_file: str - file to store FASTA sequences
+        blast_file: str - file to store extra annotation
+    Output:
+        returns data with new protein names
+    '''
+    def further_annotation(self, data, temp_folder = 'temp',
+                           dmnd_db = 'MOSCA/Databases/annotation_databases/uniprot.dmnd',
+                           threads = '12', out_format = '6', all_info = True):
+        '''
+        noid_entries = data[(data['Protein names']=='Uncharacterized protein') & 
+                       (data['COG general functional category']=='POORLY CHARACTERIZED')]['Entry']
+
+        self.recursive_uniprot_fasta(temp_folder + '/temp.fasta', 
+                                                   entries = noid_entries)
+        
+        mtools.run_command(('diamond blastp -q {} --db {} -p {} -f {} -o {}').format(
+                temp_folder + '/temp.fasta', dmnd_db, threads, out_format, 
+                temp_folder + '/temp_blast.tsv'))
+        '''
+        blast = mtools.parse_blast(temp_folder + '/temp_blast.tsv')
+        '''
+        noid_entries = [ide.split('|')[1] for ide in blast['sseqid']]
+        
+        uniprotinfo = self.get_uniprot_information(noid_entries)
+        uniprotinfo.to_csv(temp_folder + '/up.info',index=False)
+        '''
+        uniprotinfo = pd.read_csv(temp_folder + '/up.info')
+        uniprotinfo.drop_duplicates(inplace = True)
+        
+        relation = pd.DataFrame()
+        relation['qseqid'] = [ide.split('|')[1] for ide in blast['qseqid']]
+        relation['sseqid'] = [ide.split('|')[1] for ide in blast['sseqid']]
+        relation = pd.merge(relation, uniprotinfo, left_on = 'sseqid', 
+                            right_on = 'Entry', how = 'inner')
+        relation = relation[(relation['Protein names'] != 'Deleted.') &
+                            (relation['Protein names'] != 'Conserved protein') &
+                            (~relation['Protein names'].str.contains('uncharacterized', case = False))]
+        tax_columns = ['Taxonomic lineage (SUPERKINGDOM)','Taxonomic lineage (PHYLUM)',
+                       'Taxonomic lineage (CLASS)','Taxonomic lineage (ORDER)',
+                       'Taxonomic lineage (FAMILY)','Taxonomic lineage (GENUS)',
+                       'Taxonomic lineage (SPECIES)']
+        data['Alternative entry'] = np.nan; data['Alternative protein name'] = np.nan
+        pbar = ProgressBar()
+        print('Searching for new annotations in the blast matches.')
+        print('Proteins queried for new annotation:', len(set(relation['qseqid'])))
+        print('Total possible identifications:', str(len(relation)))
+        for query in pbar(relation['qseqid']):
+            partial = relation[relation['qseqid'] == query]
+            if all_info:
+                data.loc[data['Entry'] == query, ['Alternative entry']] = '; '.join(partial['sseqid'])
+                data.loc[data['Entry'] == query, ['Alternative protein name']] = '; '.join(partial['Protein names'])
+            else:
+                if len(partial) > 0:
+                    original_taxonomy = data.loc[data['Entry'] == query].iloc[0][tax_columns]
+                    max_proximity = 0; entry = np.nan; protein_name = np.nan
+                    for i in range(len(partial)):
+                        tax_score = self.score_taxonomic_proximity(original_taxonomy,
+                            partial.iloc[i][tax_columns])
+                        if tax_score > max_proximity:
+                            max_proximity = tax_score
+                            entry = partial.iloc[i]['sseqid']
+                            protein_name = partial.iloc[i]['Protein names']
+                    data.loc[data['Entry'] == query, ['Alternative entry']] = entry
+                    data.loc[data['Entry'] == query, ['Alternative protein name']] = protein_name
+        return data
+
+    def score_taxonomic_proximity(self, tax1, tax2):
+        proximity = 0
+        for level in range(len(tax1)):
+            if tax1[level] != tax2[level]:
+                return proximity
+            else:
+                proximity += 1
+        return proximity
     
 if __name__ == '__main__':
     '''
@@ -853,7 +937,7 @@ if __name__ == '__main__':
     annotater.cog_annotation('MOSCAfinal/Annotation/fgs_failed.faa', 'debugCOG', 
                              threads = '12')
     '''
-    
+    '''
     annotater = Annotater()
     
     #annotater.cog_annotation('/home/jsequeira/Catia_MS/original_results/original_analysis_sequences.fasta','/home/jsequeira/Catia_MS/original_results')
@@ -868,4 +952,11 @@ if __name__ == '__main__':
     joined = pd.merge(data, cogs, on = 'Entry', how = 'outer')
     
     joined.to_csv('/home/jsequeira/Catia_MS/original_results/joined.csv',index=False)
+    '''
+    annotater = Annotater()
     
+    data = pd.read_excel('/home/jsequeira/Catia_MS/formicicum_analysis.xlsx')
+    
+    data = annotater.further_annotation(data)
+    
+    data.to_excel('/home/jsequeira/Catia_MS/formicicum_analysis_added_names.xlsx')

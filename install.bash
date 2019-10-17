@@ -7,25 +7,28 @@ source ~/anaconda3/etc/profile.d/conda.sh
 conda config --add channels defaults
 conda config --add channels bioconda
 conda config --add channels conda-forge
-conda install -y fastqc
-conda install -y -c biocore sortmerna
-conda install -y -c anaconda svn
+conda install -y -c bioconda fastqc
+conda install -y -c bioconda sortmerna
+#conda install -y -c anaconda svn
+apt install -y subversion
 svn export https://github.com/biocore/sortmerna/trunk/rRNA_databases MOSCA/Databases/rRNA_databases
 find MOSCA/Databases/rRNA_databases/* | grep -v ".fasta" | xargs rm -fr
 wget https://github.com/biocore/sortmerna/raw/master/scripts/merge-paired-reads.sh -P MOSCA/scripts
 wget https://github.com/biocore/sortmerna/raw/master/scripts/unmerge-paired-reads.sh -P MOSCA/scripts
-conda install -y seqtk
-conda install -y -c faircloth-lab trimmomatic
+conda install -y -c bioconda seqtk
+conda install -y -c bioconda trimmomatic
 svn export https://github.com/timflutre/trimmomatic/trunk/adapters MOSCA/Databases/illumina_adapters
-conda install -y megahit
+conda install -y -c bioconda megahit
 conda install -y -c bioconda spades
-conda install -y quast
-conda install -y fraggenescan
-conda install -y diamond
+# conda install -y -c bioconda quast
+pip install -y quast
+conda install -y -c bioconda fraggenescan
+conda install -y -c bioconda diamond
 conda install -y -c conda-forge progressbar33
 conda install -y -c bioconda htseq
 conda install -y -c bioconda bowtie2
 conda install -y -c bioconda maxbin2
+conda install -y -c bioconda checkm-genome
 conda install -y -c anaconda biopython
 conda install -y -c anaconda reportlab
 #git clone -b devel https://github.com/claczny/VizBin.git
@@ -35,8 +38,8 @@ conda install -y -c anaconda reportlab
 #ant jar
 #cd ../../../..
 conda install -y -c bioconda bioconductor-deseq2=1.22.1
-#conda install -y -c bioconda bioconductor-genomeinfodb                         # genomeinfodb might be required after deseq
-#conda install -y -c bioconda bioconductor-genomeinfodbdata                     # genomeinfodb might be required after deseq
+conda install -y -c bioconda bioconductor-genomeinfodb                         # genomeinfodb might be required after deseq
+conda install -y -c bioconda bioconductor-genomeinfodbdata                     # genomeinfodb might be required after deseq
 conda install -y -c bioconda bioconductor-edger
 conda install -y -c bioconda r-pheatmap
 conda install -y -c r r-rcolorbrewer
@@ -47,14 +50,12 @@ conda install -y -c conda-forge tqdm
 conda install -y scikit-learn
 conda install -y -c anaconda lxml
 conda install -y -c bioconda blast
-mkdir MOSCA/Databases/annotation_databases
-cd MOSCA/Databases/annotation_databases
 wget ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_trembl.fasta.gz
 wget ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_sprot.fasta.gz
-gunzip *.fasta.gz
-cat uniprot_trembl.fasta uniprot_sprot.fasta > uniprot.fasta
-rm uniprot_trembl.fasta uniprot_sprot.fasta
-cd ../../..
+gunzip uniprot_trembl.fasta.gz uniprot_sprot.fasta.gz
+cat uniprot_trembl.fasta uniprot_sprot.fasta > MOSCA/Databases/annotation_databases/uniprot.fasta
+rm uniprot_trembl.fasta uniprot_sprot.fasta uniprot_trembl.fasta.gz uniprot_sprot.fasta.gz
+#tested to here
 mkdir -p MOSCA/Databases/COG
 wget ftp://ftp.ncbi.nih.gov/pub/mmdb/cdd/cdd.tar.gz -P MOSCA/Databases/COG
 cd MOSCA/Databases/COG
@@ -77,3 +78,6 @@ conda install -y -c bioconda maxquant
 git clone https://github.com/marbl/Krona.git
 cd Krona/KronaTools/
 perl install.pl
+
+# Troubleshoot
+# svn command not found

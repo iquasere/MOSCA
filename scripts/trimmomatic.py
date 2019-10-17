@@ -9,7 +9,7 @@ March 2017
 
 from mosca_tools import MoscaTools
 from fastqc import FastQC
-import glob, os
+import glob
 
 mtools = MoscaTools()
 
@@ -45,9 +45,8 @@ class Trimmomatic:
         else:
             possible_adapters = list()
             for adapter in adapters:
-                print(adapter)
                 #trim according to each adapter file
-                if self.paired in adapter:
+                if self.paired in adapter:                                      # if PE in adapters for paired, SE for single # TODO - this is old awful design, fix it
                     self.illuminaclip = [adapter,'2','30','10']
                     name_n_adapter = self.name + '_' + adapter.split('/')[-1].split('.fa')[0]
                     self.output = self.working_dir + '/Preprocess/Trimmomatic/' + name_n_adapter
@@ -188,8 +187,7 @@ class Trimmomatic:
         self.run()
         
     def bash_command(self):
-        result = ('java -jar ' + os.path.expanduser('~/anaconda3/jar/trimmomatic.jar ') 
-            + self.paired + ' -threads ' + self.threads)
+        result = 'trimmomatic ' + self.paired + ' -threads ' + self.threads
         if hasattr(self, 'quality_score') and self.quality_score is not None: 
             result += " -" + self.quality_score
             self.__dict__.pop('quality_score') 

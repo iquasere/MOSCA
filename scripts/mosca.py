@@ -13,7 +13,7 @@ from assembly import Assembler
 from annotation import Annotater
 from binning import Binner
 from metatranscriptomics_analyser import MetaTranscriptomicsAnalyser
-from metaproteomics_analyser import MetaProteomicsAnalyser
+from metaproteomics_analyser import MetaproteomicsAnalyser
 from kegg_pathway import KEGGPathway
 from time import gmtime, strftime
 
@@ -35,7 +35,7 @@ parser.add_argument("-a","--assembler",type=str,choices=["metaspades","megahit"]
                     default = "metaspades")
 parser.add_argument("-db","--annotation-database",type=str,
                     help="Database for annotation (.fasta or .dmnd)", 
-                     default = "Databases/annotation_databases/uniprot.fasta")
+                     default = "MOSCA/Databases/annotation_databases/uniprot.fasta")
 parser.add_argument("-o","--output",type=str,help="Directory for storing the results",
                     metavar = "Directory", default = "/MOSCA_analysis")
 parser.add_argument("-nopp","--no-preprocessing",action = "store_true",
@@ -46,7 +46,7 @@ parser.add_argument("-noan","--no-annotation",action = "store_true",default = Fa
                     help="Don't perform annotation")
 parser.add_argument("-nobin","--no-binning",action = "store_true",default = False,
                     help="Don't perform binning")
-parser.add_argument("-ol","--output-level", default = 'maximum', type = str,
+parser.add_argument("-ol","--output-level", default = 'medium', type = str,
                     choices = ["minimum","medium","maximum"], action = 'store',
                     help=("""Level of file output from MOSCA, minimum outputs 
                           only the analysis results, medium removes intermediate 
@@ -59,11 +59,11 @@ parser.add_argument("-tod", "--type-of-data", default = "metatranscriptomics",
                             choices=["metatranscriptomics", "metaproteomics"])
 parser.add_argument("-c","--conditions", type=str, nargs = '*',
                     help="""Different conditions for metatranscriptomics/metaproteomics 
-                    analysis, separated by comma (,)""")
+                    analysis, separated by comma (,) (e.g. c1,c1,c2,c2)""")
 parser.add_argument("-t","--threads",type=str, metavar = "Threads", 
                     default = str(multiprocessing.cpu_count()),
                     help="Number of threads available for MOSCA. Default is number of cores available.")
-parser.add_argument("-m","--memory",type=str,
+parser.add_argument("-m","--memory",type=str, default = 'None',                 # None is given here as default because for now, web interface needs it # TODO - drop dis 'None' necessity
                     help="Maximum memory (byte) available for MOSCA. Applied only in the assembly")
 parser.add_argument("-mark","--marker-gene-set",type=str,
                     help="""Marker gene set to use for binning with MaxBin2. 
@@ -71,7 +71,7 @@ parser.add_argument("-mark","--marker-gene-set",type=str,
                     default = '40')
 parser.add_argument("-tr","--fgs-train-file",type=str,
                     help="""File name that contains model parameters of sequencing,
-                    related to sequencing technology and error rate""", default = 'illumina_5', 
+                    related to sequencing technology and error rate""", default = 'illumina_10', 
                     choices=["sanger_5","sanger_10","454_10","454_30","illumina_5",
                              "illumina_10"])
 parser.add_argument("-mt", "--metaquast-threshold", type = str, help="""Minimum 
@@ -92,13 +92,18 @@ parser.add_argument("-anncols", "--annotation-columns", type = str,
                     help="""List of UniProt columns to obtain information from""")
 parser.add_argument("-anndbs", "--annotation-databases", type = str, 
                     help="""List of databases to cross-check with UniProt information""")
+parser.add_argument("-samp", "--mg-samples", type = str, default = 'sample1',
+                    help="""Groups of MG data to assemble together, separated by 
+                    comma (,) (e.g. s1,s1,s2,s2). If not specified, data will be 
+                    considered as coming from a single community, and assembled 
+                    together in one assembly.""")
              
 args = mtools.validate_arguments(parser)
 
 mtools.print_arguments(args)            # TODO - refine this function
 monitorization_file = args.output + '/monitorization_report.txt'
 
-experiments = [experiment for experiment in args.files]
+experiments = [experiment.split(':') for experiment in args.files]
 
 mtools.timed_message('MOSCA analysis has started')
 
@@ -114,30 +119,26 @@ for directory in directories:
     path = pathlib.Path(directory)
     path.mkdir(parents=True, exist_ok=True)
 
-mg_processed = list()
-expression_analysed = list()
+mg_preprocessed = list()
+mg_names = list()
+mt_preprocessed = list()
 
-for experiment in experiments:
-    pairs = experiment.split(':')
-    mg = pairs[0].split(',')
+'''    
+Preprocess
+'''
+if not args.no_preprocessing:
+    mtools.timed_message('Preprocessing reads')
     
-    if len(mg) == 1 and args.sequencing_technology == 'paired':                 # if data is interleaved paired end, it will be split up to forward and reverse files
-        (forward, reverse) = (args.output + '/Preprocess/' + mg[0].split('/')[-1].split('.fastq')[0]
-                                + fr for fr in ['_R1.fastq','_R2.fastq'])
-        mtools.timed_message('Splitting reads from {} to {} and {}'.format(
-                mg[0], forward, reverse))
-        mtools.divide_fq(mg[0], forward, reverse)
-        mg = [forward, reverse]
-            
-    mg_name = mg[0].split('/')[-1].split('_R')[0]
-    
-    if mg_name not in mg_processed:                                             #several MT samples might correspond to the same MG sample
-
-        '''    
-        Metagenomics Preprocess        
+    for experiment in experiments:
+        
+        ''''
+        Metagenomics preprocessing
         '''
-        if not args.no_preprocessing:
-            mtools.timed_message('Preprocessing metagenomic reads')
+            
+        (mg, mg_name) = mtools.process_argument_file(experiment[0], 'mg', 
+                                        args.output, args.sequencing_technology)
+        
+        if mg_name not in mg_preprocessed:                                         #several MT samples might correspond to the same MG sample
             preprocesser = Preprocesser(files = mg,
                                         paired = 'PE' if args.sequencing_technology == 'paired' else 'SE',
                                         working_dir = args.output,
@@ -147,182 +148,206 @@ for experiment in experiments:
             if hasattr(args, 'quality_score'):
                 setattr(preprocesser, 'quality_score', args.quality_score)
                 
-            preprocesser.run()
+            #preprocesser.run()
             
-            mtools.task_is_finished(task = 'Preprocessing',
-                    file = monitorization_file, 
-                    task_output = args.output + '/Preprocess')
+            mtools.remove_preprocessing_intermediates(args.output, args.output_level)
             
             mg = [args.output + '/Preprocess/Trimmomatic/quality_trimmed_' + mg_name + 
                   '_' + fr + '_paired.fq' for fr in ['forward', 'reverse']]
-        
-        '''
-        Assembly
-        '''
-        
-        if not args.no_assembly:
-            pathlib.Path(args.output + '/Assembly/' + mg_name).mkdir(parents=True, exist_ok=True)
             
-            mtools.timed_message('Assembling reads')
+            mg_preprocessed.append(mg_name)
             
-            mid_name = args.output + '/Preprocess/Trimmomatic/quality_trimmed_'
+        mg_names.append(mg_name)                                                # some MT/MP might have the same MG
             
-            assembler = Assembler(out_dir = args.output,
-                                 assembler = args.assembler,
-                                 name = mg_name,
-                                 forward = mg[0],
-                                 reverse = mg[1],
-                                 threads = args.threads)
-            
-            if (args.assembler == 'metaspades' and hasattr(args, 'quality_score')
-            and getattr(args, 'quality_score') not in ['None', None]):          # Megahit doesn't accept quality score input
-                setattr(assembler, 'phred_offset', args.quality_score)              # --phred-offset is the name of the parameter in MetaSPAdes
-            if args.memory not in [None, 'None']:
-                setattr(assembler, 'memory', args.memory)
-            
-            assembler.run()
-            
-            mtools.task_is_finished(task = 'Assembly',
-                    file = monitorization_file, 
-                    task_output = args.output + '/Assembly/' + mg_name)
-        
-        '''
-        Annotation
-        '''
-        if not args.no_annotation:
-            pathlib.Path(args.output + '/Annotation/' + mg_name).mkdir(parents=True, exist_ok=True)
-            assembled = False if args.no_assembly else True
-            
-            mtools.timed_message('Annotating sequences')
-            annotater = Annotater(file = args.output + '/Assembly/' + mg_name + '/contigs.fasta',
-                                  out_dir = args.output,
-                                  assembler = args.assembler,
-                                  db = args.annotation_database,
-                                  assembled = assembled,
-                                  error_model = 'illumina_10',
-                                  name = mg_name,
-                                  threads = args.threads,
-                                  columns = args.annotation_columns.split(','),
-                                  databases = args.annotation_databases.split(','))
-            
-            annotater.run()
-            
-            mtools.task_is_finished(task = 'Annotation',
-                    file = monitorization_file, 
-                    task_output = args.output + '/Annotation/' + mg_name)
-            
-        '''
-        Binning
-        '''
-        if not args.no_binning:
-            mtools.timed_message('Binning has begun')
-            
-            pathlib.Path(args.output + '/Binning/' + mg_name).mkdir(parents=True, exist_ok=True)
-            
-            binner = Binner(output = args.output + '/Binning/' + mg_name,
-                            contigs = args.output + '/Assembly/' + mg_name + '/contigs.fasta',
-                            blast = args.output + '/Annotation/' + mg_name + '/aligned.blast',
-                            uniprotinfo = args.output + '/Annotation/' + mg_name + '/uniprot_info.tsv',
-                            threads = args.threads,
-                            mg1 = args.output + '/Preprocess/Trimmomatic/quality_trimmed_' + mg_name + '_forward_paired.fq',
-                            mg2 = args.output + '/Preprocess/Trimmomatic/quality_trimmed_' + mg_name + '_reverse_paired.fq',
-                            markerset = args.marker_gene_set)
-            binner.maxbin_workflow()
-
-            mtools.task_is_finished(task = 'Binning',
-                    file = monitorization_file, 
-                    task_output = args.output + '/Binning/' + mg_name)
-            
-        mg_processed.append(mg_name)
-
-    if len(pairs) > 1:
+    if len(experiment) > 1:
         
         if args.type_of_data == 'metatranscriptomics':
             
             ''''
-            Metatranscriptomics Preprocessing
+            Metatranscriptomics preprocessing
             '''
+            (mt, mt_name) = mtools.process_argument_file(experiment[1], 'mt', 
+                                    args.output, args.sequencing_technology)
             
-            mt = pairs[1].split(',')
-            
-            if len(mt) == 1 and args.sequencing_technology == 'paired':                           # if data is interleaved paired end, it will be split up
-            
-                mt_name = mt[0].split('/')[-1].split('.fastq')[0]
+            if mt_name not in mt_preprocessed:
+                if len(mt) == 1 and args.sequencing_technology == 'paired':                           # if data is interleaved paired end, it will be split up
                 
-                (forward, reverse) = (args.output + '/Preprocess/' + mt[0].split('/')[-1].split('.fastq')[0]
-                                        + fr for fr in ['_R1.fastq','_R2.fastq'])
-                print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Splitting ' + 
-                      'reads at ' + mt[0] + ' to ' + forward + ' and ' + reverse + '.')
-                mtools.divide_fq(mt[0], forward, reverse)
-                mt = [forward, reverse]
+                    (forward, reverse) = (args.output + '/Preprocess/' + mt[0].split('/')[-1].split('.fastq')[0]
+                                            + fr for fr in ['_R1.fastq','_R2.fastq'])
+                    print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Splitting ' + 
+                          'reads at ' + mt[0] + ' to ' + forward + ' and ' + reverse + '.')
+                    mtools.divide_fq(mt[0], forward, reverse)
+                    mt = [forward, reverse]
                 
-            else:
-                mt_name = mt[0].split('/')[-1].split('_R')[0]
+                preprocesser = Preprocesser(files = mt,
+                                            paired = 'PE',
+                                            working_dir = args.output,
+                                            data = 'mrna',
+                                            name = mt_name,
+                                            threads = args.threads)
+                if hasattr(args, 'quality_score'):
+                    setattr(preprocesser, 'quality_score', args.quality_score)
+                    
+                #preprocesser.run()
                 
-            mtools.timed_message('Analysis ' + mt_name + ' sample data')
+                mtools.remove_preprocessing_intermediates(args.output, args.output_level)
                 
-            preprocesser = Preprocesser(files = mt,
-                                        paired = 'PE',
-                                        working_dir = args.output,
-                                        data = 'mrna',
-                                        name = mt_name,
-                                        threads = args.threads)
-            if hasattr(args, 'quality_score'):
-                setattr(preprocesser, 'quality_score', args.quality_score)
+                mt_preprocessed.append(mt_name)
                 
-            preprocesser.run()
-            
-            '''
-            Metatranscriptomics Quantification
-            '''
-            mtools.timed_message('Analysing gene expression with metatranscriptomics')
-            
-            path = pathlib.Path(args.output + '/Metatranscriptomics/' + 
-                                mg_name).mkdir(parents=True, exist_ok=True)
-            
-            mt = [args.output + '/Preprocess/Trimmomatic/quality_trimmed_' + mt_name + 
-                  '_' + fr + '_paired.fq' for fr in ['forward', 'reverse']]
-            
-            mta = MetaTranscriptomicsAnalyser(out_dir = args.output + '/Metatranscriptomics',
-                          contigs = args.output + '/Assembly/' + mg_name + '/contigs.fasta',
-                          blast = args.output + '/Annotation/' + mg_name + '/aligned.blast',
-                          reads = mt,
-                          mt = mt_name,
-                          threads = args.threads)
-            mta.readcounts_file()
-            
-            mtools.task_is_finished(task = 'Metatranscriptomics analysis',
-                  file = monitorization_file, 
-                  task_output = args.output + '/Metatranscriptomics/' + mt_name)
-            
-            expression_analysed.append(mt_name)
-            
-        else:
-            
-            '''
-            MetaProteomics Analysis
-            '''
-            mtools.timed_message('Analysing gene expression with metaproteomics')
-            
-            path = pathlib.Path(args.output + '/Metaproteomics/' + mt_name).mkdir(parents=True, exist_ok=True)   
-            
-            spectra_folder = pairs[1]
-            analyser = MetaProteomicsAnalyser(faa = args.output + '/Annotation/' + mg_name + '/fgs.faa',
-                          blast = args.output + '/Annotation/' + mg_name + '/aligned.blast',
-                          crap_folder = '/HDDStorage/jsequeira/Thesis/Metaproteomics',
-                          output = args.output + '/Metaproteomics/' + mg_name,
-                          protease = 'trypsin',
-                          spectra_folder = spectra_folder,
-                          experiment_name = args.output,
-                          sample_name = mg_name,
-                          replicate_number = '1',
-                          threads = args.threads)
+mtools.task_is_finished(task = 'Preprocessing', 
+                        file = monitorization_file, 
+                        task_output = args.output + '/Preprocess')
+
+'''
+Assembly
+'''
+
+samples = args.mg_samples.split(',')
+sample2name = dict()
+
+for i in range(len(mg_names)):
+    if samples[i] in sample2name.keys():
+        sample2name[samples[i]].append(mg_names[i])
+    else:
+        sample2name[samples[i]] = [mg_names[i]]
+
+if not args.no_assembly:
+    mtools.timed_message('Assembling reads')
+    
+    for sample in sample2name.keys():
+        forward_files = ['{}/Preprocess/Trimmomatic/quality_trimmed_{}_forward_paired.fq'.format(
+                args.output, name) for name in sample2name[sample]]
+        reverse_files = ['{}/Preprocess/Trimmomatic/quality_trimmed_{}_reverse_paired.fq'.format(
+                args.output, name) for name in sample2name[sample]]
+        mtools.run_command('cat ' + ' '.join(forward_files), file = '{}/Assembly/{}_forward.fastq'.format(
+                args.output, sample))
+        mtools.run_command('cat ' + ' '.join(reverse_files), file = '{}/Assembly/{}_reverse.fastq'.format(
+                args.output, sample))
+    
+        assembler = Assembler(out_dir = '{}/Assembly/{}'.format(args.output, sample),
+                             assembler = args.assembler,
+                             forward = '{}/Assembly/{}_forward.fastq'.format(
+                                     args.output, sample),
+                             reverse = '{}/Assembly/{}_reverse.fastq'.format(
+                                     args.output, sample),
+                             threads = args.threads)
         
-            analyser.standard_run()
-            
-            mtools.task_is_finished(task = 'Metaproteomics analysis',
-                    file = monitorization_file, 
-                    task_output = args.output + '/Metaproteomics/' + mt_name)
+        if (args.assembler == 'metaspades' and hasattr(args, 'quality_score')
+        and getattr(args, 'quality_score') not in ['None', None]):          # Megahit doesn't accept quality score input
+            setattr(assembler, 'phred_offset', args.quality_score)              # --phred-offset is the name of the parameter in MetaSPAdes
+        if args.memory != 'None':
+            setattr(assembler, 'memory', args.memory)
+        
+        assembler.run()
+        
+    mtools.remove_assembly_intermediates(args.output, args.output_level, sample2name.keys())
+    
+    mtools.task_is_finished(task = 'Assembly',
+                            file = monitorization_file, 
+                            task_output = args.output + '/Assembly')
+
+'''
+Annotation
+'''
+if not args.no_annotation:
+    mtools.timed_message('Annotating sequences')
+    
+    for sample in sample2name.keys():
+        annotater = Annotater(file = '{}/Assembly/{}/contigs.fasta'.format(
+                args.output, sample),
+                      out_dir = '{}/Annotation/{}'.format(args.output, sample),
+                      db = args.annotation_database,
+                      assembled = False if args.no_assembly else True,
+                      error_model = args.fgs_train_file,
+                      threads = args.threads)
+                      #columns = args.annotation_columns.split(','),
+                      #databases = args.annotation_databases.split(','))
+    
+        #annotater.run()
+    
+    mtools.remove_annotation_intermediates(args.output, args.output_level, 
+                                           sample2name.keys())
+    
+    mtools.task_is_finished(task = 'Annotation',
+            file = monitorization_file, 
+            task_output = args.output + '/Annotation')
+    
+'''
+Binning
+'''
+if not args.no_binning:
+    mtools.timed_message('Binning contigs')
+    
+    binner = Binner(output = args.output + '/Binning',
+                    contigs = args.output + '/Assembly/contigs.fasta',
+                    blast = args.output + '/Annotation/aligned.blast',
+                    uniprotinfo = args.output + '/Annotation/uniprot_info.tsv',
+                    threads = args.threads,
+                    forward = args.output + '/Assembly/forward.fastq',
+                    reverse = args.output + '/Assembly/reverse.fastq',
+                    markerset = args.marker_gene_set)
+    try:
+        binner.maxbin_workflow()
+    except:
+        print('Binning could not finish successfully')
+
+    mtools.task_is_finished(task = 'Binning',
+            file = monitorization_file, 
+            task_output = args.output + '/Binning/' + mg_name)
+
+for experiment in experiments:
+    if args.type_of_data == 'metatranscriptomics':
+        '''
+        Metatranscriptomics Quantification
+        '''
+        mtools.timed_message('Analysing gene expression with metatranscriptomics')
+        
+        path = pathlib.Path(args.output + '/Metatranscriptomics/' + 
+                            mg_name).mkdir(parents=True, exist_ok=True)
+        
+        mt = [args.output + '/Preprocess/Trimmomatic/quality_trimmed_' + mt_name + 
+              '_' + fr + '_paired.fq' for fr in ['forward', 'reverse']]
+        
+        mta = MetaTranscriptomicsAnalyser(out_dir = args.output + '/Metatranscriptomics',
+                      contigs = args.output + '/Assembly/' + mg_name + '/contigs.fasta',
+                      blast = args.output + '/Annotation/' + mg_name + '/aligned.blast',
+                      reads = mt,
+                      mt = mt_name,
+                      threads = args.threads)
+        mta.readcounts_file()
+        
+        mtools.task_is_finished(task = 'Metatranscriptomics analysis',
+              file = monitorization_file, 
+              task_output = args.output + '/Metatranscriptomics/' + mt_name)
+        
+        expression_analysed.append(mt_name)
+    
+    else:
+        
+        '''
+        MetaProteomics Analysis
+        '''
+        mtools.timed_message('Analysing gene expression with metaproteomics')
+        
+        path = pathlib.Path(args.output + '/Metaproteomics/' + mt_name).mkdir(parents=True, exist_ok=True)   
+        
+        spectra_folder = pairs[1]
+        analyser = MetaproteomicsAnalyser(faa = args.output + '/Annotation/' + mg_name + '/fgs.faa',
+                      blast = args.output + '/Annotation/' + mg_name + '/aligned.blast',
+                      crap_folder = '/HDDStorage/jsequeira/Thesis/Metaproteomics',
+                      output = args.output + '/Metaproteomics/' + mg_name,
+                      protease = 'trypsin',
+                      spectra_folder = spectra_folder,
+                      experiment_name = args.output,
+                      sample_name = mg_name,
+                      replicate_number = '1',
+                      threads = args.threads)
+    
+        analyser.standard_run()
+        
+        mtools.task_is_finished(task = 'Metaproteomics analysis',
+                file = monitorization_file, 
+                task_output = args.output + '/Metaproteomics/' + mt_name)
             
 '''
 Join all information on one report

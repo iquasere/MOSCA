@@ -65,6 +65,7 @@ class Preprocesser:
         sortmerna.run()
         print('rRNA sequences removal done')
     
+    # Trimmomatic - removal of low quality regions and short reads
     def quality_trimming(self):
         print('Beggining quality trimming')
         
@@ -116,15 +117,14 @@ class Preprocesser:
         
         adapters = self.trim_adapters()
         
-        print(adapters)
-        
         if len(adapters) > 0:
             adapter_part = adapters[0].split('/')[-1].rstrip('.fa')
             reads = [self.working_dir + '/Preprocess/Trimmomatic/' + self.name + '_' + adapter_part + '_' + fr + '_paired.fq' for fr in ['forward', 'reverse']]
         else:
             reads = self.files
         
-        self.rrna_removal(reads)
+        if self.data == 'mrna':
+            self.rrna_removal(reads)
         
         self.quality_trimming()
         self.final_quality_check()

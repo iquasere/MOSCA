@@ -7,21 +7,13 @@ By João Sequeira
 Jun 2017
 '''
 
-import pandas as pd, subprocess, glob, os, gzip, time, numpy as np
+import pandas as pd, subprocess, glob, os, gzip, time, numpy as np, shutil
 
 class MoscaTools:
     
     def __init__(self, **kwargs):
         self.__dict__ = kwargs
-        self.tools = ['anaconda-project', 'ant', 'bioconductor-deseq2', 
-                      'bioconductor-edger', 'bioconductor-genomeinfodbdata', 
-                      'bioconductor-limma', 'blast', 'bowtie2', 'conda', 
-                      'diamond', 'fastqc', 'flask', 'fraggenescan', 'htseq', 
-                      'maxbin2', 'maxquant', 'megahit', 'numpy', 'pandas', 
-                      'peptide-shaker', 'python', 'progressbar33', 'quast', 
-                      'r', 'r-pheatmap', 'r-rcolorbrewer', 'scikit-learn', 
-                      'searchgui', 'sortmerna', 'spades', 'trimmomatic', 
-                      'urllib3']
+
     '''
     Input: 
         relation: pandas.DataFrame from Annotater.join_reports
@@ -305,17 +297,54 @@ class MoscaTools:
     
     def validate_arguments(self, parser):
         args = parser.parse_args()
-        '''
-        if args.files is None or args.output is None:
+        if args.files is None:
             if args.files is None:
                 print('Must specify which files to use!')
             if args.output is None:
                 print('Must specify which output directory to use!')
             parser.print_help()
             exit()
-        '''
-        args.output = args.output.rstrip('/')                               # remove the automatic ending
+        args.output = args.output.rstrip('/')                                   # remove the automatic ending
         return args
+    
+    '''
+    Input:
+        experiment: list - filename(s) of files with reads
+        type_of_data: 'mg' or 'mt'
+        output: output directory
+        sequencing_technology: 'paired' or 'single'
+    Output:
+        If data is interleaved (length of experiment is 1, and sequencing_technology
+        is 'paired') it will divide reads to two files.
+        Returns data, the files to perform the following steps in, and name, to
+        be used as mg_name or mt_name
+    '''  
+    def process_argument_file(self, experiment, type_of_data, output,
+                              sequencing_technology):
+        data = experiment.split(',')
+        
+        if len(data) == 1 and sequencing_technology == 'paired':                  # if data is interleaved paired end, it will be split up to forward and reverse files
+            name = data[0].split('/')[-1].split('.fastq')[0]
+            (forward, reverse) = ('{}/Preprocess/{}{}'.format(output, name, fr) 
+            for fr in ['_R1.fastq','_R2.fastq'])
+            if os.path.isfile(forward):
+                print('Split has already occurred for this file!')
+            else:
+                self.timed_message('Splitting reads from {} to {} and {}'.format(
+                        data[0], forward, reverse))
+                self.divide_fq(data[0], forward, reverse)
+            data = [forward, reverse]
+        elif len(data) == 1 and not sequencing_technology == 'paired':
+            name = data[0].split('/')[-1].split('.fastq')[0]
+        elif len(data) == 2 and sequencing_technology == 'paired':
+            name = data[0].split('/')[-1].split('_R')[0]
+        else:
+            print("""BAD INPUT: {} reads must be given in one of three formats:
+                    1. Paired-end reads - two files, R1 (forward) and R2(reverse)
+                    2. Paired-end interleaved reads - one file
+                    3. Single-end reads""".format(type_of_data.upper()))
+            exit()
+        return (data, name)
 
     def print_arguments(self, args):
         import pprint
@@ -426,7 +455,75 @@ class MoscaTools:
             if task in ['Metatranscriptomics analysis', 'Metaproteomics analysis']:
                 task = 'Expression'
             f.write(task.lower() + '\n')
-        
+            
+    '''
+    Input:
+        output_dir: str - the base project directory
+        output_level: str - maximum, medium or minimum
+    Output:
+        All intermediate files of preprocessing will be removed if output_level < max,
+        all files will be removed if output_level < med
+    '''
+    def remove_preprocessing_intermediates(self, output_dir, output_level):
+        if output_level != 'maximum':
+            for file in os.listdir(output_dir + '/FastQC'):
+                if ('quality_trimmed' not in file or '.html' not in file):
+                    file = '{}/FastQC/{}'.format(output_dir, file)
+                    if os.path.isfile(file):
+                        os.remove(file)
+                    else:
+                        shutil.rmtree(file)
+            for file in (glob.glob(output_dir + '/SortMeRNA/*') + 
+                         glob.glob(output_dir + '/Trimmomatic/*')):
+                if 'quality_trimmed' not in file:
+                    os.remove(file)
+        if output_level != 'medium':
+            for file in (glob.glob(output_dir + '/FastQC/*.html') +
+                         glob.glob(output_dir + '/Trimmomatic/*')):
+                os.remove(file)
+                
+    '''
+    Input:
+        output_dir: str - the base project directory
+        output_level: str - maximum, medium or minimum
+    Output:
+        All intermediate files of assembly will be removed if output_level < max,
+        all files will be removed if output_level < med
+    '''
+    def remove_assembly_intermediates(self, output_dir, output_level, samples):
+        if output_level != 'maximum':
+            for sample in samples:
+                for file in os.listdir('{}/Assembly/{}'.format(output_dir, sample)):
+                    if ('quality_control' not in file or 'contigs.fasta' not in file):
+                        file = '{}/Assembly/{}/{}'.format(output_dir, sample, file)
+                        if os.path.isfile(file):
+                            os.remove(file)
+                        else:
+                            shutil.rmtree(file)
+        if output_level != 'medium':
+            for sample in samples:
+                os.remove('{}/Assembly/{}/contigs.fasta'.format(output_dir, sample))
+                shutil.rmtree('{}/Assembly/{}/quality_control'.format(output_dir, sample))
+
+    '''
+    Input:
+        output_dir: str - the base project directory
+        output_level: str - maximum, medium or minimum
+    Output:
+        All intermediate files of assembly will be removed if output_level < max,
+        all files will be removed if output_level < med
+    '''
+    def remove_annotation_intermediates(self, output_dir, output_level, samples):
+        if output_level != 'maximum':
+            for sample in samples:
+                for file in os.listdir('{}/Annotation/{}'.format(output_dir, sample)):
+                    if ('.faa' not in file or '.blast' not in file):
+                        file = '{}/Annotation/{}/{}'.format(output_dir, sample, file)
+                        os.remove(file)
+        if output_level != 'medium':
+            for sample in samples:
+                os.remove('{}/Annotation/{}/{}{}'.format(output_dir, sample, termination)
+                for termination in ['_fgs.faa', '_aligned.blast'])
 
 if __name__ == '__main__':
     '''
