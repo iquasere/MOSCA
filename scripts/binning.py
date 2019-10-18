@@ -420,10 +420,10 @@ class Binner:
     def run_maxbin(self, contigs, output, threads = 8, mg1 = None, mg2 = None,
                    abundance = None, markerset = '40'):
         output += '/' + markerset + '_bins'
-        mtools.run_command('run_MaxBin.pl -contig ' + contigs + ' -out ' + output + 
-        ' -thread ' + threads + ' -markerset ' + markerset +
-        (' -reads ' + mg1 + ' -reads2 ' + mg2 if abundance is None else 
-         ' -abundance ' + abundance))
+        mtools.run_command('run_MaxBin.pl -contig {} -out {} -thread {} -markerset {} {}'.format(
+                contigs, output, threads, markerset, 
+                (' -reads {} -reads2 {}'.format(mg1, mg2) if abundance is None 
+                 else ' -abundance ' + abundance)))
         
     def maxbin_workflow(self):
         self.run_maxbin(self.contigs, self.output, threads = self.threads, mg1 = self.mg1, 

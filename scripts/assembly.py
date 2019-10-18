@@ -134,4 +134,4 @@ class Assembler:
         if self.assembler == 'megahit':                                         # all contigs files are outputed the metaspades way
             os.rename(self.out_dir + '/final.contigs.fa', 
                       self.out_dir + '/contigs.fasta')
-        self.quality_control()
+        self.quality_control()                                                  # TODO - metaquast uses reads for sequence variation analysis - future work should involve determining the importance of that
