@@ -48,13 +48,14 @@ class Preprocesser:
         print('Adapter removal done')
             
     #SortMeRNA - taxonomic assignment
-    def rrna_removal(self, reads):
+    def rrna_removal(self):
         print('Beggining rRNA sequences removal')
         ref = (['MOSCA/Databases/rRNA_databases/' + database for database in
                     ['silva-arc-16s-id95', 'silva-arc-23s-id98', 'silva-bac-16s-id90', 
                      'silva-bac-23s-id98', 'silva-euk-18s-id95', 'silva-euk-28s-id98']])
+    
         sortmerna = SortMeRNA(ref = ref,
-                              reads = reads,
+                              reads = self.files,
                               aligned = self.working_dir + '/Preprocess/SortMeRNA/' + self.name + '_accepted',
                               output_format = ['fastx'],
                               other = self.working_dir + '/Preprocess/SortMeRNA/' + self.name + '_rejected',
@@ -63,6 +64,8 @@ class Preprocesser:
                               name = self.name,
                               threads = self.threads)
         sortmerna.run()
+        
+        self.files = ['{}/Preprocess/SortMeRNA/{}_{}.fastq'.format(self.working_dir, self.name, fr) for fr in ['forward','reverse']]
         print('rRNA sequences removal done')
     
     # Trimmomatic - removal of low quality regions and short reads
@@ -72,10 +75,10 @@ class Preprocesser:
         print('Generating quality check')
         fastqc = FastQC(outdir = self.working_dir + '/Preprocess/FastQC',
                         extract = True,
-                        files = [self.working_dir + '/Preprocess/SortMeRNA/' + self.name + '_' + fr + '.fastq' for fr in ['forward','reverse']])
+                        files = self.files)
         fastqc.run()
         
-        trimmomatic = Trimmomatic(input_files = [self.working_dir + '/Preprocess/SortMeRNA/' + self.name + '_' + fr + '.fastq' for fr in ['forward','reverse']],
+        trimmomatic = Trimmomatic(input_files = self.files,
                                   paired = self.paired,
                                   working_dir = self.working_dir,
                                   avgqual = '20',
@@ -119,25 +122,12 @@ class Preprocesser:
         
         if len(adapters) > 0:
             adapter_part = adapters[0].split('/')[-1].rstrip('.fa')
-            reads = [self.working_dir + '/Preprocess/Trimmomatic/' + self.name + '_' + adapter_part + '_' + fr + '_paired.fq' for fr in ['forward', 'reverse']]
-        else:
-            reads = self.files
+            self.files = ['{}/Preprocess/Trimmomatic/{}_{}_{}_paired.fq'.format(
+                    self.working_dir, self.name, adapter_part, fr) for fr in ['forward', 'reverse']]
         
+        #self.host_sequences_removal()    
         if self.data == 'mrna':
-            self.rrna_removal(reads)
+            self.rrna_removal()
         
         self.quality_trimming()
         self.final_quality_check()
-        #self.host_sequences_removal()
-        
-if __name__ == '__main__':
-    
-    for files in [['Datasets/4478-DNA-S1611-MiSeqKapa/4478-R1-1-MiSeqKapa_R1.fastq', 'Datasets/4478-DNA-S1611-MiSeqKapa/4478-R1-1-MiSeqKapa_R2.fastq']]:
-        preprocesser = Preprocesser(files = files,
-                                    working_dir = 'MOSCAfinal',
-                                    name = files[0].split('/')[-1].split('_R')[0],
-                                    paired = 'PE',
-                                    trimmomatic_dir = os.path.expanduser('~/anaconda3/bin'),
-                                    data = 'mrna')
-        preprocesser.run()
-        
