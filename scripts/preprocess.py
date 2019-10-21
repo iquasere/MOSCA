@@ -14,8 +14,6 @@ from trimmomatic import Trimmomatic
 from sortmerna import SortMeRNA
 from bmtagger import BMTagger
 
-import os
-
 class Preprocesser:
 
     def __init__ (self, **kwargs):
@@ -89,7 +87,10 @@ class Preprocesser:
                                   threads = self.threads)
         if hasattr(self, 'quality_score'):
             setattr(trimmomatic, 'quality_score', self.quality_score)
-        reports = [self.working_dir + '/Preprocess/FastQC/' + self.name + '_' + fr + '_fastqc/fastqc_data.txt' for fr in ['forward','reverse']]
+            
+        reports = [filename.replace('Trimmomatic', 'FastQC').split('.f')[0] + 
+                   '_fastqc/fastqc_data.txt' for filename in self.files]      # .f works for SortMeRNA (.fastq) and Trimmomatic (.fq) terminations
+                
         trimmomatic.define_by_reports(reports)
         print('Quality trimming done')
         
