@@ -43,7 +43,6 @@ class Assembler:
         result += ' -o ' + self.out_dir
         out_dir = self.__dict__.pop('out_dir')
         forward, reverse = self.forward, self.reverse
-        name = self.__dict__.pop('name')
         # Input data
         if hasattr(self, 'interleaved'):
             result += ' --12 ' + self.interleaved

@@ -87,9 +87,10 @@ class Preprocesser:
                                   threads = self.threads)
         if hasattr(self, 'quality_score'):
             setattr(trimmomatic, 'quality_score', self.quality_score)
-            
-        reports = [filename.replace('Trimmomatic', 'FastQC').split('.f')[0] + 
-                   '_fastqc/fastqc_data.txt' for filename in self.files]      # .f works for SortMeRNA (.fastq) and Trimmomatic (.fq) terminations
+        
+        reports = [filename.replace('SortMeRNA' if self.data == 'mrna' else     # if data is mRNA, SortMeRNA will be used
+                                    'Trimmomatic', 'FastQC').split('.f')[0] + 
+                   '_fastqc/fastqc_data.txt' for filename in self.files]        # .f works for SortMeRNA (.fastq) and Trimmomatic (.fq) terminations
                 
         trimmomatic.define_by_reports(reports)
         print('Quality trimming done')
@@ -126,9 +127,11 @@ class Preprocesser:
             self.files = ['{}/Preprocess/Trimmomatic/{}_{}_{}_paired.fq'.format(
                     self.working_dir, self.name, adapter_part, fr) for fr in ['forward', 'reverse']]
         
-        #self.host_sequences_removal()    
+        #self.host_sequences_removal()  
+        
         if self.data == 'mrna':
             self.rrna_removal()
-        
+
+        self.files = ['{}/Preprocess/SortMeRNA/{}_{}.fastq'.format(self.working_dir, self.name, fr) for fr in ['forward','reverse']]
         self.quality_trimming()
         self.final_quality_check()

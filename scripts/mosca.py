@@ -128,13 +128,13 @@ Preprocess
 '''
 if not args.no_preprocessing:
     mtools.timed_message('Preprocessing reads')
-    
+
     for experiment in experiments:
         
         ''''
         Metagenomics preprocessing
         '''
-            
+        
         (mg, mg_name) = mtools.process_argument_file(experiment[0], 'mg', 
                                         args.output, args.sequencing_technology)
         
@@ -148,9 +148,10 @@ if not args.no_preprocessing:
             if hasattr(args, 'quality_score'):
                 setattr(preprocesser, 'quality_score', args.quality_score)
                 
-            #preprocesser.run()
+            preprocesser.run()
             
-            mtools.remove_preprocessing_intermediates(args.output, args.output_level)
+            mtools.remove_preprocessing_intermediates(args.output + '/Preprocess', 
+                                                      args.output_level)
             
             mg = [args.output + '/Preprocess/Trimmomatic/quality_trimmed_' + mg_name + 
                   '_' + fr + '_paired.fq' for fr in ['forward', 'reverse']]
@@ -159,48 +160,47 @@ if not args.no_preprocessing:
             
         mg_names.append(mg_name)                                                # some MT/MP might have the same MG
             
-    if len(experiment) > 1:
-        
-        if args.type_of_data == 'metatranscriptomics':
+        if len(experiment) > 1:
             
-            ''''
-            Metatranscriptomics preprocessing
-            '''
-            (mt, mt_name) = mtools.process_argument_file(experiment[1], 'mt', 
-                                    args.output, args.sequencing_technology)
-            
-            if mt_name not in mt_preprocessed:
-                if len(mt) == 1 and args.sequencing_technology == 'paired':                           # if data is interleaved paired end, it will be split up
+            if args.type_of_data == 'metatranscriptomics':
                 
-                    (forward, reverse) = (args.output + '/Preprocess/' + mt[0].split('/')[-1].split('.fastq')[0]
-                                            + fr for fr in ['_R1.fastq','_R2.fastq'])
-                    print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Splitting ' + 
-                          'reads at ' + mt[0] + ' to ' + forward + ' and ' + reverse + '.')
-                    mtools.divide_fq(mt[0], forward, reverse)
-                    mt = [forward, reverse]
+                ''''
+                Metatranscriptomics preprocessing
+                '''
+                (mt, mt_name) = mtools.process_argument_file(experiment[1], 'mt', 
+                                        args.output, args.sequencing_technology)
                 
-                preprocesser = Preprocesser(files = mt,
-                                            paired = 'PE',
-                                            working_dir = args.output,
-                                            data = 'mrna',
-                                            name = mt_name,
-                                            threads = args.threads)
-                if hasattr(args, 'quality_score'):
-                    setattr(preprocesser, 'quality_score', args.quality_score)
+                if mt_name not in mt_preprocessed:
+                    if len(mt) == 1 and args.sequencing_technology == 'paired':                           # if data is interleaved paired end, it will be split up
                     
-                #preprocesser.run()
-                
-                mtools.remove_preprocessing_intermediates(args.output, args.output_level)
-                
-                mt_preprocessed.append(mt_name)
-                
+                        (forward, reverse) = (args.output + '/Preprocess/' + mt[0].split('/')[-1].split('.fastq')[0]
+                                                + fr for fr in ['_R1.fastq','_R2.fastq'])
+                        print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Splitting ' + 
+                              'reads at ' + mt[0] + ' to ' + forward + ' and ' + reverse + '.')
+                        mtools.divide_fq(mt[0], forward, reverse)
+                        mt = [forward, reverse]
+                    
+                    preprocesser = Preprocesser(files = mt,
+                                                paired = 'PE',
+                                                working_dir = args.output,
+                                                data = 'mrna',
+                                                name = mt_name,
+                                                threads = args.threads)
+                    if hasattr(args, 'quality_score'):
+                        setattr(preprocesser, 'quality_score', args.quality_score)
+                        
+                    preprocesser.run()
+                    
+                    mtools.remove_preprocessing_intermediates(args.output + '/Preprocess', 
+                                                              args.output_level)
+                    
+                    mt_preprocessed.append(mt_name)
+
 mtools.task_is_finished(task = 'Preprocessing', 
                         file = monitorization_file, 
                         task_output = args.output + '/Preprocess')
 
-'''
-Assembly
-'''
+
 
 samples = args.mg_samples.split(',')
 sample2name = dict()
@@ -210,6 +210,10 @@ for i in range(len(mg_names)):
         sample2name[samples[i]].append(mg_names[i])
     else:
         sample2name[samples[i]] = [mg_names[i]]
+        
+'''
+Assembly
+'''
 
 if not args.no_assembly:
     mtools.timed_message('Assembling reads')

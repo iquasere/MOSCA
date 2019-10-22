@@ -188,7 +188,12 @@ class MoscaTools:
         else:
             with open(file, mode) as output_file:
                 subprocess.run(bashCommand.split(sep), stdout=output_file)           # was subprocess.Popen
-        
+    
+    def run_pipe_command(self, bashCommand, file = '', mode = 'w', sep = ' ', print_message = True):
+        if print_message:
+            print(bashCommand)
+        subprocess.Popen(bashCommand, stdin=subprocess.PIPE, shell=True).communicate()
+      
     def parse_blast(self, blast):
         result = pd.read_csv(blast, sep='\t', header = None)
         result.columns = ['qseqid', 'sseqid', 'pident', 'length', 'mismatch', 
@@ -455,7 +460,7 @@ class MoscaTools:
             if task in ['Metatranscriptomics analysis', 'Metaproteomics analysis']:
                 task = 'Expression'
             f.write(task.lower() + '\n')
-            
+    
     '''
     Input:
         output_dir: str - the base project directory
@@ -477,10 +482,10 @@ class MoscaTools:
                          glob.glob(output_dir + '/Trimmomatic/*')):
                 if 'quality_trimmed' not in file:
                     os.remove(file)
-        if output_level != 'medium':
-            for file in (glob.glob(output_dir + '/FastQC/*.html') +
-                         glob.glob(output_dir + '/Trimmomatic/*')):
-                os.remove(file)
+            if output_level != 'medium':
+                for file in (glob.glob(output_dir + '/FastQC/*.html') +
+                             glob.glob(output_dir + '/Trimmomatic/*')):
+                    os.remove(file)
                 
     '''
     Input:
@@ -500,10 +505,10 @@ class MoscaTools:
                             os.remove(file)
                         else:
                             shutil.rmtree(file)
-        if output_level != 'medium':
-            for sample in samples:
-                os.remove('{}/Assembly/{}/contigs.fasta'.format(output_dir, sample))
-                shutil.rmtree('{}/Assembly/{}/quality_control'.format(output_dir, sample))
+            if output_level != 'medium':
+                for sample in samples:
+                    os.remove('{}/Assembly/{}/contigs.fasta'.format(output_dir, sample))
+                    shutil.rmtree('{}/Assembly/{}/quality_control'.format(output_dir, sample))
 
     '''
     Input:
@@ -520,10 +525,10 @@ class MoscaTools:
                     if ('.faa' not in file or '.blast' not in file):
                         file = '{}/Annotation/{}/{}'.format(output_dir, sample, file)
                         os.remove(file)
-        if output_level != 'medium':
-            for sample in samples:
-                os.remove('{}/Annotation/{}/{}{}'.format(output_dir, sample, termination)
-                for termination in ['_fgs.faa', '_aligned.blast'])
+            if output_level != 'medium':
+                for sample in samples:
+                    os.remove('{}/Annotation/{}/{}{}'.format(output_dir, sample, termination)
+                    for termination in ['_fgs.faa', '_aligned.blast'])
 
 if __name__ == '__main__':
     '''
