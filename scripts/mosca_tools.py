@@ -480,7 +480,8 @@ class MoscaTools:
                         shutil.rmtree(file)
             for file in (glob.glob(output_dir + '/SortMeRNA/*') + 
                          glob.glob(output_dir + '/Trimmomatic/*')):
-                if 'quality_trimmed' not in file:
+                if ('quality_trimmed' not in file or 'adapters.txt' not in file
+                    or 'quality_params.txt' not in file):
                     os.remove(file)
             if output_level != 'medium':
                 for file in (glob.glob(output_dir + '/FastQC/*.html') +
@@ -558,6 +559,17 @@ class MoscaTools:
                                                 columns = partial_data[0,1:]))
             i += 1
         return data
+    
+    '''
+    Input:
+        bashCommand: str - the command to retrieve the output from
+        shell: bool - True if using some shell tool like grep or awk
+    Output:
+        Number of occurrences of character on file
+    '''
+    def count_on_file(self, file, expression, shell = True):
+        return int(subprocess.check_output("grep -c '{}' {}".format(file, 
+                                           expression), shell = shell))
     
 if __name__ == '__main__':
     '''

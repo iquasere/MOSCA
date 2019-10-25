@@ -92,7 +92,8 @@ class Preprocesser:
                                     'Trimmomatic', 'FastQC').split('.f')[0] + 
                    '_fastqc/fastqc_data.txt' for filename in self.files]        # .f works for SortMeRNA (.fastq) and Trimmomatic (.fq) terminations
                 
-        trimmomatic.define_by_reports(reports)
+        trimmomatic.define_by_reports(reports, '{}/Preprocess/Trimmomatic/{}/quality_params.txt'.format(
+                self.working_dir, self.name))
         print('Quality trimming done')
         
     #BMTagger - removal of human sequences 
@@ -122,7 +123,7 @@ class Preprocesser:
         
         adapters = self.trim_adapters()
 
-        open('{}/Preprocess/Trimmomatic/{}_adapters.txt'.format(self.working_dir, 
+        open('{}/Preprocess/Trimmomatic/{}/adapters.txt'.format(self.working_dir, 
              self.name), 'w').write('\n'.join(adapters))
 
         if len(adapters) > 0:

@@ -62,7 +62,7 @@ parser.add_argument("-c","--conditions", type=str, nargs = '*',
                     help="""Different conditions for metatranscriptomics/metaproteomics 
                     analysis, separated by comma (,) (e.g. c1,c1,c2,c2)""")
 parser.add_argument("-t","--threads",type=str, metavar = "Threads", 
-                    default = str(multiprocessing.cpu_count()),
+                    default = str(multiprocessing.cpu_count() - 2),
                     help="Number of threads available for MOSCA. Default is number of cores available.")
 parser.add_argument("-m","--memory",type=str, default = 'None',                 # None is given here as default because for now, web interface needs it # TODO - drop dis 'None' necessity
                     help="Maximum memory (byte) available for MOSCA. Applied only in the assembly")
@@ -101,9 +101,9 @@ parser.add_argument("-assstrat", "--assembly-strategy", type = str, default = 'a
                     the same community will be assembled together.""")
 parser.add_argument("-samp", "--mg-samples", type = str,
                     help="""Groups of MG data to assemble together, separated by 
-                    comma (,) (e.g. s1,s1,s2,s2). If not specified, data will be 
-                    considered as coming from a single community, and assembled 
-                    together in one assembly.""")
+                    comma (,) (e.g. Sample1,Sample1,Sample2,Sample2). If not 
+                    specified, data will be considered as coming from a single 
+                    community, and assembled together in one assembly.""")
              
 args = mtools.validate_arguments(parser)
 
@@ -231,6 +231,7 @@ if not args.no_assembly:
     mtools.timed_message('Assembling reads')
     
     for sample in sample2name.keys():
+        '''
         forward_files = ['{}/Preprocess/Trimmomatic/quality_trimmed_{}_forward_paired.fq'.format(
                 args.output, name) for name in sample2name[sample]]
         reverse_files = ['{}/Preprocess/Trimmomatic/quality_trimmed_{}_reverse_paired.fq'.format(
@@ -239,7 +240,7 @@ if not args.no_assembly:
                 args.output, sample))
         mtools.run_command('cat ' + ' '.join(reverse_files), file = '{}/Assembly/{}_reverse.fastq'.format(
                 args.output, sample))
-    
+        '''
         assembler = Assembler(out_dir = '{}/Assembly/{}'.format(args.output, sample),
                              assembler = args.assembler,
                              forward = '{}/Assembly/{}_forward.fastq'.format(

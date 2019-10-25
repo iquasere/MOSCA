@@ -76,7 +76,7 @@ class Assembler:
     
     def megahit_command(self):
         args = dict()
-        for arg in ['assembler','name']:
+        for arg in ['assembler']:
             args[arg] = self.__dict__.pop(arg)
         result = 'megahit -f'
         if hasattr(self, 'forward') and hasattr(self, 'reverse'):
