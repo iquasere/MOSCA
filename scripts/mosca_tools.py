@@ -360,7 +360,7 @@ class MoscaTools:
         print(dict_args)
         for key in dict_args.keys():
             key_name = key[0].upper() + key[1:].replace('_',' ')
-            if key is not 'files':
+            if key != 'files':
                 print(key_name + ': ' + str(dict_args[key]))
             else:
                 print(key_name)
@@ -529,7 +529,36 @@ class MoscaTools:
                 for sample in samples:
                     os.remove('{}/Annotation/{}/{}{}'.format(output_dir, sample, termination)
                     for termination in ['_fgs.faa', '_aligned.blast'])
-
+    
+    '''
+    Input:
+        filename: str - filename of FastQC report
+    Output:
+        returns pd.DataFrame with data from FastQC report
+    '''      
+    def parse_fastqc_report(self, filename):
+        data = dict()
+        file = open(filename).read().split('\t\n')
+        i = 1
+        while i < len(file):
+            if file[i].startswith('>>') and file[i] != '>>END_MODULE':
+                name, flag = file[i][2:].split('\t')[0], file[i][2:].split('\t')[1]
+                if name == 'Sequence Duplication Levels':
+                    i += 1
+                i += 1
+                labels = file[i][1:].split('\t')
+                i += 1
+                partial_data = np.array(labels)
+                while i < len(file) and not file[i].startswith('>>'):
+                    partial_data = np.append(partial_data, file[i].split('\t'))
+                    i += 1
+                partial_data = np.reshape(partial_data,(int(partial_data.size/len(labels)),len(labels)))
+                data[name] = (flag, pd.DataFrame(data = partial_data[1:,1:],
+                                                index = partial_data[1:,0],
+                                                columns = partial_data[0,1:]))
+            i += 1
+        return data
+    
 if __name__ == '__main__':
     '''
     mtools = MoscaTools()

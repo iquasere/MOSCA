@@ -71,39 +71,63 @@ class SortMeRNA:
     def run_tool(self):
         mtools.run_command(self.bash_command())
     
+    '''
+    Input:
+        filename: str - filename of FastQ file with irregular reads (less than
+                        4 lines per read)
+    Output:
+        Irregular reads will be removed
+    '''  
+    def remove_messed_reads(self, filename):
+        mtools.run_pipe_command("awk 'BEGIN {RS=\"@\"; FS=\"\\n\"} { if (NF == 5) " +
+        "print \"@\" substr($0,1,length-1) }' " + filename + " > " + filename + ".temp")
+        os.rename(filename + ".temp", filename)
+    
     # correct number of reads per file - if unequal number of reads from forward to reverse file, it will be corrected by separation name/1,2
     # from www.biostars.org/p/6925/#6928
-    def correct_files(self, forward, reverse):
+    # TODO - URGENT - reverse gets number of lines NOT divisible by 4 - see how to fix that coming from SortMeRNA
+    def remove_orphans(self, forward, reverse):
         mtools.run_pipe_command("awk '{printf substr($0,1,length-2);getline;printf \"\\t\"$0;getline;getline;print \"\\t\"$0}' "
-                                       + forward + "| sort -S 8G -T. > " + self.working_dir + '/Preprocess/SortMeRNA/read1.txt')
+                                       + forward + "| sort -T. > " + self.working_dir + '/Preprocess/SortMeRNA/read1.txt')
         mtools.run_pipe_command("awk '{printf substr($0,1,length-2);getline;printf \"\\t\"$0;getline;getline;print \"\\t\"$0}' "
-                                       + reverse + "| sort -S 8G -T. > " + self.working_dir + '/Preprocess/SortMeRNA/read2.txt')
+                                       + reverse + "| sort -T. > " + self.working_dir + '/Preprocess/SortMeRNA/read2.txt')
         mtools.run_pipe_command("join " + ' '.join(["{}/Preprocess/SortMeRNA/{}".format(
                 self.working_dir, fr) for fr in ['read1.txt','read2.txt']]) + 
-                " | awk '{{print $1\" \"$2\"\\n\"$3\"\\n+\\n\"$4  > \"{}\";print $1\" \"$5\"\\n\"$6\"\\n+\\n\"$7 > \"{}\"}}'".format(
+                " | awk '{{print $1\" \"$2\"\\n\"$3\"\\n+\\n\"$4 > \"{}\";print $1\" \"$5\"\\n\"$6\"\\n+\\n\"$7 > \"{}\"}}'".format(
                                    forward, reverse))
         for file in ["{}/Preprocess/SortMeRNA/read{}.txt".format(self.working_dir, 
                      number) for number in ['1','2']]:
+            print('Files were not removed')
+            exit()
             os.remove(file)
     
     def run(self):
         if self.paired == True:
-            interleaved = self.working_dir + '/Preprocess/SortMeRNA/' + self.name + '_interleaved.fastq'
+            basename = self.working_dir + '/Preprocess/SortMeRNA/' + self.name
+            '''
+            interleaved = basename + '_interleaved.fastq'
             self.merge_pe(self.reads[0], self.reads[1], interleaved)
             self.reads = interleaved
             self.run_tool()
-            self.unmerge_pe(self.working_dir + '/Preprocess/SortMeRNA/' + self.name + '_rejected.fastq', 
-                            self.working_dir + '/Preprocess/SortMeRNA/' + self.name + '_forward.fastq', 
-                            self.working_dir + '/Preprocess/SortMeRNA/' + self.name + '_reverse.fastq')
-            self.correct_files(self.working_dir + '/Preprocess/SortMeRNA/' + self.name + '_forward.fastq', 
-                               self.working_dir + '/Preprocess/SortMeRNA/' + self.name + '_reverse.fastq')
+            '''
+            self.unmerge_pe(basename + '_rejected.fastq', 
+                            basename + '_forward.fastq', 
+                            basename + '_reverse.fastq')
+            
+            for fr in ['forward', 'reverse']:
+                self.remove_messed_reads('{}_{}.fastq'.format(basename, fr))
+            
+            self.remove_orphans(basename + '_forward.fastq', 
+                               basename + '_reverse.fastq')
         else:
             self.run_tool()
             
 if __name__ == '__main__':
     smr = SortMeRNA(working_dir = 'MOSCAfinal')
     
-    smr.correct_files('MOSCAfinal/Preprocess/SortMeRNA/4478-R1-1-MiSeqKapa_forward.fastq',
+    smr.remove_messed_reads('MOSCAfinal/Preprocess/SortMeRNA/4478-R1-1-MiSeqKapa_forward.fastq')
+    smr.remove_messed_reads('MOSCAfinal/Preprocess/SortMeRNA/4478-R1-1-MiSeqKapa_reverse.fastq')
+    smr.remove_orphans('MOSCAfinal/Preprocess/SortMeRNA/4478-R1-1-MiSeqKapa_forward.fastq',
                       'MOSCAfinal/Preprocess/SortMeRNA/4478-R1-1-MiSeqKapa_reverse.fastq')
     
     

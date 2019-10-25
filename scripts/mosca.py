@@ -15,6 +15,7 @@ from binning import Binner
 from metatranscriptomics_analyser import MetaTranscriptomicsAnalyser
 from metaproteomics_analyser import MetaproteomicsAnalyser
 from kegg_pathway import KEGGPathway
+#from report import Report
 from time import gmtime, strftime
 
 import argparse, pathlib, os, glob, multiprocessing
@@ -92,7 +93,13 @@ parser.add_argument("-anncols", "--annotation-columns", type = str,
                     help="""List of UniProt columns to obtain information from""")
 parser.add_argument("-anndbs", "--annotation-databases", type = str, 
                     help="""List of databases to cross-check with UniProt information""")
-parser.add_argument("-samp", "--mg-samples", type = str, default = 'sample1',
+parser.add_argument("-assstrat", "--assembly-strategy", type = str, default = 'all',
+                    help="""'all' - all MG data is assembled in a single assembly\n
+                    'unique' - for each MG sample, an assembly is performed\n
+                    'samples' - requires the --mg-samples argument. Defines the 
+                    communities corresponding to each MG sample, MG samples from 
+                    the same community will be assembled together.""")
+parser.add_argument("-samp", "--mg-samples", type = str,
                     help="""Groups of MG data to assemble together, separated by 
                     comma (,) (e.g. s1,s1,s2,s2). If not specified, data will be 
                     considered as coming from a single community, and assembled 
@@ -119,8 +126,8 @@ for directory in directories:
     path = pathlib.Path(directory)
     path.mkdir(parents=True, exist_ok=True)
 
-mg_preprocessed = list()
-mg_names = list()
+mg_preprocessed = ['4478-DNA-S1613-MiSeqKapa','4478-DNA-S1616-MiSeqKapa']
+mg_names = ['4478-DNA-S1613-MiSeqKapa', '4478-DNA-S1613-MiSeqKapa', '4478-DNA-S1616-MiSeqKapa']
 mt_preprocessed = list()
 
 '''    
@@ -148,7 +155,9 @@ if not args.no_preprocessing:
             if hasattr(args, 'quality_score'):
                 setattr(preprocesser, 'quality_score', args.quality_score)
                 
-            preprocesser.run()
+            #preprocesser.run()
+            
+            #results_db = mtools.get_preprocessing_information(results_db, args.output, mg_name)
             
             mtools.remove_preprocessing_intermediates(args.output + '/Preprocess', 
                                                       args.output_level)
@@ -189,10 +198,9 @@ if not args.no_preprocessing:
                     if hasattr(args, 'quality_score'):
                         setattr(preprocesser, 'quality_score', args.quality_score)
                         
-                    preprocesser.run()
+                    #preprocesser.run()
                     
-                    mtools.remove_preprocessing_intermediates(args.output + '/Preprocess', 
-                                                              args.output_level)
+                    #mtools.remove_preprocessing_intermediates(args.output + '/Preprocess', args.output_level)
                     
                     mt_preprocessed.append(mt_name)
 
@@ -200,17 +208,21 @@ mtools.task_is_finished(task = 'Preprocessing',
                         file = monitorization_file, 
                         task_output = args.output + '/Preprocess')
 
+if args.assembly_strategy == 'all':
+    sample2name = {'Sample': [mg_name for mg_name in mg_preprocessed]}
+elif args.assembly_strategy == 'unique':
+    samples = {'Sample' + str(i) : mg_names[i] for i in range(len(mg_preprocessed))}
+else:
+    samples = args.mg_samples.split(',')
+    sample2name = dict()
+    for i in range(len(mg_names)):
+        if samples[i] in sample2name.keys():
+            sample2name[samples[i]].append(mg_names[i])
+        else:
+            sample2name[samples[i]] = [mg_names[i]]
+        for k in sample2name.keys():
+            sample2name[k] = set(sample2name[k])
 
-
-samples = args.mg_samples.split(',')
-sample2name = dict()
-
-for i in range(len(mg_names)):
-    if samples[i] in sample2name.keys():
-        sample2name[samples[i]].append(mg_names[i])
-    else:
-        sample2name[samples[i]] = [mg_names[i]]
-        
 '''
 Assembly
 '''
@@ -236,8 +248,8 @@ if not args.no_assembly:
                                      args.output, sample),
                              threads = args.threads)
         
-        if (args.assembler == 'metaspades' and hasattr(args, 'quality_score')
-        and getattr(args, 'quality_score') not in ['None', None]):          # Megahit doesn't accept quality score input
+        if (args.assembler == 'metaspades' and hasattr(args, 'quality_score')   # Megahit doesn't accept quality score input
+        and getattr(args, 'quality_score') not in ['None', None]):
             setattr(assembler, 'phred_offset', args.quality_score)              # --phred-offset is the name of the parameter in MetaSPAdes
         if args.memory != 'None':
             setattr(assembler, 'memory', args.memory)
@@ -267,7 +279,7 @@ if not args.no_annotation:
                       #columns = args.annotation_columns.split(','),
                       #databases = args.annotation_databases.split(','))
     
-        #annotater.run()
+        annotater.run()
     
     mtools.remove_annotation_intermediates(args.output, args.output_level, 
                                            sample2name.keys())

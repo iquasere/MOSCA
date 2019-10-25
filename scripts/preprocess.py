@@ -121,7 +121,10 @@ class Preprocesser:
         self.first_check()
         
         adapters = self.trim_adapters()
-        
+
+        open('{}/Preprocess/Trimmomatic/{}_adapters.txt'.format(self.working_dir, 
+             self.name), 'w').write('\n'.join(adapters))
+
         if len(adapters) > 0:
             adapter_part = adapters[0].split('/')[-1].rstrip('.fa')
             self.files = ['{}/Preprocess/Trimmomatic/{}_{}_{}_paired.fq'.format(
@@ -131,7 +134,6 @@ class Preprocesser:
         
         if self.data == 'mrna':
             self.rrna_removal()
-
-        self.files = ['{}/Preprocess/SortMeRNA/{}_{}.fastq'.format(self.working_dir, self.name, fr) for fr in ['forward','reverse']]
+        
         self.quality_trimming()
         self.final_quality_check()
