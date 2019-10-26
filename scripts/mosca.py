@@ -15,14 +15,10 @@ from binning import Binner
 from metatranscriptomics_analyser import MetaTranscriptomicsAnalyser
 from metaproteomics_analyser import MetaproteomicsAnalyser
 from kegg_pathway import KEGGPathway
-#from report import Report
+#from report import Reporter
 from time import gmtime, strftime
 
 import argparse, pathlib, os, glob, multiprocessing
-
-mosca_dir = os.path.dirname(os.path.realpath(__file__))
-
-mtools = MoscaTools()
 
 parser = argparse.ArgumentParser(description="Multi Omics Software for Community Analysis",
                                  epilog="""A tool for performing metagenomics, metatranscriptomics 
@@ -104,7 +100,11 @@ parser.add_argument("-samp", "--mg-samples", type = str,
                     comma (,) (e.g. Sample1,Sample1,Sample2,Sample2). If not 
                     specified, data will be considered as coming from a single 
                     community, and assembled together in one assembly.""")
-             
+
+mosca_dir = os.path.dirname(os.path.realpath(__file__))
+mtools = MoscaTools()
+reporter= Reporter()
+      
 args = mtools.validate_arguments(parser)
 
 mtools.print_arguments(args)            # TODO - refine this function
@@ -123,8 +123,7 @@ directories = ([args.output + '/Preprocess/' + software for software in
 
 for directory in directories:
     print('Created ' + directory)
-    path = pathlib.Path(directory)
-    path.mkdir(parents=True, exist_ok=True)
+    pathlib.Path(directory).mkdir(parents=True, exist_ok=True)
 
 mg_preprocessed = ['4478-DNA-S1613-MiSeqKapa','4478-DNA-S1616-MiSeqKapa']
 mg_names = ['4478-DNA-S1613-MiSeqKapa', '4478-DNA-S1613-MiSeqKapa', '4478-DNA-S1616-MiSeqKapa']
@@ -157,6 +156,7 @@ if not args.no_preprocessing:
                 
             #preprocesser.run()
             
+            reporter.info_from_preprocessing(args.output, mg_name)          
             #results_db = mtools.get_preprocessing_information(results_db, args.output, mg_name)
             
             mtools.remove_preprocessing_intermediates(args.output + '/Preprocess', 
@@ -200,6 +200,8 @@ if not args.no_preprocessing:
                         
                     #preprocesser.run()
                     
+                    reporter.info_from_preprocessing(args.output, mt_name, 
+                                                     performed_rrna_removal = True) 
                     #mtools.remove_preprocessing_intermediates(args.output + '/Preprocess', args.output_level)
                     
                     mt_preprocessed.append(mt_name)
@@ -222,6 +224,8 @@ else:
             sample2name[samples[i]] = [mg_names[i]]
         for k in sample2name.keys():
             sample2name[k] = set(sample2name[k])
+            
+reporter.set_samples(sample2name)
 
 '''
 Assembly
@@ -241,6 +245,7 @@ if not args.no_assembly:
         mtools.run_command('cat ' + ' '.join(reverse_files), file = '{}/Assembly/{}_reverse.fastq'.format(
                 args.output, sample))
         '''
+        pathlib.Path('{}/Assembly/{}'.format(args.output, sample)).mkdir(parents=True, exist_ok=True)
         assembler = Assembler(out_dir = '{}/Assembly/{}'.format(args.output, sample),
                              assembler = args.assembler,
                              forward = '{}/Assembly/{}_forward.fastq'.format(
@@ -256,12 +261,13 @@ if not args.no_assembly:
             setattr(assembler, 'memory', args.memory)
         
         assembler.run()
+        reporter.info_from_assembly(args.output, sample)
         
     mtools.remove_assembly_intermediates(args.output, args.output_level, sample2name.keys())
     
-    mtools.task_is_finished(task = 'Assembly',
-                            file = monitorization_file, 
-                            task_output = args.output + '/Assembly')
+mtools.task_is_finished(task = 'Assembly',
+                        file = monitorization_file, 
+                        task_output = args.output + '/Assembly')
 
 '''
 Annotation
@@ -270,6 +276,7 @@ if not args.no_annotation:
     mtools.timed_message('Annotating sequences')
     
     for sample in sample2name.keys():
+        pathlib.Path('{}/Annotation/{}'.format(args.output, sample)).mkdir(parents=True, exist_ok=True)
         annotater = Annotater(file = '{}/Assembly/{}/contigs.fasta'.format(
                 args.output, sample),
                       out_dir = '{}/Annotation/{}'.format(args.output, sample),
@@ -285,9 +292,9 @@ if not args.no_annotation:
     mtools.remove_annotation_intermediates(args.output, args.output_level, 
                                            sample2name.keys())
     
-    mtools.task_is_finished(task = 'Annotation',
-            file = monitorization_file, 
-            task_output = args.output + '/Annotation')
+mtools.task_is_finished(task = 'Annotation',
+        file = monitorization_file, 
+        task_output = args.output + '/Annotation')
     
 '''
 Binning

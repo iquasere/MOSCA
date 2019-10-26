@@ -12,10 +12,10 @@ import pandas as pd, numpy as np, os
 
 mtools = MoscaTools()
 
-class Report:
+class Reporter:
     
-    def __init__(self, output_dir, sample2name, mg_names, mtmp_names, r1_file,
-                 r2_file = None, metatranscriptomics = True, adapter = None, **kwargs):
+    def __init__(self, output_dir, mg_names, mtmp_names, r1_file, r2_file = None, 
+                 metatranscriptomics = True, adapter = None, **kwargs):
         self.__dict__ = kwargs
         
         self.fastq_columns = ['Per base sequence quality', 'Per tile sequence quality',
@@ -39,7 +39,7 @@ class Report:
                      '# contigs', 'Largest contig', 'Total length', 
                      'Reference length', 'N50', 'N75', 'L50', 'L75',
                      '# misassemblies', '# misassembled contigs', 
-                     'Misassembled contigs', '# local misassemblies',
+                     'Misassembled contigs length', '# local misassemblies',
                      '# unaligned mis. contigs', '# unaligned contigs',
                      'Unaligned length', 'Genome fraction (%)',
                      'Duplication ratio', "# N's per 100 kbp",
@@ -49,13 +49,11 @@ class Report:
         self.taxonomic_columns = ['superkingdom', 'phylum', 'class', 'order', 'family', 
                      'genus', 'species']
         
-        self.name2sample = {vx : k for k, v in sample2name.items() for vx in v}
-        
-        self.build_report()
+        self.initialize_report()
         
 
     def initialize_report(self):
-        return pd.DataFrame(columns = (['Sample', '# of initial reads'] +
+        return pd.DataFrame(columns = (['# of initial reads'] +
         ['[Initial quality assessment] ' + col for col in self.fastq_columns] + 
         ['[Adapter removal] adapter files', '[Adapter removal] # of reads remaining', 
         'Adapter removal] % of reads removed', '[rRNA removal] # of reads remaining',
@@ -106,7 +104,6 @@ class Report:
                                 reports[0][column][0], reports[1][column][0]))
                         
     def info_from_preprocessing(self, output_dir, name, performed_rrna_removal = False):
-        self.report.loc[name]['Sample'] = self.name2sample[name]
         self.report.loc[name]['# of initial reads'] = mtools.count_on_file(self.r1_file, '@')
         self.info_from_fastqc(output_dir, name, '[Initial quality assessment]')
         
@@ -151,18 +148,27 @@ class Report:
             self.report.loc[name]['[Quality trimming] # of reads remaining'] /
             self.report.loc[name]['[rRNA removal] # of reads remaining'])
         self.info_from_fastqc(output_dir, name, '[After quality trimming]')
-                        
-    def build_report(self):
-        # Preprocessing
-        for mg_name in self.mg_names:
-            self.report.append(pd.Series(name = mg_name))
-            self.info_from_preprocessing(mg_name)
-        if metatranscriptomics:
-            for mt_name in self.mtmp_names:
-                self.report.append(pd.Series(name = mt_name))
-                self.info_from_preprocessing(mt_name, performed_rrna_removal = True)
+    
+    def set_samples(self, sample2name):
+        name2sample = {vx : k for k, v in sample2name.items() for vx in v}
+        name2sample = pd.DataFrame.from_dict(name2sample, orient='index', 
+                                             columns = ['Sample'])
+        self.report = pd.merge(name2sample, self.report, left_index = True, 
+                               right_index = True)
+    
+    def info_from_assembly(self, output_dir, sample):
+        qc_report = pd.read_csv('{}/Assembly/{}/quality_control/report.tsv'.format(
+                output_dir, sample), sep = '\t', index_col = 0).transpose()
+        qc_report['Sample'] = sample
+        self.report = pd.merge(self.report, qc_report, on = 'Sample', how = 'outer')
+        cols = qc_report.colums.tolist(); cols.remove('Sample')
+        for col in cols:
+            self.report['[Assembly] ' + col] = self.report[col].fillna(
+                    self.report['[Assembly] ' + col])
+        self.report.drop(cols, axis=1)
         
-        # Assembly
+    def info_from_annotation(self, output_dir, sample):
+        pass
         
         
         
