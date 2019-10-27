@@ -596,7 +596,7 @@ class Annotater:
         return result
     
     def run(self):
-        self.gene_calling(self.file, self.out_dir + '/Annotation', self.assembled)
+        self.gene_calling(self.file, self.out_dir, self.assembled)
         self.annotation()
     
     '''

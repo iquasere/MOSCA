@@ -15,7 +15,7 @@ from binning import Binner
 from metatranscriptomics_analyser import MetaTranscriptomicsAnalyser
 from metaproteomics_analyser import MetaproteomicsAnalyser
 from kegg_pathway import KEGGPathway
-#from report import Reporter
+from report import Reporter
 from time import gmtime, strftime
 
 import argparse, pathlib, os, glob, multiprocessing
@@ -103,7 +103,7 @@ parser.add_argument("-samp", "--mg-samples", type = str,
 
 mosca_dir = os.path.dirname(os.path.realpath(__file__))
 mtools = MoscaTools()
-reporter= Reporter()
+#reporter= Reporter()
       
 args = mtools.validate_arguments(parser)
 
@@ -153,15 +153,15 @@ if not args.no_preprocessing:
                                         threads = args.threads)
             if hasattr(args, 'quality_score'):
                 setattr(preprocesser, 'quality_score', args.quality_score)
-                
-            #preprocesser.run()
+            ''' 
+            preprocesser.run()
             
             reporter.info_from_preprocessing(args.output, mg_name)          
-            #results_db = mtools.get_preprocessing_information(results_db, args.output, mg_name)
+            results_db = mtools.get_preprocessing_information(results_db, args.output, mg_name)
             
             mtools.remove_preprocessing_intermediates(args.output + '/Preprocess', 
                                                       args.output_level)
-            
+            '''
             mg = [args.output + '/Preprocess/Trimmomatic/quality_trimmed_' + mg_name + 
                   '_' + fr + '_paired.fq' for fr in ['forward', 'reverse']]
             
@@ -197,13 +197,13 @@ if not args.no_preprocessing:
                                                 threads = args.threads)
                     if hasattr(args, 'quality_score'):
                         setattr(preprocesser, 'quality_score', args.quality_score)
-                        
+                    '''
                     #preprocesser.run()
                     
                     reporter.info_from_preprocessing(args.output, mt_name, 
                                                      performed_rrna_removal = True) 
                     #mtools.remove_preprocessing_intermediates(args.output + '/Preprocess', args.output_level)
-                    
+                    '''
                     mt_preprocessed.append(mt_name)
 
 mtools.task_is_finished(task = 'Preprocessing', 
@@ -225,7 +225,7 @@ else:
         for k in sample2name.keys():
             sample2name[k] = set(sample2name[k])
             
-reporter.set_samples(sample2name)
+#reporter.set_samples(sample2name)
 
 '''
 Assembly
@@ -259,11 +259,11 @@ if not args.no_assembly:
             setattr(assembler, 'phred_offset', args.quality_score)              # --phred-offset is the name of the parameter in MetaSPAdes
         if args.memory != 'None':
             setattr(assembler, 'memory', args.memory)
-        
+        '''
         assembler.run()
         reporter.info_from_assembly(args.output, sample)
-        
-    mtools.remove_assembly_intermediates(args.output, args.output_level, sample2name.keys())
+        '''
+    #mtools.remove_assembly_intermediates(args.output, args.output_level, sample2name.keys())
     
 mtools.task_is_finished(task = 'Assembly',
                         file = monitorization_file, 
