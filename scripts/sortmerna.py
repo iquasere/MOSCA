@@ -104,12 +104,10 @@ class SortMeRNA:
     def run(self):
         if self.paired == True:
             basename = self.working_dir + '/Preprocess/SortMeRNA/' + self.name
-            '''
             interleaved = basename + '_interleaved.fastq'
             self.merge_pe(self.reads[0], self.reads[1], interleaved)
             self.reads = interleaved
             self.run_tool()
-            '''
             self.unmerge_pe(basename + '_rejected.fastq', 
                             basename + '_forward.fastq', 
                             basename + '_reverse.fastq')
