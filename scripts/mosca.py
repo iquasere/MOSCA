@@ -101,11 +101,11 @@ parser.add_argument("-samp", "--mg-samples", type = str,
                     specified, data will be considered as coming from a single 
                     community, and assembled together in one assembly.""")
 
-mosca_dir = os.path.dirname(os.path.realpath(__file__))
 mtools = MoscaTools()
-#reporter= Reporter()
-      
 args = mtools.validate_arguments(parser)
+
+mosca_dir = os.path.dirname(os.path.realpath(__file__))
+reporter = Reporter(metatranscriptomics = True if args.type_of_data == 'metatranscriptomics' else False)
 
 mtools.print_arguments(args)            # TODO - refine this function
 monitorization_file = args.output + '/monitorization_report.txt'
@@ -153,12 +153,10 @@ if not args.no_preprocessing:
                                         threads = args.threads)
             if hasattr(args, 'quality_score'):
                 setattr(preprocesser, 'quality_score', args.quality_score)
-            ''' 
-            preprocesser.run()
-            
+
+            #preprocesser.run()
+            '''
             reporter.info_from_preprocessing(args.output, mg_name)          
-            results_db = mtools.get_preprocessing_information(results_db, args.output, mg_name)
-            
             mtools.remove_preprocessing_intermediates(args.output + '/Preprocess', 
                                                       args.output_level)
             '''
@@ -197,13 +195,13 @@ if not args.no_preprocessing:
                                                 threads = args.threads)
                     if hasattr(args, 'quality_score'):
                         setattr(preprocesser, 'quality_score', args.quality_score)
-                    '''
-                    #preprocesser.run()
+                    
+                    preprocesser.run()
                     
                     reporter.info_from_preprocessing(args.output, mt_name, 
-                                                     performed_rrna_removal = True) 
-                    #mtools.remove_preprocessing_intermediates(args.output + '/Preprocess', args.output_level)
-                    '''
+                                                     performed_rrna_removal = True)
+                    mtools.remove_preprocessing_intermediates(args.output + '/Preprocess', args.output_level)
+
                     mt_preprocessed.append(mt_name)
 
 mtools.task_is_finished(task = 'Preprocessing', 
@@ -225,7 +223,7 @@ else:
         for k in sample2name.keys():
             sample2name[k] = set(sample2name[k])
             
-#reporter.set_samples(sample2name)
+reporter.set_samples(sample2name)
 
 '''
 Assembly
@@ -287,7 +285,7 @@ if not args.no_annotation:
                       #columns = args.annotation_columns.split(','),
                       #databases = args.annotation_databases.split(','))
     
-        annotater.run()
+        #annotater.run()
     
     mtools.remove_annotation_intermediates(args.output, args.output_level, 
                                            sample2name.keys())
@@ -302,23 +300,27 @@ Binning
 if not args.no_binning:
     mtools.timed_message('Binning contigs')
     
-    binner = Binner(output = args.output + '/Binning',
-                    contigs = args.output + '/Assembly/contigs.fasta',
-                    blast = args.output + '/Annotation/aligned.blast',
-                    uniprotinfo = args.output + '/Annotation/uniprot_info.tsv',
+    for sample in sample2name.keys():
+        pathlib.Path('{}/Binning/{}'.format(args.output, sample)).mkdir(parents=True, exist_ok=True)
+    
+        binner = Binner(output = '{}/Binning/{}'.format(args.output, sample),
+                    contigs = '{}/Assembly/{}/contigs.fasta'.format(
+                            args.output, sample),
+                    blast = '{}/Annotation/{}/aligned.blast'.format(args.output, sample),
+                    uniprotinfo = '{}/Annotation/{}/uniprot_info.tsv'.format(args.output, sample),
                     threads = args.threads,
-                    forward = args.output + '/Assembly/forward.fastq',
-                    reverse = args.output + '/Assembly/reverse.fastq',
+                    forward = '{}/Assembly/{}_forward.fastq'.format(
+                            args.output, sample),
+                    reverse = '{}/Assembly/{}_reverse.fastq'.format(
+                            args.output, sample),
                     markerset = args.marker_gene_set)
-    try:
-        binner.maxbin_workflow()
-    except:
-        print('Binning could not finish successfully')
+    binner.maxbin_workflow()
+
 
     mtools.task_is_finished(task = 'Binning',
             file = monitorization_file, 
-            task_output = args.output + '/Binning/' + mg_name)
-
+            task_output = '{}/Binning/{}'.format(args.output, sample))
+exit()
 for experiment in experiments:
     if args.type_of_data == 'metatranscriptomics':
         '''

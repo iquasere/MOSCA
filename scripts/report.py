@@ -14,8 +14,7 @@ mtools = MoscaTools()
 
 class Reporter:
     
-    def __init__(self, output_dir, mg_names, mtmp_names, r1_file, r2_file = None, 
-                 metatranscriptomics = True, adapter = None, **kwargs):
+    def __init__(self, metatranscriptomics, **kwargs):
         self.__dict__ = kwargs
         
         self.fastq_columns = ['Per base sequence quality', 'Per tile sequence quality',
@@ -23,12 +22,6 @@ class Reporter:
                  'Per sequence GC content', 'Per base N content',
                  'Sequence Length Distribution', 'Sequence Duplication Levels', 
                  'Overrepresented sequences', 'Adapter Content']
-        
-        self.prefix2terms = {'[Initial quality assessment]': ('', 'R1', 'R2'),
-             '[Before quality trimming]': (('', 'forward_paired', 'reverse_paired') if metatranscriptomics 
-             else ('after_adapter_removal_', '_' + adapter + '_forward_paired', 
-                   '_' + adapter + '_reverse_paired') if adapter is not None else ('', 'R1', 'R2')),
-             '[After quality trimming]': ('quality_trimmed_', 'forward_paired', 'reverse_paired')}
         
         self.metaquast_columns = ['# contigs (>= 0 bp)', '# contigs (>= 1000 bp)', 
                      '# contigs (>= 5000 bp)', '# contigs (>= 10000 bp)',
@@ -49,10 +42,10 @@ class Reporter:
         self.taxonomic_columns = ['superkingdom', 'phylum', 'class', 'order', 'family', 
                      'genus', 'species']
         
-        self.initialize_report()
+        self.initialize_report(metatranscriptomics)
         
 
-    def initialize_report(self):
+    def initialize_report(self, metatranscriptomics):
         return pd.DataFrame(columns = (['# of initial reads'] +
         ['[Initial quality assessment] ' + col for col in self.fastq_columns] + 
         ['[Adapter removal] adapter files', '[Adapter removal] # of reads remaining', 
@@ -73,7 +66,7 @@ class Reporter:
         (['[Metatranscriptomics] ' + col for col in (['# of reads aligned', 
           '% of reads aligned', '# of differentially expressed proteins'] + 
          ['Main taxa identified (' + col + ')' for col in self.taxonomic_columns] +
-         ['Main functional categories identified'])] if self.metatranscriptomics else 
+         ['Main functional categories identified'])] if metatranscriptomics else 
          ['[Metaproteomics] ' + col for col in (
                  ['# of differentially expressed proteins'] + 
          ['Main taxa identified (' + col + ')' for col in self.taxonomic_columns] +
@@ -91,10 +84,10 @@ class Reporter:
         named 'name', and the columns that start with 'prefix'
     '''
     # TODO - for prefix in prefix2terms.keys(), do as stated under this
-    def info_from_fastqc(self, output_dir, name, prefix):
+    def info_from_fastqc(self, output_dir, name, prefix, prefix2terms):
         reports = [mtools.parse_fastqc_report(
                 '{}/Preprocess/FastQC/{}{}_{}_fastqc/fastqc_data.txt'.format(output_dir, 
-                 self.prefix2terms[prefix][0], name, self.prefix2terms[prefix][i]) for i in [1, 2])]
+                 prefix2terms[prefix][0], name, prefix2terms[prefix][i]) for i in [1, 2])]
         for column in self.fastq_columns:
             if reports[0][column][0] == reports[1][column][0]:
                 self.report.loc[name]['{} {}'.format(prefix, column)] = reports[0][column][0]
@@ -104,16 +97,30 @@ class Reporter:
                                 reports[0][column][0], reports[1][column][0]))
                         
     def info_from_preprocessing(self, output_dir, name, performed_rrna_removal = False):
-        self.report.loc[name]['# of initial reads'] = mtools.count_on_file(self.r1_file, '@')
-        self.info_from_fastqc(output_dir, name, '[Initial quality assessment]')
+        if os.isfile('{}/Preprocess/Trimmomatic/{}/adapters.txt'.format(output_dir, name)):
+            adapter_files = open('{}/Preprocess/Trimmomatic/{}/adapters.txt').read().split('\n')
+            adapter = adapter_files[0].split('/')[-1]
+        else:
+            adapter = None
         
+        # For each preprocessing step, a tuple of (prefix, suffix for forward, suffix for reverse)
+        prefix2terms = {'[Initial quality assessment]': ('', 'R1', 'R2'),
+             '[Before quality trimming]': (('', 'forward_paired', 'reverse_paired') 
+             if self.metatranscriptomics else ('after_adapter_removal_', '_' + 
+                adapter + '_forward_paired', '_' + adapter + '_reverse_paired') 
+             if adapter is not None else ('', 'R1', 'R2')), '[After quality trimming]': (
+                     'quality_trimmed_', 'forward_paired', 'reverse_paired')}
+             
+        self.report.loc[name]['# of initial reads'] = mtools.count_on_file('@', self.r1_file)
+        self.info_from_fastqc(output_dir, name, '[Initial quality assessment]', prefix2terms)
+        # TODO - solve the mess with prefix2terms, adapter.txt
         if os.isfile('{}/Preprocess/Trimmomatic/{}/adapters.txt'.format(output_dir, name)):
             adapter_files = [file.split('/').rstrip('.fa') for file in 
                 open('{}/Preprocess/Trimmomatic/{}/adapters.txt').read().split('\n')]
             self.report.loc[name]['[Adapter removal] adapter files'] = ', '.join(adapter_files)
             self.report.loc[name]['[Adapter removal] # of reads remaining'] = (
-                mtools.count_on_file('{}/Preprocess/Trimmomatic/after_adapter_removal_{}_{}_forward_paired.fq'.format(
-                    output_dir, name, adapter_files[0]), '@'))
+                mtools.count_on_file('@', '{}/Preprocess/Trimmomatic/after_adapter_removal_{}_{}_forward_paired.fq'.format(
+                    output_dir, name, adapter_files[0])))
             self.report.loc[name]['[Adapter removal] % of reads removed'] = (
                     self.report.loc[name]['[Adapter removal] # of reads remaining'] /
                     self.report.loc[name]['# of initial reads'] * 100)
@@ -125,8 +132,8 @@ class Reporter:
         
         if performed_rrna_removal:
             self.report.loc[name]['[rRNA removal] # of reads remaining'] = (
-            mtools.count_on_file('{}/Preprocess/SortMeRNA/{}_forward_paired.fq'.format(
-                    output_dir, name), '@'))
+            mtools.count_on_file('@', '{}/Preprocess/SortMeRNA/{}_forward_paired.fq'.format(
+                    output_dir, name)))
             self.report.loc[name]['[rRNA removal] % of reads removed'] = (
                     self.report.loc[name]['[rRNA removal] # of reads remaining'] /
                     self.report.loc[name]['[Adapter removal] # of reads remaining'] * 100)
@@ -135,19 +142,19 @@ class Reporter:
                 self.report.loc[name]['[Adapter removal] # of reads remaining'])
             self.report.loc[name]['[rRNA removal] % of reads removed'] = 0.0
             
-        self.info_from_fastqc(output_dir, name, '[Before quality trimming]')
+        self.info_from_fastqc(output_dir, name, '[Before quality trimming]', prefix2terms)
         qual_params = ['HEADCROP', 'CROP', 'AVGQUAL', 'MINLEN']
         qual_params_vals = open('{}/Preprocess/Trimmomatic/{}/quality_params.txt'.format(
                 output_dir, name)).read().split('\n')
         for i in range(4):
             self.report.loc[name]['[Quality trimming] ' + qual_params[i]] = qual_params_vals[i]
         self.report.loc[name]['[Quality trimming] # of reads remaining'] = (
-            mtools.count_on_file('{}/Preprocess/Trimmomatic/quality_trimmed_{}_forward_paired.fq'.format(
-                    output_dir, name), '@'))
+            mtools.count_on_file('@', '{}/Preprocess/Trimmomatic/quality_trimmed_{}_forward_paired.fq'.format(
+                    output_dir, name)))
         self.report.loc[name]['[Quality trimming] % of reads removed'] = (
             self.report.loc[name]['[Quality trimming] # of reads remaining'] /
             self.report.loc[name]['[rRNA removal] # of reads remaining'])
-        self.info_from_fastqc(output_dir, name, '[After quality trimming]')
+        self.info_from_fastqc(output_dir, name, '[After quality trimming]', prefix2terms)
     
     def set_samples(self, sample2name):
         name2sample = {vx : k for k, v in sample2name.items() for vx in v}
@@ -168,7 +175,24 @@ class Reporter:
         self.report.drop(cols, axis=1)
         
     def info_from_annotation(self, output_dir, sample):
-        pass
+        sample_report = {'# of proteins detected': mtools.count_on_file('>',
+                         '{}/Annotation/{}/fgs.faa'.format(output_dir, sample))}
+        sample_report['# of proteins annotated (DIAMOND)'] = (sample_report['# of proteins detected'] - 
+                      mtools.count_on_file('>', '{}/Annotation/{}/unaligned.fasta'.format(output_dir, sample)))
+        sample_report['% of proteins annotated (DIAMOND)'] = (sample_report['# of proteins detected'] /
+                      sample_report['# of proteins annotated (DIAMOND)'] * 100)
+        sample_report['# of proteins annotated (PSI-BLAST)'] = mtools.count_lines(
+                      '{}/Annotation/{}/cdd_aligned.blast'.format(output_dir, sample))
+        sample_report['% of proteins annotated (PSI-BLAST)'] = (sample_report['# of proteins detected'] /
+                      sample_report['# of proteins annotated (PSI-BLAST)'] * 100)
+        tax_data = pd.read_csv()
+        for col in self.taxonomic_columns:
+            sample_report['Main taxa identified (' + col + ')'] = ';'.join()
+            ['[Annotation] ' + col for col in (['# of proteins detected', 
+         '# of proteins annotated (DIAMOND)', '% of proteins annotated (DIAMOND)',
+         '# of proteins annotated (PSI-BLAST)', '% of proteins annotated (PSI-BLAST)'] +
+         ['Main taxa identified (' + col + ')' for col in self.taxonomic_columns] + 
+         ['Main functional categories identified'])]
         
         
         

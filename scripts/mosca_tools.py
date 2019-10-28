@@ -472,7 +472,7 @@ class MoscaTools:
     def remove_preprocessing_intermediates(self, output_dir, output_level):
         if output_level != 'maximum':
             for file in os.listdir(output_dir + '/FastQC'):
-                if ('quality_trimmed' not in file or '.html' not in file):
+                if ('quality_trimmed' not in file and '.html' not in file):
                     file = '{}/FastQC/{}'.format(output_dir, file)
                     if os.path.isfile(file):
                         os.remove(file)
@@ -480,8 +480,8 @@ class MoscaTools:
                         shutil.rmtree(file)
             for file in (glob.glob(output_dir + '/SortMeRNA/*') + 
                          glob.glob(output_dir + '/Trimmomatic/*')):
-                if ('quality_trimmed' not in file or 'adapters.txt' not in file
-                    or 'quality_params.txt' not in file):
+                if ('quality_trimmed' not in file and 'adapters.txt' not in file
+                    and 'quality_params.txt' not in file):
                     os.remove(file)
             if output_level != 'medium':
                 for file in (glob.glob(output_dir + '/FastQC/*.html') +
@@ -500,7 +500,7 @@ class MoscaTools:
         if output_level != 'maximum':
             for sample in samples:
                 for file in os.listdir('{}/Assembly/{}'.format(output_dir, sample)):
-                    if ('quality_control' not in file or 'contigs.fasta' not in file):
+                    if ('quality_control' not in file and 'contigs.fasta' not in file):
                         file = '{}/Assembly/{}/{}'.format(output_dir, sample, file)
                         if os.path.isfile(file):
                             os.remove(file)
@@ -523,7 +523,7 @@ class MoscaTools:
         if output_level != 'maximum':
             for sample in samples:
                 for file in os.listdir('{}/Annotation/{}'.format(output_dir, sample)):
-                    if ('.faa' not in file or '.blast' not in file):
+                    if ('.faa' not in file and '.blast' not in file):
                         file = '{}/Annotation/{}/{}'.format(output_dir, sample, file)
                         os.remove(file)
             if output_level != 'medium':
@@ -567,20 +567,24 @@ class MoscaTools:
     Output:
         Number of occurrences of character on file
     '''
-    def count_on_file(self, file, expression, shell = True):
-        return int(subprocess.check_output("grep -c '{}' {}".format(file, 
-                                           expression), shell = shell))
+    def count_on_file(self, expression, file, shell = True):
+        return int(subprocess.check_output("grep -c '{}' {}".format(expression, 
+                                           file), shell = shell))
+        
+    '''
+    Input:
+        file: str - file to count lines of
+    Output:
+        Number of lines in file
+    '''
+    def count_lines(self, file):
+        return int((subprocess.check_output("wc -l " + file, shell = True)).split()[0])
     
 if __name__ == '__main__':
-    '''
+    print(os.getcwd())
+    
+    os.chdir('C:/Users/Asus/Desktop')
+    
     mtools = MoscaTools()
     
-    for n in ['1','2','3','4']:
-        reads = ['MOSCAfinal/Preprocess/Trimmomatic/quality_trimmed_4478-R' +
-                 n + '-1-MiSeqKapa_' + fr + '_paired.fq' for fr in ['forward','reverse']]
-        
-        mtools.perform_alignment('MOSCAfinal/Assembly/joined/contigs.fasta', 
-                                 reads, 'MOSCAfinal/Metatranscriptomics/mt' + n, 
-                                 threads = 10)
-    '''
-    mtools = MoscaTools()
+    print(mtools.count_on_file('>', 'fgs.faa'))
