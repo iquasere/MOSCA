@@ -14,7 +14,7 @@ mtools = MoscaTools()
 
 class Reporter:
     
-    def __init__(self, metatranscriptomics, **kwargs):
+    def __init__(self, **kwargs):
         self.__dict__ = kwargs
         
         self.fastq_columns = ['Per base sequence quality', 'Per tile sequence quality',
@@ -42,7 +42,7 @@ class Reporter:
         self.taxonomic_columns = ['superkingdom', 'phylum', 'class', 'order', 'family', 
                      'genus', 'species']
         
-        self.initialize_report(metatranscriptomics)
+        self.report = self.initialize_report(self.metatranscriptomics)
         
 
     def initialize_report(self, metatranscriptomics):
@@ -87,7 +87,7 @@ class Reporter:
     def info_from_fastqc(self, output_dir, name, prefix, prefix2terms):
         reports = [mtools.parse_fastqc_report(
                 '{}/Preprocess/FastQC/{}{}_{}_fastqc/fastqc_data.txt'.format(output_dir, 
-                 prefix2terms[prefix][0], name, prefix2terms[prefix][i]) for i in [1, 2])]
+                 prefix2terms[prefix][0], name, prefix2terms[prefix][i])) for i in [1, 2]]
         for column in self.fastq_columns:
             if reports[0][column][0] == reports[1][column][0]:
                 self.report.loc[name]['{} {}'.format(prefix, column)] = reports[0][column][0]
@@ -96,61 +96,72 @@ class Reporter:
                         '{} (forward) {} (reverse)'.format(
                                 reports[0][column][0], reports[1][column][0]))
                         
-    def info_from_preprocessing(self, output_dir, name, performed_rrna_removal = False):
-        if os.path.isfile('{}/Preprocess/Trimmomatic/{}_adapters.txt'.format(output_dir, name)):
-            adapter_files = open('{}/Preprocess/Trimmomatic/{}_adapters.txt').read().split('\n')
-            adapter = adapter_files[0].split('/')[-1]
-        else:
-           adapter_files = list(); adapter = None
-        
-        # For each preprocessing step, a tuple of (prefix, suffix for forward, suffix for reverse)
-        prefix2terms = {'[Initial quality assessment]': ('', 'R1', 'R2'),
-             '[Before quality trimming]': (('', 'forward_paired', 'reverse_paired') 
-             if self.metatranscriptomics else ('after_adapter_removal_', '_' + 
-                adapter + '_forward_paired', '_' + adapter + '_reverse_paired') 
-             if adapter is not None else ('', 'R1', 'R2')), '[After quality trimming]': (
-                     'quality_trimmed_', 'forward_paired', 'reverse_paired')}
-             
-        self.report.loc[name]['# of initial reads'] = mtools.count_on_file('@', self.r1_file)
-        self.info_from_fastqc(output_dir, name, '[Initial quality assessment]', prefix2terms)
-        # TODO - solve the mess with prefix2terms, adapter.txt
-        if len(adapter_files) > 0:
-            self.report.loc[name]['[Adapter removal] adapter files'] = ', '.join(adapter_files)
-            self.report.loc[name]['[Adapter removal] # of reads remaining'] = (
-                mtools.count_on_file('@', '{}/Preprocess/Trimmomatic/after_adapter_removal_{}_{}_forward_paired.fq'.format(
-                    output_dir, name, adapter_files[0])))
-            self.report.loc[name]['[Adapter removal] % of reads removed'] = (
-                    self.report.loc[name]['[Adapter removal] # of reads remaining'] /
-                    self.report.loc[name]['# of initial reads'] * 100)
-        else:
-            self.report.loc[name]['[Adapter removal] adapter files'] = np.nan
-            self.report.loc[name]['[Adapter removal] # of reads remaining'] = (
-                self.report.loc[name]['# of initial reads'])
-            self.report.loc[name]['[Adapter removal] % of reads removed'] = 0.0
-        
-        if performed_rrna_removal:
-            self.report.loc[name]['[rRNA removal] # of reads remaining'] = (
-            mtools.count_on_file('@', '{}/Preprocess/SortMeRNA/{}_forward_paired.fq'.format(
-                    output_dir, name)))
-            self.report.loc[name]['[rRNA removal] % of reads removed'] = (
-                    self.report.loc[name]['[rRNA removal] # of reads remaining'] /
-                    self.report.loc[name]['[Adapter removal] # of reads remaining'] * 100)
-        else:
-            self.report.loc[name]['[rRNA removal] # of reads remaining'] = (
-                self.report.loc[name]['[Adapter removal] # of reads remaining'])
-            self.report.loc[name]['[rRNA removal] % of reads removed'] = 0.0
+    def info_from_preprocessing(self, output_dir, name, input_file, performed_rrna_removal = False):
+        try:
+            self.report = self.report.append(pd.Series(name = name))
+    
+            if os.path.isfile('{}/Preprocess/Trimmomatic/{}_adapters.txt'.format(output_dir, name)):
+                adapter_files = open('{}/Preprocess/Trimmomatic/{}_adapters.txt'.format(output_dir, name)).read().split('\n')
+                adapter = adapter_files[0].split('/')[-1]
+            else:
+               adapter_files = list(); adapter = None
             
-        self.info_from_fastqc(output_dir, name, '[Before quality trimming]', prefix2terms)
-        self.report.loc[name]['[Quality trimming] Parameters'] = '; '.join(open(
-                '{}/Preprocess/Trimmomatic/{}_quality_params.txt'.format(output_dir, 
-                 name)).read().split('\n'))
-        self.report.loc[name]['[Quality trimming] # of reads remaining'] = (
-            mtools.count_on_file('@', '{}/Preprocess/Trimmomatic/quality_trimmed_{}_forward_paired.fq'.format(
-                    output_dir, name)))
-        self.report.loc[name]['[Quality trimming] % of reads removed'] = (
-            self.report.loc[name]['[Quality trimming] # of reads remaining'] /
-            self.report.loc[name]['[rRNA removal] # of reads remaining'])
-        self.info_from_fastqc(output_dir, name, '[After quality trimming]', prefix2terms)
+            # For each preprocessing step, a tuple of (prefix, suffix for forward, suffix for reverse)
+            prefix2terms = {'[Initial quality assessment]': ('', 'R1', 'R2'),
+                 '[Before quality trimming]': (('', 'forward_paired', 'reverse_paired') 
+                 if self.metatranscriptomics else ('after_adapter_removal_', '_' + 
+                    adapter + '_forward_paired', '_' + adapter + '_reverse_paired') 
+                 if adapter is not None else ('', 'R1', 'R2')), '[After quality trimming]': (
+                         'quality_trimmed_', 'forward_paired', 'reverse_paired')}
+            
+            # Initial assessment
+            self.report.loc[name]['# of initial reads'] = mtools.count_on_file('@', input_file, 
+                           compressed = True if input_file.endswith('.gz') else False)
+            self.info_from_fastqc(output_dir, name, '[Initial quality assessment]', prefix2terms)
+            
+            # After adapter removal
+            if len(adapter_files) > 0:
+                self.report.loc[name]['[Adapter removal] adapter files'] = ', '.join(adapter_files)
+                self.report.loc[name]['[Adapter removal] # of reads remaining'] = (
+                    mtools.count_on_file('@', '{}/Preprocess/Trimmomatic/after_adapter_removal_{}_{}_forward_paired.fq'.format(
+                        output_dir, name, adapter_files[0])))
+                self.report.loc[name]['[Adapter removal] % of reads removed'] = (
+                        self.report.loc[name]['[Adapter removal] # of reads remaining'] /
+                        self.report.loc[name]['# of initial reads'] * 100)
+            else:
+                self.report.loc[name]['[Adapter removal] adapter files'] = np.nan
+                self.report.loc[name]['[Adapter removal] # of reads remaining'] = (
+                    self.report.loc[name]['# of initial reads'])
+                self.report.loc[name]['[Adapter removal] % of reads removed'] = 0.0
+            
+            # rRNA removal
+            if performed_rrna_removal:
+                self.report.loc[name]['[rRNA removal] # of reads remaining'] = (
+                mtools.count_on_file('@', '{}/Preprocess/SortMeRNA/{}_forward_paired.fq'.format(
+                        output_dir, name)))
+                self.report.loc[name]['[rRNA removal] % of reads removed'] = (
+                        self.report.loc[name]['[rRNA removal] # of reads remaining'] /
+                        self.report.loc[name]['[Adapter removal] # of reads remaining'] * 100)
+            else:
+                self.report.loc[name]['[rRNA removal] # of reads remaining'] = (
+                    self.report.loc[name]['[Adapter removal] # of reads remaining'])
+                self.report.loc[name]['[rRNA removal] % of reads removed'] = 0.0
+            
+            # Quality trimming
+            self.info_from_fastqc(output_dir, name, '[Before quality trimming]', prefix2terms)
+            self.report.loc[name]['[Quality trimming] Parameters'] = '; '.join(open(
+                    '{}/Preprocess/Trimmomatic/{}_quality_params.txt'.format(output_dir, 
+                     name)).read().split('\n'))
+            self.report.loc[name]['[Quality trimming] # of reads remaining'] = (
+                mtools.count_on_file('@', '{}/Preprocess/Trimmomatic/quality_trimmed_{}_forward_paired.fq'.format(
+                        output_dir, name)))
+            self.report.loc[name]['[Quality trimming] % of reads removed'] = (
+                self.report.loc[name]['[Quality trimming] # of reads remaining'] /
+                self.report.loc[name]['[rRNA removal] # of reads remaining'])
+            self.info_from_fastqc(output_dir, name, '[After quality trimming]', prefix2terms)
+        
+        except:
+            self.report.to_csv('test.tsv', '\t')
     
     def set_samples(self, sample2name):
         name2sample = {vx : k for k, v in sample2name.items() for vx in v}

@@ -61,7 +61,7 @@ class Preprocesser:
                               working_dir = self.working_dir,
                               name = self.name,
                               threads = self.threads)
-        #sortmerna.run()
+        sortmerna.run()
         
         self.files = ['{}/Preprocess/SortMeRNA/{}_{}.fastq'.format(self.working_dir, self.name, fr) for fr in ['forward','reverse']]
         print('rRNA sequences removal done')
@@ -74,7 +74,7 @@ class Preprocesser:
         fastqc = FastQC(outdir = self.working_dir + '/Preprocess/FastQC',
                         extract = True,
                         files = self.files)
-        #fastqc.run()
+        fastqc.run()
         
         trimmomatic = Trimmomatic(input_files = self.files,
                                   paired = self.paired,
@@ -119,7 +119,6 @@ class Preprocesser:
         
         
     def run(self):
-        '''
         self.first_check()
         
         adapters = self.trim_adapters()
@@ -133,7 +132,6 @@ class Preprocesser:
                     self.working_dir, self.name, adapter_part, fr) for fr in ['forward', 'reverse']]
         
         #self.host_sequences_removal()  
-        '''
         if self.data == 'mrna':
             self.rrna_removal()
         

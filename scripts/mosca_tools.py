@@ -567,9 +567,9 @@ class MoscaTools:
     Output:
         Number of occurrences of character on file
     '''
-    def count_on_file(self, expression, file, shell = True):
-        return int(subprocess.check_output("grep -c '{}' {}".format(expression, 
-                                           file), shell = shell))
+    def count_on_file(self, expression, file, compressed = False):
+        return int(subprocess.check_output("{} -c '{}' {}".format(
+                'zgrep' if compressed else 'grep', expression, file), shell = True))
         
     '''
     Input:

@@ -127,7 +127,7 @@ for directory in directories:
 
 mg_preprocessed = ['4478-DNA-S1613-MiSeqKapa','4478-DNA-S1616-MiSeqKapa']
 mg_names = ['4478-DNA-S1613-MiSeqKapa', '4478-DNA-S1613-MiSeqKapa', '4478-DNA-S1616-MiSeqKapa']
-mt_preprocessed = ['4478-R1-1-MiSeqKapa']
+mt_preprocessed = list()
 mt2mg = dict()
 
 '''    
@@ -141,7 +141,6 @@ if not args.no_preprocessing:
         ''''
         Metagenomics preprocessing
         '''
-        
         (mg, mg_name) = mtools.process_argument_file(experiment[0], 'mg', 
                                         args.output, args.sequencing_technology)
         
@@ -155,12 +154,11 @@ if not args.no_preprocessing:
             if hasattr(args, 'quality_score'):
                 setattr(preprocesser, 'quality_score', args.quality_score)
 
-            #preprocesser.run()
-            '''
-            reporter.info_from_preprocessing(args.output, mg_name)          
+            preprocesser.run()
+            reporter.info_from_preprocessing(args.output, mg_name, mg[0])          
             mtools.remove_preprocessing_intermediates(args.output + '/Preprocess', 
                                                       args.output_level)
-            '''
+
             mg = [args.output + '/Preprocess/Trimmomatic/quality_trimmed_' + mg_name + 
                   '_' + fr + '_paired.fq' for fr in ['forward', 'reverse']]
             
@@ -178,7 +176,7 @@ if not args.no_preprocessing:
                 (mt, mt_name) = mtools.process_argument_file(experiment[1], 'mt', 
                                         args.output, args.sequencing_technology)
                 
-                if mt_name not in mt_preprocessed:
+                if mt_name not in mt_preprocessed:                              # TODO - is this needed?
                     if len(mt) == 1 and args.sequencing_technology == 'paired':                           # if data is interleaved paired end, it will be split up
                     
                         (forward, reverse) = (args.output + '/Preprocess/' + mt[0].split('/')[-1].split('.fastq')[0]
@@ -198,21 +196,19 @@ if not args.no_preprocessing:
                         setattr(preprocesser, 'quality_score', args.quality_score)
                     
                     preprocesser.run()
-                    
-                    reporter.info_from_preprocessing(args.output, mt_name, 
+                    reporter.info_from_preprocessing(args.output, mt_name, mt[0],
                                                      performed_rrna_removal = True)
+                    reporter.report.to_csv(args.output + '/report.tsv', sep = '\t')
                     mtools.remove_preprocessing_intermediates(args.output + '/Preprocess', args.output_level)
 
                     mt_preprocessed.append(mt_name)
                     
                 mt2mg[mt_name] = mg_name
                     
-reporter.report.to_csv(args.output + '/report.tsv', sep = '\t')
-
 mtools.task_is_finished(task = 'Preprocessing', 
                         file = monitorization_file, 
                         task_output = args.output + '/Preprocess')
-
+exit()
 if args.assembly_strategy == 'all':
     sample2name = {'Sample': [mg_name for mg_name in mg_preprocessed]}
 elif args.assembly_strategy == 'unique':
