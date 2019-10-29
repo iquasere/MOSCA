@@ -61,7 +61,7 @@ class Preprocesser:
                               working_dir = self.working_dir,
                               name = self.name,
                               threads = self.threads)
-        sortmerna.run()
+        #sortmerna.run()
         
         self.files = ['{}/Preprocess/SortMeRNA/{}_{}.fastq'.format(self.working_dir, self.name, fr) for fr in ['forward','reverse']]
         print('rRNA sequences removal done')
@@ -74,7 +74,7 @@ class Preprocesser:
         fastqc = FastQC(outdir = self.working_dir + '/Preprocess/FastQC',
                         extract = True,
                         files = self.files)
-        fastqc.run()
+        #fastqc.run()
         
         trimmomatic = Trimmomatic(input_files = self.files,
                                   paired = self.paired,
@@ -92,7 +92,7 @@ class Preprocesser:
                                     'Trimmomatic', 'FastQC').split('.f')[0] + 
                    '_fastqc/fastqc_data.txt' for filename in self.files]        # .f works for SortMeRNA (.fastq) and Trimmomatic (.fq) terminations
                 
-        trimmomatic.define_by_reports(reports, '{}/Preprocess/Trimmomatic/{}/quality_params.txt'.format(
+        trimmomatic.define_by_reports(reports, '{}/Preprocess/Trimmomatic/{}_quality_params.txt'.format(
                 self.working_dir, self.name))
         print('Quality trimming done')
         
@@ -119,12 +119,13 @@ class Preprocesser:
         
         
     def run(self):
+        '''
         self.first_check()
         
         adapters = self.trim_adapters()
 
-        open('{}/Preprocess/Trimmomatic/{}/adapters.txt'.format(self.working_dir, 
-             self.name), 'w').write('\n'.join(adapters))
+        open('{}/Preprocess/Trimmomatic/{}_adapters.txt'.format(self.working_dir, 
+             self.name), 'w').write('\n'.join(adapters))                        # TODO - something phony is going on here, as adapters.txt has correct files but duplicated
 
         if len(adapters) > 0:
             adapter_part = adapters[0].split('/')[-1].rstrip('.fa')
@@ -132,7 +133,7 @@ class Preprocesser:
                     self.working_dir, self.name, adapter_part, fr) for fr in ['forward', 'reverse']]
         
         #self.host_sequences_removal()  
-        
+        '''
         if self.data == 'mrna':
             self.rrna_removal()
         

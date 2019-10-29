@@ -127,7 +127,8 @@ for directory in directories:
 
 mg_preprocessed = ['4478-DNA-S1613-MiSeqKapa','4478-DNA-S1616-MiSeqKapa']
 mg_names = ['4478-DNA-S1613-MiSeqKapa', '4478-DNA-S1613-MiSeqKapa', '4478-DNA-S1616-MiSeqKapa']
-mt_preprocessed = list()
+mt_preprocessed = ['4478-R1-1-MiSeqKapa']
+mt2mg = dict()
 
 '''    
 Preprocess
@@ -203,6 +204,10 @@ if not args.no_preprocessing:
                     mtools.remove_preprocessing_intermediates(args.output + '/Preprocess', args.output_level)
 
                     mt_preprocessed.append(mt_name)
+                    
+                mt2mg[mt_name] = mg_name
+                    
+reporter.report.to_csv(args.output + '/report.tsv', sep = '\t')
 
 mtools.task_is_finished(task = 'Preprocessing', 
                         file = monitorization_file, 
@@ -282,10 +287,11 @@ if not args.no_annotation:
                       assembled = False if args.no_assembly else True,
                       error_model = args.fgs_train_file,
                       threads = args.threads)
-                      #columns = args.annotation_columns.split(','),
-                      #databases = args.annotation_databases.split(','))
     
         #annotater.run()
+        annotater.cog_annotation('{}/Annotation/{}/fgs.faa'.format(args.output, sample),
+                                 '{}/Annotation/{}'.format(args.output, sample),
+                                 threads = args.threads)        
     
     mtools.remove_annotation_intermediates(args.output, args.output_level, 
                                            sample2name.keys())
@@ -320,32 +326,62 @@ if not args.no_binning:
     mtools.task_is_finished(task = 'Binning',
             file = monitorization_file, 
             task_output = '{}/Binning/{}'.format(args.output, sample))
-exit()
-for experiment in experiments:
+    
+'''
+Join all information on one report
+'''
+mtools.timed_message('Integrating all information.')
+
+annotater = Annotater(out_dir = args.output,
+                      threads = args.threads,
+                      samples = samples,
+                      columns = (args.annotation_columns.split(',') if 
+                      hasattr(args, 'annotation_columns') else None),
+                      databases = (args.annotation_databases.split(',') if 
+                      hasattr(args, 'annotation_databases') else None))
+joined = annotater.global_information()
+
+mtools.timed_message('Integration is available at ' + args.output)
+
+expression_analysed = list()
+
+if len(experiment[0].split(':')) > 1:                                           # this forces all analysis to be the same, but it is not the goal of MOSCA. Must allow for different types of analysis (with and without MT/MP, single/paired-ended, ...)
     if args.type_of_data == 'metatranscriptomics':
         '''
         Metatranscriptomics Quantification
         '''
         mtools.timed_message('Analysing gene expression with metatranscriptomics')
         
-        path = pathlib.Path(args.output + '/Metatranscriptomics/' + 
-                            mg_name).mkdir(parents=True, exist_ok=True)
-        
-        mt = [args.output + '/Preprocess/Trimmomatic/quality_trimmed_' + mt_name + 
-              '_' + fr + '_paired.fq' for fr in ['forward', 'reverse']]
-        
-        mta = MetaTranscriptomicsAnalyser(out_dir = args.output + '/Metatranscriptomics',
-                      contigs = args.output + '/Assembly/' + mg_name + '/contigs.fasta',
-                      blast = args.output + '/Annotation/' + mg_name + '/aligned.blast',
-                      reads = mt,
-                      mt = mt_name,
-                      threads = args.threads)
-        mta.readcounts_file()
-        
+        for mt_name in mt_preprocessed:
+            path = pathlib.Path('{}/Metatranscriptomics/{}'.format(args.output, 
+                                mt_name)).mkdir(parents=True, exist_ok=True)
+            
+            mt = ['{}/Preprocess/Trimmomatic/quality_trimmed_{}_{}_paired.fq'.format(
+                    args.output, mt_name, fr) for fr in ['forward', 'reverse']]
+            mg_name = mt2mg[mt_name]
+            mta = MetaTranscriptomicsAnalyser(out_dir = args.output + '/Metatranscriptomics',
+                          contigs = '{}/Assembly/{}/contigs.fasta'.format(args.output, mg_name),
+                          blast = '{}/Annotation/{}/aligned.blast'.format(args.output, mg_name),
+                          reads = mt,
+                          mt = mt_name,
+                          threads = args.threads)
+            mta.readcounts_file()
+            
+            joined = mtools.define_abundance(joined, origin_of_data = 'metatranscriptomics',
+                                             name = mt_name, readcounts = '{}/Metatranscriptomics/{}.readcounts'.format(
+                                                     args.output, mt_name))
+            
+        readcount_files = glob.glob(args.output + '/Metatranscriptomics/*.readcounts')
+        mta.generate_expression_matrix(readcount_files, expression_analysed, 
+            args.output + '/Metatranscriptomics/all_experiments.readcounts')
+
+        mta.differential_analysis(args.output + '/Metatranscriptomics/all_experiments.readcounts', 
+                        args.conditions[0].split(','), args.output + '/Metatranscriptomics/')
+            
         mtools.task_is_finished(task = 'Metatranscriptomics analysis',
               file = monitorization_file, 
-              task_output = args.output + '/Metatranscriptomics/' + mt_name)
-        
+              task_output = args.output + '/Metatranscriptomics')
+            
         expression_analysed.append(mt_name)
     
     else:
@@ -357,7 +393,7 @@ for experiment in experiments:
         
         path = pathlib.Path(args.output + '/Metaproteomics/' + mt_name).mkdir(parents=True, exist_ok=True)   
         
-        spectra_folder = pairs[1]
+        spectra_folder = experiment.split(':')[1]
         analyser = MetaproteomicsAnalyser(faa = args.output + '/Annotation/' + mg_name + '/fgs.faa',
                       blast = args.output + '/Annotation/' + mg_name + '/aligned.blast',
                       crap_folder = '/HDDStorage/jsequeira/Thesis/Metaproteomics',
@@ -374,42 +410,15 @@ for experiment in experiments:
         mtools.task_is_finished(task = 'Metaproteomics analysis',
                 file = monitorization_file, 
                 task_output = args.output + '/Metaproteomics/' + mt_name)
-            
-'''
-Join all information on one report
-'''
-mtools.timed_message('Integrating all information.')
 
-annotater = Annotater(out_dir = args.output,
-                      threads = args.threads)
-
-joined = annotater.global_information()
-
-mtools.timed_message('Integration is available at ' + args.output)
-
-if len(experiment.split(':')) > 1:      
-    if args.type_of_data == 'metatranscriptomics':
-        readcount_files = glob.glob(args.output + '/Metatranscriptomics/*.readcounts')
-        
-        for file in readcount_files[:-1]:
-            mt_name = file.split('/')[-1].split('.')[0]
-            joined = mtools.define_abundance(joined, origin_of_data = 'metatranscriptomics',name = mt_name, readcounts = file)
-        
-        mta.merge_readcounts(readcount_files, expression_analysed, args.output + '/Metatranscriptomics/all_experiments.readcounts')
-
-        mta.differential_analysis(args.output + '/Metatranscriptomics/all_experiments.readcounts', args.conditions[0].split(','), args.output + '/Metatranscriptomics/')
-        
-    else:
-        # TODO - the metaproteomics workflow
-        pass
-    
-samples = mg_processed + expression_analysed
-
-joined[samples].to_csv(args.output + '/readcounts.table',
+joined[mg_preprocessed].to_csv(args.output + '/mg_preprocessed_readcounts.table',
       sep = '\t', index = False)
-
-joined = mtools.normalize_readcounts(args.output + '/readcounts.table', samples,
-                            args.output + '/normalization_factors.txt')
+joined = mtools.normalize_readcounts(args.output + '/mg_preprocessed_readcounts.table', 
+            mg_preprocessed, args.output + '/mg_preprocessed_normalization_factors.txt')
+joined[expression_analysed].to_csv(args.output + '/expression_analysed_readcounts.table',
+      sep = '\t', index = False)
+joined = mtools.normalize_readcounts(args.output + '/expression_analysed_readcounts.table', 
+            expression_analysed, args.output + '/expression_analysed_normalization_factors.txt')
 
 joined.to_csv(args.output + '/mosca_results.tsv', sep = '\t', index = False)
 joined.to_excel(args.output + '/mosca_results.xlsx', index = False)
@@ -417,7 +426,7 @@ joined.to_excel(args.output + '/mosca_results.xlsx', index = False)
 # KEGG Pathway representations
 kp = KEGGPathway(input_file = args.output + '/mosca_results.tsv',
                  output_directory = args.output + '/Metatranscriptomics/KEGG Pathway',
-                 mg_samples = mg_processed,
+                 mg_samples = mg_preprocessed,
                  mt_samples = expression_analysed)
 kp.run()
 

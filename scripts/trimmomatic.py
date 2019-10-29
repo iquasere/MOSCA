@@ -178,7 +178,7 @@ class Trimmomatic:
     self.input_files will be handled with arguments defined by the list of reports.
     The harshest arguments will be selected.
     '''
-    def define_by_reports(self, reports, output_file = None):
+    def define_by_reports(self, reports, output_file):
         for report in reports:
             data = self.parse_fastqc_result(report)
             for key in ['Per base sequence quality', 'Per base sequence content']:

@@ -459,8 +459,8 @@ class Annotater:
     Output: results folder 
     '''
     def annotate_cogs(self, blast, output, cddid, fun, whog):
-        mtools.run_command('perl MOSCA/scripts/cdd2cog.pl -r ' + blast + ' -c ' + 
-                           cddid + ' -f ' + fun + ' -w ' + whog)
+        mtools.run_command('perl MOSCA/scripts/cdd2cog.pl -r {} -c {} -f {} -w {}'.format(
+                blast, cddid, fun, whog))
         if os.path.isdir(output + '/results'):
             shutil.rmtree(output + '/results')
         os.rename('results', output + '/results')
@@ -494,9 +494,9 @@ class Annotater:
     '''      
     def write_cogblast(self, cogblast, output):
         cogblast = self.organize_cdd_blast(cogblast)
-        del cogblast['qseqid']                                                  # TODO - this is something that should be reworked in the future. self.organize_cdd_blast is called twice, and while here the qseqid is not needed, it is needed in the self.join_reports call of self.global_information
+        del cogblast['qseqid']
         cogblast = cogblast.groupby(cogblast.columns.tolist()).size().reset_index().rename(columns={0:'count'})
-        cogblast.to_excel(output, index = False)
+        cogblast.to_csv(output, sep = '\t', index = False)
         
     '''
     Input: name of cddblast to parse
@@ -504,7 +504,7 @@ class Annotater:
     '''      
     def parse_cogblast(self, cogblast):
         cogblast = pd.read_csv(cogblast, header=None, skiprows = 1, sep = '\t', low_memory=False)
-        cogblast = cogblast[list(range(0,14))+[18]]                                             #several extra columns are produced because of bad formatting
+        cogblast = cogblast[list(range(0,14))+[18]]                             #several extra columns are produced because of bad formatting
         cogblast.columns = ['qseqid', 'sseqid', 'pident', 'length', 'mismatch', 'gapopen', 
                    'qstart', 'qend', 'sstart', 'send', 'evalue', 'bitscore', 'cog',
                    'functional categories', 'COG protein description']
@@ -542,14 +542,14 @@ class Annotater:
     Output: 
         pandas.DataFrame with integration of information from UniProt and COGs
     '''
-    def join_reports(self, blast, uniprotinfo, cog_blast, 
+    def join_reports(self, blast, uniprotinfo, cog_blast, out_dir,
                      fun = 'MOSCA/Databases/COG/fun.txt', split_pathways = False):
         result = mtools.parse_blast(blast)
         result.index = result.qseqid
         result = result[result.sseqid != '*']
         result['Entry'] = [ide.split('|')[1] for ide in result.sseqid]
         uniprotinfo = pd.read_csv(uniprotinfo, sep= '\t', low_memory=False).drop_duplicates()
-        if split_pathways == True:                                              # TODO - the reorganization of pathways incurs in extra lines for same IDs. Find workaround
+        if split_pathways:                                              # TODO - the reorganization of pathways incurs in extra lines for same IDs. Find workaround
             print('Reorganizing pathways information.')
             funcdf = uniprotinfo[uniprotinfo.Pathway.notnull()][['Entry','Pathway']]
             funcdf.Pathway = funcdf.Pathway.apply(self.split)
@@ -560,9 +560,12 @@ class Annotater:
             del funcdf['Pathway']; del uniprotinfo['Pathway']
             funcdf = pd.concat([pathways, funcdf], axis = 1)
             uniprotinfo = pd.merge(uniprotinfo, funcdf, on = ['Entry'], how = 'outer')
-        result = pd.merge(result, uniprotinfo, on = ['Entry'], how = 'outer')
+        result = pd.merge(result, uniprotinfo, on = ['Entry'], how = 'left')
         cog_blast = self.organize_cdd_blast(cog_blast, fun)
         result = pd.merge(result, cog_blast, on = ['qseqid'], how = 'outer')
+        
+        result.to_csv(out_dir + '/full_analysis_results.tsv', sep = '\t', index = False)
+        
         print('Defining best consensus COG for each UniProt ID.')
         cogs_df = pd.DataFrame()
         tqdm.pandas()
@@ -593,6 +596,9 @@ class Annotater:
               'COG protein description','cog']]
         result.columns = ['Protein ID'] + result.columns.tolist()[1:]
         result = result.drop_duplicates()
+        
+        result.to_csv(out_dir + '/protein_analysis_results.tsv', sep = '\t', index = False)
+        
         return result
     
     def run(self):
@@ -639,50 +645,46 @@ class Annotater:
                     print(result[result.qseqid == key]['sseqid'])
                     
     def global_information(self):
-        # Join reports
-        if not os.path.isfile(self.out_dir + '/Annotation/fgs.faa'):
-            mtools.run_command('cat ' + ' '.join(glob.glob(self.out_dir + '/Annotation/*/fgs.faa')),
-                                             self.out_dir + '/Annotation/fgs.faa')
+        # Join blast reports
         if not os.path.isfile(self.out_dir + '/Annotation/aligned.blast'):
             mtools.run_command('cat ' + ' '.join(glob.glob(self.out_dir + '/Annotation/*/aligned.blast')), 
                            file = self.out_dir + '/Annotation/aligned.blast')
+        
+        # Join COG reports
+        if not os.path.isfile(self.out_dir + '/Annotation/aligned.blast'):
+            mtools.run_command('cat ' + ' '.join(glob.glob(
+                    self.out_dir + '/Annotation/*/results/rps-blast_cog.txt')), 
+                file = self.out_dir + '/Annotation/general_rps-blast_cog.txt')
         
         # Retrieval of information from UniProt IDs
         self.recursive_uniprot_information(self.out_dir + '/Annotation/aligned.blast', 
                                            self.out_dir + '/Annotation/uniprot_info.tsv',
                                            columns = self.columns,
                                            databases = self.databases)
-        
-        # Functional annotation with COG database
-        self.cog_annotation(self.out_dir + '/Annotation/fgs.faa', 
-                            self.out_dir + '/Annotation', threads = self.threads)
 
         # Integration of all reports - BLAST, UNIPROTINFO, COG
         joined = self.join_reports(self.out_dir + '/Annotation/aligned.blast', 
                                self.out_dir + '/Annotation/uniprot_info.tsv', 
-                               self.out_dir + '/Annotation/results/rps-blast_cog.txt')
-
-        mg_names = list()
-        blast_files = glob.glob(self.out_dir + '/Annotation/*/aligned.blast')
-        for file in blast_files:
-            mg_name = file.split('/')[-2]
-            mtools.build_gff_from_contigs(self.out_dir + '/Assembly/' + mg_name + '/contigs.fasta', 
-                    self.out_dir + '/Assembly/' + mg_name + '/quality_control/alignment.gff')
-            mtools.run_htseq_count(self.out_dir + '/Assembly/' + mg_name + '/quality_control/alignment.sam', 
-                                   self.out_dir + '/Assembly/' + mg_name + '/quality_control/alignment.gff',
-                                   self.out_dir + '/Assembly/' + mg_name + '/quality_control/alignment.readcounts',
+                               self.out_dir + '/Annotation/general_rps-blast_cog.txt',
+                               self.out_dir)
+        
+        for mg_name in self.mg_names:
+            mtools.build_gff_from_contigs('{}/Assembly/{}/contigs.fasta'.format(self.out_dir, mg_name), 
+                    '{}/Assembly/{}/quality_control/alignment.gff'.format(self.out_dir, mg_name))
+            mtools.run_htseq_count('{}/Assembly/{}/quality_control/alignment.sam'.format(self.out_dir, mg_name), 
+                                   '{}/Assembly/{}/quality_control/alignment.gff'.format(self.out_dir, mg_name),
+                                   '{}/Assembly/{}/quality_control/alignment.readcounts'.format(self.out_dir, mg_name),
                                    stranded = False)
-            joined = mtools.define_abundance(joined, 
-                            readcounts = self.out_dir + '/Assembly/' + mg_name + 
-                            '/quality_control/alignment.readcounts', blast = file)
-            mg_names.append(mg_name)
+            joined = mtools.define_abundance(joined, readcounts = '{}/Assembly/{}/quality_control/alignment.readcounts'.format(self.out_dir, mg_name), 
+                                             blast = '{}/Assembly/{}/aligned.blast'.format(self.out_dir, mg_name))
+
+        joined.to_csv(self.out_dir + '/joined_information.tsv', index=False, sep='\t')
+        print('joined was written to ' + self.out_dir + '/joined_information.tsv')  
+        
         if os.path.isfile(self.out_dir + '/joined_information.xlsx'):
             os.remove(self.out_dir + '/joined_information.xlsx')
-        joined.to_csv(self.out_dir + '/joined_information.tsv', index=False, sep='\t')
-        print('joined was written to ' + self.out_dir + '/joined_information.tsv')
-        
-        writer = pd.ExcelWriter(self.out_dir + '/joined_information.xlsx', 
-                                engine='xlsxwriter')
+
+        writer = pd.ExcelWriter(self.out_dir + '/joined_information.xlsx', engine='xlsxwriter')
         i = 0
         j = 1
         while i + 1048575 < len(joined):
@@ -693,7 +695,7 @@ class Annotater:
         
         self.joined2kronas(self.out_dir + '/joined_information.tsv', 
                            output = self.out_dir + '/Annotation/krona',
-                           mg_columns = mg_names)
+                           mg_columns = self.mg_names)
         return joined
 
     '''
@@ -793,14 +795,9 @@ class Annotater:
         mg_columns: names of columns with abundances from which to build krona plots
     Output:
     '''
-    def joined2kronas(self, joined, output, mg_columns, 
-                      taxonomy_columns = ['Taxonomic lineage (SUPERKINGDOM)',
-                                          'Taxonomic lineage (PHYLUM)',
-                                          'Taxonomic lineage (CLASS)',
-                                          'Taxonomic lineage (ORDER)',
-                                          'Taxonomic lineage (FAMILY)',
-                                          'Taxonomic lineage (GENUS)',
-                                          'Taxonomic lineage (SPECIES)'],
+    def joined2kronas(self, joined, output, mg_columns, taxonomy_columns = [
+            'Taxonomic lineage (' + level + ')' for level in ['SUPERKINGDOM', 
+                    'PHYLUM', 'CLASS', 'ORDER', 'FAMILY', 'GENUS', 'SPECIES']],
                       functional_columns = ['COG general functional category',
                                             'COG functional category',
                                             'COG protein description']):
@@ -808,12 +805,12 @@ class Annotater:
         
         for name in mg_columns:
             partial = data[[name] + taxonomy_columns]
-            partial.to_csv(output + '_{}_tax.tsv'.format(name), sep = '\t', 
+            partial.to_csv('{}_{}_tax.tsv'.format(output, name), sep = '\t', 
                            index = False, header = False)
             self.create_krona_plot(output + '_tax.tsv')
             
             partial = data[[name] + functional_columns]
-            partial.to_csv(output + '_{}_fun.tsv'.format(name), sep = '\t', 
+            partial.to_csv('_{}_fun.tsv'.format(output, name), sep = '\t', 
                            index = False, header = False)
             self.create_krona_plot(output + '_fun.tsv')
             

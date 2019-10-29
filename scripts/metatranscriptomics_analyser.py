@@ -35,7 +35,7 @@ class MetaTranscriptomicsAnalyser:
     output: 
         merged expression matrix name (output)
     '''
-    def merge_readcounts(self, readcount_files, header, output):
+    def generate_expression_matrix(self, readcount_files, header, output):
         expression_matrix = pd.DataFrame()
         for file in readcount_files:
             df = pd.read_csv(file, sep='\t', index_col = 0, header = None)

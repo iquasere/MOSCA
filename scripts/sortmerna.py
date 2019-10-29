@@ -97,8 +97,6 @@ class SortMeRNA:
                                    forward, reverse))
         for file in ["{}/Preprocess/SortMeRNA/read{}.txt".format(self.working_dir, 
                      number) for number in ['1','2']]:
-            print('Files were not removed')
-            exit()
             os.remove(file)
     
     def run(self):

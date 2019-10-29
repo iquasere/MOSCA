@@ -472,7 +472,7 @@ class MoscaTools:
     def remove_preprocessing_intermediates(self, output_dir, output_level):
         if output_level != 'maximum':
             for file in os.listdir(output_dir + '/FastQC'):
-                if ('quality_trimmed' not in file and '.html' not in file):
+                if not any(s in file for s in ['quality_trimmed', '.html']):
                     file = '{}/FastQC/{}'.format(output_dir, file)
                     if os.path.isfile(file):
                         os.remove(file)
@@ -480,8 +480,8 @@ class MoscaTools:
                         shutil.rmtree(file)
             for file in (glob.glob(output_dir + '/SortMeRNA/*') + 
                          glob.glob(output_dir + '/Trimmomatic/*')):
-                if ('quality_trimmed' not in file and 'adapters.txt' not in file
-                    and 'quality_params.txt' not in file):
+                if not any(s in file for s in ['quality_trimmed', 'adapters.txt', 
+                                           'quality_params.txt']):
                     os.remove(file)
             if output_level != 'medium':
                 for file in (glob.glob(output_dir + '/FastQC/*.html') +
@@ -500,7 +500,7 @@ class MoscaTools:
         if output_level != 'maximum':
             for sample in samples:
                 for file in os.listdir('{}/Assembly/{}'.format(output_dir, sample)):
-                    if ('quality_control' not in file and 'contigs.fasta' not in file):
+                    if not any(s in file for s in ['quality_control', 'contigs.fasta']):
                         file = '{}/Assembly/{}/{}'.format(output_dir, sample, file)
                         if os.path.isfile(file):
                             os.remove(file)
@@ -523,7 +523,7 @@ class MoscaTools:
         if output_level != 'maximum':
             for sample in samples:
                 for file in os.listdir('{}/Annotation/{}'.format(output_dir, sample)):
-                    if ('.faa' not in file and '.blast' not in file):
+                    if not any(s in file for s in ['.faa', '.blast', 'cog', 'results']):
                         file = '{}/Annotation/{}/{}'.format(output_dir, sample, file)
                         os.remove(file)
             if output_level != 'medium':

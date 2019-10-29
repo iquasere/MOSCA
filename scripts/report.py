@@ -97,11 +97,11 @@ class Reporter:
                                 reports[0][column][0], reports[1][column][0]))
                         
     def info_from_preprocessing(self, output_dir, name, performed_rrna_removal = False):
-        if os.isfile('{}/Preprocess/Trimmomatic/{}/adapters.txt'.format(output_dir, name)):
-            adapter_files = open('{}/Preprocess/Trimmomatic/{}/adapters.txt').read().split('\n')
+        if os.path.isfile('{}/Preprocess/Trimmomatic/{}_adapters.txt'.format(output_dir, name)):
+            adapter_files = open('{}/Preprocess/Trimmomatic/{}_adapters.txt').read().split('\n')
             adapter = adapter_files[0].split('/')[-1]
         else:
-            adapter = None
+           adapter_files = list(); adapter = None
         
         # For each preprocessing step, a tuple of (prefix, suffix for forward, suffix for reverse)
         prefix2terms = {'[Initial quality assessment]': ('', 'R1', 'R2'),
@@ -114,9 +114,7 @@ class Reporter:
         self.report.loc[name]['# of initial reads'] = mtools.count_on_file('@', self.r1_file)
         self.info_from_fastqc(output_dir, name, '[Initial quality assessment]', prefix2terms)
         # TODO - solve the mess with prefix2terms, adapter.txt
-        if os.isfile('{}/Preprocess/Trimmomatic/{}/adapters.txt'.format(output_dir, name)):
-            adapter_files = [file.split('/').rstrip('.fa') for file in 
-                open('{}/Preprocess/Trimmomatic/{}/adapters.txt').read().split('\n')]
+        if len(adapter_files) > 0:
             self.report.loc[name]['[Adapter removal] adapter files'] = ', '.join(adapter_files)
             self.report.loc[name]['[Adapter removal] # of reads remaining'] = (
                 mtools.count_on_file('@', '{}/Preprocess/Trimmomatic/after_adapter_removal_{}_{}_forward_paired.fq'.format(
@@ -144,7 +142,7 @@ class Reporter:
             
         self.info_from_fastqc(output_dir, name, '[Before quality trimming]', prefix2terms)
         qual_params = ['HEADCROP', 'CROP', 'AVGQUAL', 'MINLEN']
-        qual_params_vals = open('{}/Preprocess/Trimmomatic/{}/quality_params.txt'.format(
+        qual_params_vals = open('{}/Preprocess/Trimmomatic/{}_quality_params.txt'.format(
                 output_dir, name)).read().split('\n')
         for i in range(4):
             self.report.loc[name]['[Quality trimming] ' + qual_params[i]] = qual_params_vals[i]
