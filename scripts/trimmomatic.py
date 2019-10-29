@@ -184,7 +184,9 @@ class Trimmomatic:
             for key in ['Per base sequence quality', 'Per base sequence content']:
                 if data[key][0] in ['warn', 'fail']:
                     self.add_fastqc_argument(data,key)
-        open(output_file, 'w').write('\n'.join(self.headcrop, self.crop, self.avgqual, self.minlen))
+        for attr in 'headcrop', 'crop', 'avgqual', 'minlen':
+            if hasattr(self, attr):
+                open(output_file, 'a').write('{}:{}\n'.format(attr.upper(), self.__dict__[attr]))
         self.run()
         
     def bash_command(self):

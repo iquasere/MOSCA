@@ -424,8 +424,9 @@ joined.to_csv(args.output + '/mosca_results.tsv', sep = '\t', index = False)
 joined.to_excel(args.output + '/mosca_results.xlsx', index = False)
 
 # KEGG Pathway representations
+pathlib.Path(args.output + '/KEGG Pathway').mkdir(parents=True, exist_ok=True)
 kp = KEGGPathway(input_file = args.output + '/mosca_results.tsv',
-                 output_directory = args.output + '/Metatranscriptomics/KEGG Pathway',
+                 output_directory = args.output + '/KEGG Pathway',
                  mg_samples = mg_preprocessed,
                  mt_samples = expression_analysed)
 kp.run()
