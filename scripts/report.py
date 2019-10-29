@@ -141,11 +141,9 @@ class Reporter:
             self.report.loc[name]['[rRNA removal] % of reads removed'] = 0.0
             
         self.info_from_fastqc(output_dir, name, '[Before quality trimming]', prefix2terms)
-        qual_params = ['HEADCROP', 'CROP', 'AVGQUAL', 'MINLEN']
-        qual_params_vals = open('{}/Preprocess/Trimmomatic/{}_quality_params.txt'.format(
-                output_dir, name)).read().split('\n')
-        for i in range(4):
-            self.report.loc[name]['[Quality trimming] ' + qual_params[i]] = qual_params_vals[i]
+        self.report.loc[name]['[Quality trimming] Parameters'] = '; '.join(open(
+                '{}/Preprocess/Trimmomatic/{}_quality_params.txt'.format(output_dir, 
+                 name)).read().split('\n'))
         self.report.loc[name]['[Quality trimming] # of reads remaining'] = (
             mtools.count_on_file('@', '{}/Preprocess/Trimmomatic/quality_trimmed_{}_forward_paired.fq'.format(
                     output_dir, name)))
