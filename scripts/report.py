@@ -160,7 +160,8 @@ class Reporter:
                 self.report.loc[name]['[rRNA removal] # of reads remaining'])
             self.info_from_fastqc(output_dir, name, '[After quality trimming]', prefix2terms)
         
-        except:
+        except Exception as e: 
+            print(e)
             self.report.to_csv('test.tsv', '\t')
     
     def set_samples(self, sample2name):

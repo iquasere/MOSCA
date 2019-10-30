@@ -355,9 +355,7 @@ class MoscaTools:
         import pprint
         pp = pprint.PrettyPrinter(indent=4)
         pp.pprint(vars(args))
-        print()
         dict_args = vars(args)
-        print(dict_args)
         for key in dict_args.keys():
             key_name = key[0].upper() + key[1:].replace('_',' ')
             if key != 'files':

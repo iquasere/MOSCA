@@ -306,25 +306,24 @@ class MetaproteomicsAnalyser:
             if os.path.isdir(directory):
                 shutil.rmtree(directory, ignore_errors=True)
         mtools.run_command('maxquant ' + mqpar)        # TODO - get the shell messages from MaxQuant to appear
-        #os.rename(spectra_folder + '/combined', output_folder + '/maxquant_results')
+        os.rename(spectra_folder + '/combined', output_folder + '/maxquant_results')
         
     def run(self):
-        '''
         self.verify_crap_db(self.crap_database)
         self.database_generation(self.output + '/database_uniprot_sequences.fasta', 
                                  self.crap_database, self.protease, 
                                  how = 'raw', blast = self.blast, faa = self.faa)
-        '''
+        
         if self.workflow == 'maxquant':
             self.create_mqpar(self.output + '/mqpar.xml')
-            self.edit_maxquant_mqpar(self.output + '/mqpar.xml', '/mnt/HDDStorage/jsequeira/MGMP_datasets/database.fasta', #self.output + '/database.fasta',
+            self.edit_maxquant_mqpar(self.output + '/mqpar.xml', self.output + '/database.fasta',
                                      self.spectra_folder, self.experiment_names,
-                                     threads = 6)
+                                     threads = self.threads)
             self.run_maxquant(self.output + '/mqpar.xml', self.spectra_folder, self.output)
             
         elif self.workflow == 'compomics':
             self.create_decoy_database(self.database, self.searchgui_exe)
-            try:                                                                # reference to https://github.com/compomics/searchgui/issues/217
+            try:                                                                # try/except - https://github.com/compomics/searchgui/issues/217
                 self.generate_parameters_file(self.output + '/params.par', 
                     self.database.replace('.fasta', '_concatenated_target_decoy.fasta'),
                     self.searchgui_exe)
@@ -336,41 +335,13 @@ class MetaproteomicsAnalyser:
             self.browse_identification_results(self.spectra_folder, self.output + '/params.par', 
                         self.output + '/searchgui_out.zip', self.output + '/ps_output.cpsx',
                         self.peptide_shaker_exe)
-            try:
+            try:                                                                # try/except - if no identifications are present, will throw an error
                 self.generate_reports(self.output + '/ps_output.cpsx', self.output + '/reports',
                                       self.peptide_shaker_exe)
             except:
                 print('No identifications?')
-            '''
+            
             self.spectra_counting((self.output + '/reports/' + self.experiment_name + 
                                   '_' + self.sample_name + '_' +  self.replicate_number + 
                                   '_Default_Protein_Report.txt'), self.blast,
                                   self.output + '/Spectra_counting.tsv')
-            '''
-            
-if __name__ == '__main__':
-    '''
-    for i in range(1,7):
-        js = [1,9] if i != 2 else [1,4]
-        for j in js:
-            spectra_folder_folder = '/home/jsequeira/Catia_MS/mgf/sample{}_{}'.format(str(i),str(j))
-            
-            mp = MetaProteomicsAnalyser(workflow = 'compomics',
-                                        output = spectra_folder_folder,
-                                        spectra_folder = spectra_folder_folder,
-                                        threads = '15',
-                                        database = '/home/jsequeira/Catia_MS/mgf/database.fasta',
-                                        experiment_name = 'Catia_MS',
-                                        sample_name = 'sample{}_{}'.format(str(i),str(j)),
-                                        replicate_number = str(i))
-            
-            mp.run()
-    '''
-    
-    mp = MetaproteomicsAnalyser()
-    
-    files = glob.glob('/home/jsequeira/Catia_MS/mgf/*/reports/MyExperiment_MySample_1_Default_Protein_Report.txt')
-    
-    mp.spectra_counting(files, '/home/jsequeira/Catia_MS/mgf/spectra_count.tsv',
-                        uniprot_ids = True)
-    

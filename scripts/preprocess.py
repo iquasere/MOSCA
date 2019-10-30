@@ -130,7 +130,7 @@ class Preprocesser:
             adapter_part = adapters[0].split('/')[-1].rstrip('.fa')
             self.files = ['{}/Preprocess/Trimmomatic/{}_{}_{}_paired.fq'.format(
                     self.working_dir, self.name, adapter_part, fr) for fr in ['forward', 'reverse']]
-        
+
         #self.host_sequences_removal()  
         if self.data == 'mrna':
             self.rrna_removal()
