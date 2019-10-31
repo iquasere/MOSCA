@@ -9,7 +9,7 @@ March 2017
 
 from mosca_tools import MoscaTools
 from fastqc import FastQC
-import glob
+import glob, pandas as pd, numpy as np
 
 mtools = MoscaTools()
 
@@ -100,8 +100,6 @@ class Trimmomatic:
         return possible_adapters
         
     def parse_fastqc_result(self, file):
-        import pandas as pd
-        import numpy as np
         data = dict()
         fi = open(file)
         f = list()
@@ -184,9 +182,6 @@ class Trimmomatic:
             for key in ['Per base sequence quality', 'Per base sequence content']:
                 if data[key][0] in ['warn', 'fail']:
                     self.add_fastqc_argument(data,key)
-        for attr in 'headcrop', 'crop', 'avgqual', 'minlen':
-            if hasattr(self, attr):
-                open(output_file, 'a').write('{}:{}\n'.format(attr.upper(), self.__dict__[attr]))
         self.run()
         
     def bash_command(self):

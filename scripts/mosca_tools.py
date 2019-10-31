@@ -537,7 +537,7 @@ class MoscaTools:
     '''      
     def parse_fastqc_report(self, filename):
         data = dict()
-        file = open(filename).read().split('\t\n')
+        file = open(filename).read().split('\n')
         i = 1
         while i < len(file):
             if file[i].startswith('>>') and file[i] != '>>END_MODULE':
@@ -545,16 +545,19 @@ class MoscaTools:
                 if name == 'Sequence Duplication Levels':
                     i += 1
                 i += 1
-                labels = file[i][1:].split('\t')
-                i += 1
-                partial_data = np.array(labels)
-                while i < len(file) and not file[i].startswith('>>'):
-                    partial_data = np.append(partial_data, file[i].split('\t'))
+                if file[i] == '>>END_MODULE':                                   # if there is no information on that module
+                    data[name] = (flag, pd.DataFrame())
+                else:
+                    labels = file[i][1:].split('\t')
                     i += 1
-                partial_data = np.reshape(partial_data,(int(partial_data.size/len(labels)),len(labels)))
-                data[name] = (flag, pd.DataFrame(data = partial_data[1:,1:],
-                                                index = partial_data[1:,0],
-                                                columns = partial_data[0,1:]))
+                    partial_data = np.array(labels)
+                    while i < len(file) and not file[i].startswith('>>'):
+                        partial_data = np.append(partial_data, file[i].split('\t'))
+                        i += 1
+                    partial_data = np.reshape(partial_data,(int(partial_data.size/len(labels)),len(labels)))
+                    data[name] = (flag, pd.DataFrame(data = partial_data[1:,1:],
+                                                    index = partial_data[1:,0],
+                                                    columns = partial_data[0,1:]))
             i += 1
         return data
     
@@ -579,10 +582,6 @@ class MoscaTools:
         return int((subprocess.check_output("wc -l " + file, shell = True)).split()[0])
     
 if __name__ == '__main__':
-    print(os.getcwd())
-    
-    os.chdir('C:/Users/Asus/Desktop')
-    
     mtools = MoscaTools()
     
-    print(mtools.count_on_file('>', 'fgs.faa'))
+    print(mtools.parse_fastqc_report('MOSCAfinal/Preprocess/FastQC/4478-R1-1-MiSeqKapa_R1_fastqc/fastqc_data.txt'))

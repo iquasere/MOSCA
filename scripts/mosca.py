@@ -133,7 +133,7 @@ for directory in directories:
 mg_preprocessed = list()
 mg_names = list()
 mt_preprocessed = list()
-if args.type_of_data == 'metatranscriptomics:
+if args.type_of_data == 'metatranscriptomics':
     mt2mg = dict()
 else:
     mp2mg = dict()
@@ -144,7 +144,7 @@ Preprocess
 if not args.no_preprocessing:
     mtools.timed_message('Preprocessing reads')
 
-    for experiment in experiments:
+    for experiment in experiments[:2]:
         
         ''''
         Metagenomics preprocessing
@@ -162,8 +162,8 @@ if not args.no_preprocessing:
             if hasattr(args, 'quality_score'):
                 setattr(preprocesser, 'quality_score', args.quality_score)
 
-            preprocesser.run()
-            reporter.info_from_preprocessing(args.output, mg_name, mg[0])          
+            #preprocesser.run()
+            #reporter.info_from_preprocessing(args.output, mg_name, mg[0])          
             mtools.remove_preprocessing_intermediates(args.output + '/Preprocess', 
                                                       args.output_level)
 
@@ -203,7 +203,7 @@ if not args.no_preprocessing:
                     if hasattr(args, 'quality_score'):
                         setattr(preprocesser, 'quality_score', args.quality_score)
                     
-                    preprocesser.run()
+                    #preprocesser.run()
                     reporter.info_from_preprocessing(args.output, mt_name, mt[0],
                                                      performed_rrna_removal = True)
                     reporter.report.to_csv(args.output + '/report.tsv', sep = '\t')
@@ -216,7 +216,10 @@ if not args.no_preprocessing:
 mtools.task_is_finished(task = 'Preprocessing', 
                         file = monitorization_file, 
                         task_output = args.output + '/Preprocess')
+
+reporter.report.to_csv(args.output + '/report.tsv', sep = '\t')
 exit()
+
 if args.assembly_strategy == 'all':
     sample2name = {'Sample': [mg_name for mg_name in mg_preprocessed]}
 elif args.assembly_strategy == 'unique':
@@ -338,7 +341,7 @@ mtools.timed_message('Integrating all information.')
 
 annotater = Annotater(out_dir = args.output,
                       threads = args.threads,
-                      samples = samples,
+                      sample2name = sample2name,
                       columns = (args.annotation_columns.split(',') if 
                       hasattr(args, 'annotation_columns') else None),
                       databases = (args.annotation_databases.split(',') if 

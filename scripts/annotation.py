@@ -649,18 +649,18 @@ class Annotater:
         if not os.path.isfile(self.out_dir + '/Annotation/aligned.blast'):
             mtools.run_command('cat ' + ' '.join(glob.glob(self.out_dir + '/Annotation/*/aligned.blast')), 
                            file = self.out_dir + '/Annotation/aligned.blast')
+            
+        # Retrieval of information from UniProt IDs
+        self.recursive_uniprot_information(self.out_dir + '/Annotation/aligned.blast', 
+                                           self.out_dir + '/Annotation/uniprot_info.tsv',
+                                           columns = self.columns,
+                                           databases = self.databases)
         
         # Join COG reports
         if not os.path.isfile(self.out_dir + '/Annotation/aligned.blast'):
             mtools.run_command('cat ' + ' '.join(glob.glob(
                     self.out_dir + '/Annotation/*/results/rps-blast_cog.txt')), 
                 file = self.out_dir + '/Annotation/general_rps-blast_cog.txt')
-        
-        # Retrieval of information from UniProt IDs
-        self.recursive_uniprot_information(self.out_dir + '/Annotation/aligned.blast', 
-                                           self.out_dir + '/Annotation/uniprot_info.tsv',
-                                           columns = self.columns,
-                                           databases = self.databases)
 
         # Integration of all reports - BLAST, UNIPROTINFO, COG
         joined = self.join_reports(self.out_dir + '/Annotation/aligned.blast', 
@@ -668,15 +668,15 @@ class Annotater:
                                self.out_dir + '/Annotation/general_rps-blast_cog.txt',
                                self.out_dir)
         
-        for mg_name in self.mg_names:
-            mtools.build_gff_from_contigs('{}/Assembly/{}/contigs.fasta'.format(self.out_dir, mg_name), 
-                    '{}/Assembly/{}/quality_control/alignment.gff'.format(self.out_dir, mg_name))
-            mtools.run_htseq_count('{}/Assembly/{}/quality_control/alignment.sam'.format(self.out_dir, mg_name), 
-                                   '{}/Assembly/{}/quality_control/alignment.gff'.format(self.out_dir, mg_name),
-                                   '{}/Assembly/{}/quality_control/alignment.readcounts'.format(self.out_dir, mg_name),
-                                   stranded = False)
-            joined = mtools.define_abundance(joined, readcounts = '{}/Assembly/{}/quality_control/alignment.readcounts'.format(self.out_dir, mg_name), 
-                                             blast = '{}/Assembly/{}/aligned.blast'.format(self.out_dir, mg_name))
+        # MG quantification for each MG name of each Sample
+        for sample in self.sample2name.keys():
+            for mg_name in self.sample2name[sample]:
+                mtools.perform_alignment('{}/Assembly/{}/contigs.fasta'.format(self.out_dir, sample),
+                        ['{}/Preprocessing/Trimmomatic/quality_trimmed_{}_{}_paired.fastq'.format(self.out_dir, mg_name, fr)
+                        for fr in ['forward', 'reverse']], '{}/Annotation/{}/{}'.format(self.out_dir, sample, mg_name))
+                joined = mtools.define_abundance(joined, readcounts = '{}/Annotation/{}/{}.readcounts'.format(self.out_dir, sample, mg_name), 
+                                             blast = '{}/Annotation/{}/aligned.blast'.format(self.out_dir, sample),
+                                             name = mg_name)
 
         joined.to_csv(self.out_dir + '/joined_information.tsv', index=False, sep='\t')
         print('joined was written to ' + self.out_dir + '/joined_information.tsv')  
