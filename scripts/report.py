@@ -131,15 +131,15 @@ class Reporter:
                 self.report.at[name, '[Adapter removal] # of reads remaining'] = (
                     mtools.count_on_file('@', '{}/Preprocess/Trimmomatic/{}_{}_forward_paired.fq'.format(
                         output_dir, name, adapter)))
-                self.report.at[name, '[Adapter removal] % of reads removed'] = (
+                self.report.at[name, '[Adapter removal] % of reads removed'] = round(
                         (self.report.loc[name]['[Initial quality assessment] # of initial reads'] - 
                          self.report.loc[name]['[Adapter removal] # of reads remaining']) /
-                        self.report.loc[name]['[Initial quality assessment] # of initial reads'] * 100)
+                        self.report.loc[name]['[Initial quality assessment] # of initial reads'] * 100, 2)
             else:
                 self.report.at[name, '[Adapter removal] adapter files'] = 'None'
                 self.report.at[name, '[Adapter removal] # of reads remaining'] = (
                     self.report.loc[name]['[Initial quality assessment] # of initial reads'])
-                self.report.at[name, '[Adapter removal] % of reads removed'] = 0.0
+                self.report.at[name, '[Adapter removal] % of reads removed'] = 0.00
         except:
             self.report.to_csv('MOSCAfinal/report.tsv',sep='\t')
             
@@ -149,14 +149,14 @@ class Reporter:
             self.report.at[name, '[rRNA removal] # of reads remaining'] = (
             mtools.count_on_file('@', '{}/Preprocess/SortMeRNA/{}_forward.fastq'.format(
                     output_dir, name)))
-            self.report.at[name, '[rRNA removal] % of reads removed'] = (
+            self.report.at[name, '[rRNA removal] % of reads removed'] = round(
                     (self.report.loc[name]['[Adapter removal] # of reads remaining'] -
                     self.report.loc[name]['[rRNA removal] # of reads remaining']) /
-                    self.report.loc[name]['[Adapter removal] # of reads remaining'] * 100)
+                    self.report.loc[name]['[Adapter removal] # of reads remaining'] * 100, 2)
         else:
             self.report.at[name, '[rRNA removal] # of reads remaining'] = (
                 self.report.loc[name]['[Adapter removal] # of reads remaining'])
-            self.report.loc[name]['[rRNA removal] % of reads removed'] = 0.0
+            self.report.loc[name]['[rRNA removal] % of reads removed'] = 0.00
         
         print('Quality trimming')
         # Quality trimming
@@ -167,10 +167,10 @@ class Reporter:
         self.report.at[name, '[Quality trimming] # of reads remaining'] = (
             mtools.count_on_file('@', '{}/Preprocess/Trimmomatic/quality_trimmed_{}_forward_paired.fq'.format(
                     output_dir, name)))
-        self.report.at[name, '[Quality trimming] % of reads removed'] = (
+        self.report.at[name, '[Quality trimming] % of reads removed'] = round(
                 (self.report.loc[name]['[rRNA removal] # of reads remaining'] -
             self.report.loc[name]['[Quality trimming] # of reads remaining']) /
-            self.report.loc[name]['[rRNA removal] # of reads remaining'] * 100)
+            self.report.loc[name]['[rRNA removal] # of reads remaining'] * 100, 2)
         self.info_from_fastqc(output_dir, name, '[After quality trimming]', prefix2terms)
         self.report.to_csv(output_dir + '/report.tsv', sep = '\t')
         
@@ -201,12 +201,12 @@ class Reporter:
                          '{}/Annotation/{}/fgs.faa'.format(output_dir, sample))}
         sample_report['# of proteins annotated (DIAMOND)'] = (sample_report['# of proteins detected'] - 
                       mtools.count_on_file('>', '{}/Annotation/{}/unaligned.fasta'.format(output_dir, sample)))
-        sample_report['% of proteins annotated (DIAMOND)'] = (sample_report['# of proteins detected'] /
-                      sample_report['# of proteins annotated (DIAMOND)'] * 100)
+        sample_report['% of proteins annotated (DIAMOND)'] = round(sample_report['# of proteins detected'] /
+                      sample_report['# of proteins annotated (DIAMOND)'] * 100, 2)
         sample_report['# of proteins annotated (PSI-BLAST)'] = mtools.count_lines(
                       '{}/Annotation/{}/cdd_aligned.blast'.format(output_dir, sample))
-        sample_report['% of proteins annotated (PSI-BLAST)'] = (sample_report['# of proteins detected'] /
-                      sample_report['# of proteins annotated (PSI-BLAST)'] * 100)
+        sample_report['% of proteins annotated (PSI-BLAST)'] = round(sample_report['# of proteins detected'] /
+                      sample_report['# of proteins annotated (PSI-BLAST)'] * 100, 2)
         tax_data = pd.read_csv()
         for col in self.taxonomic_columns:
             sample_report['Main taxa identified (' + col + ')'] = ';'.join()
@@ -215,7 +215,4 @@ class Reporter:
          '# of proteins annotated (PSI-BLAST)', '% of proteins annotated (PSI-BLAST)'] +
          ['Main taxa identified (' + col + ')' for col in self.taxonomic_columns] + 
          ['Main functional categories identified'])]
-        
-        
-        
         
