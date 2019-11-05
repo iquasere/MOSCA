@@ -46,13 +46,15 @@ class Reporter:
         
 
     def initialize_report(self, metatranscriptomics):
-        return pd.DataFrame(columns = (['Initial quality assessment] # of initial reads'] +
+        print('Initializing Report')
+        return pd.DataFrame(columns = (['[Initial quality assessment] # of initial reads'] +
         ['[Initial quality assessment] ' + col for col in self.fastq_columns] + 
         ['[Adapter removal] adapter files', '[Adapter removal] # of reads remaining', 
-        'Adapter removal] % of reads removed', '[rRNA removal] # of reads remaining',
+        '[Adapter removal] % of reads removed', '[rRNA removal] # of reads remaining',
         '[rRNA removal] % of reads removed'] + 
         ['[Before quality trimming] ' + col for col in self.fastq_columns] +
         ['[Quality trimming] # of reads remaining', '[Quality trimming] % of reads removed'] + 
+        ['[Quality trimming] Parameters'] + 
         ['[After quality trimming] ' + col for col in self.fastq_columns] + 
         ['[Assembly] ' + col for col in self.metaquast_columns] +
         ['[Annotation] ' + col for col in (['# of proteins detected', 
@@ -96,43 +98,51 @@ class Reporter:
                                 reports[0][column][0], reports[1][column][0]))
                         
     def info_from_preprocessing(self, output_dir, name, input_file, performed_rrna_removal = False):
+        print('Retrieving preprocessing information for sample: ' + name)
+        
         self.report = self.report.append(pd.Series(name = name))
         self.report.loc[name] = self.report.loc[name].fillna(value = '')
 
         adapter_files = open('{}/Preprocess/Trimmomatic/{}_adapters.txt'.format(output_dir, name)).read().split('\n')
-        if adapter_files[0] == ['']:  
-            adapter = adapter_files[0].split('/')[-1]
+        if len(adapter_files[0]) > 0:  
+            adapter = adapter_files[0].split('/')[-1].split('.fa')[0]
         else:
            adapter_files = list(); adapter = None
         
         # For each preprocessing step, a tuple of (prefix, suffix for forward, suffix for reverse)
         prefix2terms = {'[Initial quality assessment]': ('', 'R1', 'R2'),
              '[Before quality trimming]': (('', 'forward', 'reverse') 
-             if self.metatranscriptomics else ('after_adapter_removal_', '_' + 
-                adapter + '_forward_paired', '_' + adapter + '_reverse_paired') 
+             if self.metatranscriptomics else ('', '_' + adapter + '_forward_paired', 
+                                               '_' + adapter + '_reverse_paired') 
              if adapter is not None else ('', 'R1', 'R2')), '[After quality trimming]': (
                      'quality_trimmed_', 'forward_paired', 'reverse_paired')}
+        
         print('Initial assessment')
         # Initial assessment
         self.report.at[name, '[Initial quality assessment] # of initial reads'] = mtools.count_on_file(
             '@', input_file, compressed = True if input_file.endswith('.gz') else False)
         self.info_from_fastqc(output_dir, name, '[Initial quality assessment]', prefix2terms)
+        
         print('After adapter removal')
         # After adapter removal
-        if len(adapter_files) > 0:
-            self.report.at[name, '[Adapter removal] adapter files'] = ', '.join(adapter_files)
-            self.report.at[name, '[Adapter removal] # of reads remaining'] = (
-                mtools.count_on_file('@', '{}/Preprocess/Trimmomatic/after_adapter_removal_{}_{}_forward_paired.fq'.format(
-                    output_dir, name, adapter)))
-            self.report.at[name, '[Adapter removal] % of reads removed'] = (
-                    (self.report.loc[name]['# of initial reads'] - 
-                     self.report.loc[name]['[Adapter removal] # of reads remaining']) /
-                    self.report.loc[name]['# of initial reads'] * 100)
-        else:
-            self.report.at[name, '[Adapter removal] adapter files'] = 'None'
-            self.report.at[name, '[Adapter removal] # of reads remaining'] = (
-                self.report.loc[name]['[Initial quality assessment] # of initial reads'])
-            self.report.at[name, '[Adapter removal] % of reads removed'] = 0.0
+        try:
+            if len(adapter_files) > 0:
+                self.report.at[name, '[Adapter removal] adapter files'] = ', '.join(adapter_files)
+                self.report.at[name, '[Adapter removal] # of reads remaining'] = (
+                    mtools.count_on_file('@', '{}/Preprocess/Trimmomatic/{}_{}_forward_paired.fq'.format(
+                        output_dir, name, adapter)))
+                self.report.at[name, '[Adapter removal] % of reads removed'] = (
+                        (self.report.loc[name]['[Initial quality assessment] # of initial reads'] - 
+                         self.report.loc[name]['[Adapter removal] # of reads remaining']) /
+                        self.report.loc[name]['[Initial quality assessment] # of initial reads'] * 100)
+            else:
+                self.report.at[name, '[Adapter removal] adapter files'] = 'None'
+                self.report.at[name, '[Adapter removal] # of reads remaining'] = (
+                    self.report.loc[name]['[Initial quality assessment] # of initial reads'])
+                self.report.at[name, '[Adapter removal] % of reads removed'] = 0.0
+        except:
+            self.report.to_csv('MOSCAfinal/report.tsv',sep='\t')
+            
         print('rRNA removal')
         # rRNA removal
         if performed_rrna_removal:
@@ -151,9 +161,9 @@ class Reporter:
         print('Quality trimming')
         # Quality trimming
         self.info_from_fastqc(output_dir, name, '[Before quality trimming]', prefix2terms)
-        self.report.at[name, '[Quality trimming] Parameters'] = '; '.join(set(open(
-                '{}/Preprocess/Trimmomatic/{}_quality_params.txt'.format(output_dir, 
-                 name)).read().split('\n')[1:]))                                # TODO - because '' must be interfering, try to cut the problem at the root before troubles
+        self.report.at[name, '[Quality trimming] Parameters'] = '; '.join([file for file in 
+                set(open('{}/Preprocess/Trimmomatic/{}_quality_params.txt'.format(
+                output_dir, name)).read().split('\n')) if len(file) > 2])                                # TODO - because '' must be interfering, try to cut the problem at the root before troubles
         self.report.at[name, '[Quality trimming] # of reads remaining'] = (
             mtools.count_on_file('@', '{}/Preprocess/Trimmomatic/quality_trimmed_{}_forward_paired.fq'.format(
                     output_dir, name)))
@@ -172,6 +182,8 @@ class Reporter:
                                right_index = True)
     
     def info_from_assembly(self, output_dir, sample):
+        print('Retrieving assembly information for sample ' + sample)
+        
         qc_report = pd.read_csv('{}/Assembly/{}/quality_control/report.tsv'.format(
                 output_dir, sample), sep = '\t', index_col = 0).transpose()
         qc_report['Sample'] = sample
@@ -183,6 +195,8 @@ class Reporter:
         self.report.drop(cols, axis=1)
         
     def info_from_annotation(self, output_dir, sample):
+        print('Retrieving assembly information for sample ' + sample)
+        
         sample_report = {'# of proteins detected': mtools.count_on_file('>',
                          '{}/Annotation/{}/fgs.faa'.format(output_dir, sample))}
         sample_report['# of proteins annotated (DIAMOND)'] = (sample_report['# of proteins detected'] - 
