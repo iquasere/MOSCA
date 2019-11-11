@@ -125,21 +125,23 @@ class Preprocesser:
         
         
     def run(self):
+        
         self.first_check()
         
         adapters = self.trim_adapters()
 
         open('{}/Preprocess/Trimmomatic/{}_adapters.txt'.format(self.working_dir, 
-             self.name), 'w').write('\n'.join(adapters))                        # TODO - something phony is going on here, as adapters.txt has correct files but duplicated
-
+             self.name), 'w').write('\n'.join(set(adapters)))                   # TODO - something phony is going on here, as adapters.txt has correct files but duplicated
+        
         if len(adapters) > 0:
             adapter_part = adapters[0].split('/')[-1].rstrip('.fa')
             self.files = ['{}/Preprocess/Trimmomatic/{}_{}_{}_paired.fq'.format(
                     self.working_dir, self.name, adapter_part, fr) for fr in ['forward', 'reverse']]
-
+        
         #self.host_sequences_removal()  
         if self.data == 'mrna':
             self.rrna_removal()
         
         self.quality_trimming()
+        
         self.final_quality_check()

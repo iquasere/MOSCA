@@ -17,14 +17,12 @@ class SortMeRNA:
     
     def __init__ (self, **kwargs):
         self.__dict__ = kwargs
-        '''
         self.paired_out = self.paired
         for i in range(len(self.reads)):
             if '.gz' in self.reads[i]:
                 print(self.reads[i] + ' seems to be compressed. Going to be uncrompressed.')
                 mtools.run_command('gunzip ' + self.reads[i])
                 self.reads[i] = self.reads[i].rstrip('.gz')
-        '''
                 
     def set_optional_argument(self,arg,result):
         if hasattr(self,arg):
@@ -85,7 +83,6 @@ class SortMeRNA:
     
     # correct number of reads per file - if unequal number of reads from forward to reverse file, it will be corrected by separation name/1,2
     # from www.biostars.org/p/6925/#6928
-    # TODO - URGENT - reverse gets number of lines NOT divisible by 4 - see how to fix that coming from SortMeRNA
     def remove_orphans(self, forward, reverse):
         mtools.run_pipe_command("awk '{printf substr($0,1,length-2);getline;printf \"\\t\"$0;getline;getline;print \"\\t\"$0}' "
                                        + forward + "| sort -T. > " + self.working_dir + '/Preprocess/SortMeRNA/read1.txt')
@@ -122,13 +119,3 @@ class SortMeRNA:
                                basename + '_reverse.fastq')
         else:
             self.run_tool()
-            
-if __name__ == '__main__':
-    smr = SortMeRNA(working_dir = 'MOSCAfinal')
-    
-    smr.remove_messed_reads('MOSCAfinal/Preprocess/SortMeRNA/4478-R1-1-MiSeqKapa_forward.fastq')
-    smr.remove_messed_reads('MOSCAfinal/Preprocess/SortMeRNA/4478-R1-1-MiSeqKapa_reverse.fastq')
-    smr.remove_orphans('MOSCAfinal/Preprocess/SortMeRNA/4478-R1-1-MiSeqKapa_forward.fastq',
-                      'MOSCAfinal/Preprocess/SortMeRNA/4478-R1-1-MiSeqKapa_reverse.fastq')
-    
-    
