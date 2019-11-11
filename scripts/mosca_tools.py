@@ -545,7 +545,7 @@ class MoscaTools:
                 if name == 'Sequence Duplication Levels':
                     i += 1
                 i += 1
-                if file[i] == '>>END_MODULE':                                   # if there is no information on that module
+                if file[i] == '>>END_MODULE':
                     data[name] = (flag, pd.DataFrame())
                 else:
                     labels = file[i][1:].split('\t')
