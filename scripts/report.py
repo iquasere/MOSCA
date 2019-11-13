@@ -166,35 +166,42 @@ class Reporter:
                                              columns = ['Sample'])
         self.report = pd.merge(name2sample, self.report, left_index = True, 
                                right_index = True, how = 'outer')
+        self.report.to_csv('MOSCAfinal/report1.tsv',sep='\t')
     
     def info_from_assembly(self, output_dir, sample):
         print('Retrieving assembly information for sample ' + sample)
-        
         qc_report = pd.read_csv('{}/Assembly/{}/quality_control/report.tsv'.format(
                 output_dir, sample), sep = '\t', index_col = 0).transpose()
-        qc_report['Sample'] = sample
-        self.report['Name'] = self.report.index
-        self.report = pd.merge(self.report, qc_report, on = 'Sample', how = 'outer')
-        self.report.set_index('Name', drop = True, inplace = True)
-        cols = qc_report.columns.tolist(); cols.remove('Sample')
-        for col in cols:
-            self.report['[Assembly] ' + col] = self.report[col].fillna(
-                    self.report['[Assembly] ' + col])
-        self.report.drop(cols, axis=1)
+        qc_report.index = [sample]
+        for col in qc_report.columns.tolist():
+            self.report.at[self.report['Sample'] == sample, '[Assembly] ' + col] = (
+                    qc_report.loc[sample][col])
         
     def info_from_annotation(self, output_dir, sample):
-        print('Retrieving assembly information for sample ' + sample)
+        print('Retrieving annotation information for sample ' + sample)
+        sample_report = dict()
+        sample_report['# of proteins detected'] = (
+            mtools.count_on_file('>', '{}/Annotation/{}/fgs.faa'.format(output_dir, sample)))
+        sample_report['# of proteins annotated (DIAMOND)'] = (
+            sample_report['# of proteins detected'] - 
+            mtools.count_on_file('>', '{}/Annotation/{}/unaligned.fasta'.format(output_dir, sample)))
+        sample_report['% of proteins annotated (DIAMOND)'] = (
+            round(sample_report['# of proteins annotated (DIAMOND)'] /
+            sample_report['# of proteins detected'] * 100, 2))
+        sample_report['# of proteins annotated (PSI-BLAST)'] = (
+            len(set(mtools.parse_blast('{}/Annotation/{}/cdd_aligned.blast'.format(
+                    output_dir, sample))[0])))
+        sample_report['% of proteins annotated (PSI-BLAST)'] = (
+            round(sample_report['# of proteins annotated (PSI-BLAST)'] /
+            sample_report['# of proteins detected'] * 100, 2))
+        sample_report = pd.DataFrame.from_dict(sample_report, orient = 'index').transpose()
+        sample_report.index = [sample]
         
-        sample_report = {'# of proteins detected': mtools.count_on_file('>',
-                         '{}/Annotation/{}/fgs.faa'.format(output_dir, sample))}
-        sample_report['# of proteins annotated (DIAMOND)'] = (sample_report['# of proteins detected'] - 
-                      mtools.count_on_file('>', '{}/Annotation/{}/unaligned.fasta'.format(output_dir, sample)))
-        sample_report['% of proteins annotated (DIAMOND)'] = round(sample_report['# of proteins detected'] /
-                      sample_report['# of proteins annotated (DIAMOND)'] * 100, 2)
-        sample_report['# of proteins annotated (PSI-BLAST)'] = mtools.count_lines(
-                      '{}/Annotation/{}/cdd_aligned.blast'.format(output_dir, sample))
-        sample_report['% of proteins annotated (PSI-BLAST)'] = round(sample_report['# of proteins detected'] /
-                      sample_report['# of proteins annotated (PSI-BLAST)'] * 100, 2)
+        for col in sample_report.columns.tolist():
+            self.report.at[self.report['Sample'] == sample, '[Annotation] ' + col] = (
+                    sample_report.loc[sample][col])
+        
+    def info_from_integration(self):
         tax_data = pd.read_csv()
         for col in self.taxonomic_columns:
             sample_report['Main taxa identified (' + col + ')'] = ';'.join()

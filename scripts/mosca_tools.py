@@ -580,8 +580,3 @@ class MoscaTools:
     '''
     def count_lines(self, file):
         return int((subprocess.check_output("wc -l " + file, shell = True)).split()[0])
-    
-if __name__ == '__main__':
-    mtools = MoscaTools()
-    
-    print(mtools.parse_fastqc_report('MOSCAfinal/Preprocess/FastQC/4478-R1-1-MiSeqKapa_R1_fastqc/fastqc_data.txt'))
