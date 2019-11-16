@@ -644,7 +644,7 @@ class Annotater:
                     print(result[result.qseqid == key]['sseqid'])
                     
     def global_information(self):
-        '''
+        
         # Join blast reports
         if not os.path.isfile(self.out_dir + '/Annotation/aligned.blast'):
             mtools.run_command('cat ' + ' '.join(glob.glob(self.out_dir + '/Annotation/*/aligned.blast')), 
@@ -681,8 +681,10 @@ class Annotater:
                 joined = mtools.define_abundance(joined, readcounts = '{}/Annotation/{}/{}.readcounts'.format(self.out_dir, sample, mg_name), 
                                              blast = '{}/Annotation/{}/aligned.blast'.format(self.out_dir, sample),
                                              name = mg_name)
-        '''
-        joined = pd.read_csv(self.out_dir + '/joined_information.tsv', sep='\t')
+        
+        joined.to_csv(self.out_dir + '/joined_information.tsv', sep = '\t', index = False)
+        
+        # TODO - this EXCEL writing is not working
         '''
         print('joined was written to ' + self.out_dir + '/joined_information.tsv')  
         

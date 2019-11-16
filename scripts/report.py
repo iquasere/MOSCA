@@ -159,8 +159,7 @@ class Reporter:
         self.info_from_fastqc(output_dir, name, '[After quality trimming]', prefix2terms)
         self.report.to_csv(output_dir + '/report.tsv', sep = '\t')
         
-    def set_samples(self, sample2name):
-        name2sample = {vx : k for k, v in sample2name.items() for vx in v}
+    def set_samples(self, name2sample):
         name2sample = pd.DataFrame.from_dict(name2sample, orient='index', 
                                              columns = ['Sample'])
         self.report = pd.merge(name2sample, self.report, left_index = True, 
