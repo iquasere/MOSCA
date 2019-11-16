@@ -70,7 +70,6 @@ class Reporter:
         self.report will be updated with information from the report, on the line
         named 'name', and the columns that start with 'prefix'
     '''
-    # TODO - for prefix in prefix2terms.keys(), do as stated under this
     def info_from_fastqc(self, output_dir, name, prefix, prefix2terms):
         reports = [mtools.parse_fastqc_report(
                 '{}/Preprocess/FastQC/{}{}_{}_fastqc/fastqc_data.txt'.format(output_dir, 
@@ -190,7 +189,7 @@ class Reporter:
             sample_report['# of proteins detected'] * 100, 2))
         sample_report['# of proteins annotated (PSI-BLAST)'] = (
             len(set(mtools.parse_blast('{}/Annotation/{}/cdd_aligned.blast'.format(
-                    output_dir, sample))[0])))
+                    output_dir, sample))['qseqid'])))
         sample_report['% of proteins annotated (PSI-BLAST)'] = (
             round(sample_report['# of proteins annotated (PSI-BLAST)'] /
             sample_report['# of proteins detected'] * 100, 2))

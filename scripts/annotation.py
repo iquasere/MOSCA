@@ -585,7 +585,7 @@ class Annotater:
               'Taxonomic lineage (ORDER)','Taxonomic lineage (FAMILY)',
               'Taxonomic lineage (GENUS)','Taxonomic lineage (SPECIES)',
               'EC number', 'Ensembl transcript','Function [CC]', 'Gene names',
-              'Gene ontology (GO)', 'Keywords','Pathway', 'Protein existence', 
+              'Gene ontology (GO)', 'Keywords','Pathway', 'Protein existence',
               'Protein families', 'Protein names','Cross-reference (BRENDA)', 
               'Cross-reference (BioCyc)','Cross-reference (CDD)', 
               'Cross-reference (InterPro)','Cross-reference (KEGG)', 
@@ -598,7 +598,6 @@ class Annotater:
         result = result.drop_duplicates()
         
         result.to_csv(out_dir + '/protein_analysis_results.tsv', sep = '\t', index = False)
-        
         return result
     
     def run(self):
@@ -645,6 +644,7 @@ class Annotater:
                     print(result[result.qseqid == key]['sseqid'])
                     
     def global_information(self):
+        '''
         # Join blast reports
         if not os.path.isfile(self.out_dir + '/Annotation/aligned.blast'):
             mtools.run_command('cat ' + ' '.join(glob.glob(self.out_dir + '/Annotation/*/aligned.blast')), 
@@ -657,45 +657,50 @@ class Annotater:
                                            databases = self.databases)
         
         # Join COG reports
-        if not os.path.isfile(self.out_dir + '/Annotation/aligned.blast'):
+        if not os.path.isfile(self.out_dir + '/Annotation/general_rps-blast_cog.txt'):
             mtools.run_command('cat ' + ' '.join(glob.glob(
                     self.out_dir + '/Annotation/*/results/rps-blast_cog.txt')), 
                 file = self.out_dir + '/Annotation/general_rps-blast_cog.txt')
-
+        
+        
+        
         # Integration of all reports - BLAST, UNIPROTINFO, COG
         joined = self.join_reports(self.out_dir + '/Annotation/aligned.blast', 
                                self.out_dir + '/Annotation/uniprot_info.tsv', 
                                self.out_dir + '/Annotation/general_rps-blast_cog.txt',
                                self.out_dir)
         
+
         # MG quantification for each MG name of each Sample
         for sample in self.sample2name.keys():
             for mg_name in self.sample2name[sample]:
                 mtools.perform_alignment('{}/Assembly/{}/contigs.fasta'.format(self.out_dir, sample),
-                        ['{}/Preprocessing/Trimmomatic/quality_trimmed_{}_{}_paired.fastq'.format(self.out_dir, mg_name, fr)
-                        for fr in ['forward', 'reverse']], '{}/Annotation/{}/{}'.format(self.out_dir, sample, mg_name))
+                        ['{}/Preprocess/Trimmomatic/quality_trimmed_{}_{}_paired.fq'.format(self.out_dir, mg_name, fr)
+                        for fr in ['forward', 'reverse']], '{}/Annotation/{}/{}'.format(self.out_dir, sample, mg_name),
+                        threads = self.threads)
                 joined = mtools.define_abundance(joined, readcounts = '{}/Annotation/{}/{}.readcounts'.format(self.out_dir, sample, mg_name), 
                                              blast = '{}/Annotation/{}/aligned.blast'.format(self.out_dir, sample),
                                              name = mg_name)
-
-        joined.to_csv(self.out_dir + '/joined_information.tsv', index=False, sep='\t')
+        '''
+        joined = pd.read_csv(self.out_dir + '/joined_information.tsv', sep='\t')
+        '''
         print('joined was written to ' + self.out_dir + '/joined_information.tsv')  
         
         if os.path.isfile(self.out_dir + '/joined_information.xlsx'):
             os.remove(self.out_dir + '/joined_information.xlsx')
-
+        
+        # Write EXCEL - at the time of testing, maximmum lines for Excel file were 1048575 per sheet, so must split data between sheets # TODO - this takes forever, see what's wrong here
         writer = pd.ExcelWriter(self.out_dir + '/joined_information.xlsx', engine='xlsxwriter')
         i = 0
         j = 1
-        while i + 1048575 < len(joined):
-            joined.iloc[i:(i + 1048575)].to_excel(writer, sheet_name='Sheet ' + str(j), index = False)
+        while i + 1000000 < len(joined):
+            joined.iloc[i:(i + 1000000)].to_excel(writer, sheet_name='Sheet ' + str(j), index = False)
             j += 1
         joined.iloc[i:len(joined)].to_excel(writer, sheet_name='Sheet ' + str(j), index = False)
         print('joined was written to ' + self.out_dir + '/joined_information.xlsx')
+        '''
+        self.joined2kronas(joined, self.out_dir + '/Annotation/krona', self.mg_names)
         
-        self.joined2kronas(self.out_dir + '/joined_information.tsv', 
-                           output = self.out_dir + '/Annotation/krona',
-                           mg_columns = self.mg_names)
         return joined
 
     '''
@@ -714,13 +719,9 @@ class Annotater:
         missing_uniprotinfo = uniprotinfo[uniprotinfo['Taxonomic lineage (SPECIES)'].isnull()]
         ids = list(set([ide for ide in missing_uniprotinfo['Entry']]))
         new_uniprotinfo = self.get_uniprot_information(ids)
-        print(missing_uniprotinfo)
         for entry in new_uniprotinfo['Entry']:
             missing_uniprotinfo[missing_uniprotinfo['Entry'] == entry] = new_uniprotinfo[new_uniprotinfo['Entry'] == entry]
-        print(missing_uniprotinfo)
-        print(new_uniprotinfo)
-        print(new_uniprotinfo[new_uniprotinfo['Taxonomic lineage (SPECIES)'].notnull()]['Taxonomic lineage (SPECIES)'])
-        new_uniprotinfo.to_csv('test.tsv', sep = '\t', index = False)
+        new_uniprotinfo.to_csv(uniprotinfo, sep = '\t', index = False)
     
     '''
     Input:
@@ -786,7 +787,7 @@ class Annotater:
     def create_krona_plot(self, tsv, output = None):
         if output is None:
             output = tsv.replace('.tsv','.html')
-        mtools.run_command('ktImportText {} {}'.format(tsv, output))
+        mtools.run_command('ktImportText {} -o {}'.format(tsv, output))
         
     '''
     Input:
@@ -801,18 +802,19 @@ class Annotater:
                       functional_columns = ['COG general functional category',
                                             'COG functional category',
                                             'COG protein description']):
-        data = pd.read_csv(joined, sep = '\t')
-        
+        print('Representing taxonomic and functional data in Krona plots at ' + output)
         for name in mg_columns:
-            partial = data[[name] + taxonomy_columns]
+            partial = joined.groupby(taxonomy_columns)[name].sum().reset_index()
+            partial = partial[[name] + taxonomy_columns]
             partial.to_csv('{}_{}_tax.tsv'.format(output, name), sep = '\t', 
                            index = False, header = False)
-            self.create_krona_plot(output + '_tax.tsv')
+            self.create_krona_plot('{}_{}_tax.tsv'.format(output, name))
             
-            partial = data[[name] + functional_columns]
-            partial.to_csv('_{}_fun.tsv'.format(output, name), sep = '\t', 
+            partial = joined.groupby(functional_columns)[name].sum().reset_index()
+            partial = partial[[name] + functional_columns]
+            partial.to_csv('{}_{}_fun.tsv'.format(output, name), sep = '\t', 
                            index = False, header = False)
-            self.create_krona_plot(output + '_fun.tsv')
+            self.create_krona_plot('{}_{}_fun.tsv'.format(output, name))
             
     '''
     Input:
@@ -891,69 +893,3 @@ class Annotater:
             else:
                 proximity += 1
         return proximity
-    
-if __name__ == '__main__':
-    '''
-    ids = DIAMOND(out = 'MOSCAfinal/Annotation/joined/aligned.blast').parse_result()['sseqid']
-    
-    ids = [ide.split('|')[1] for ide in ids if ide != '*']
-    '''
-    '''
-    print(os.getcwd())
-    ui = pd.read_csv('uniprot.info',sep='\t')
-    found_ids = ui['Entry'].tolist()
-    
-    all_ids = open('ids_missing.txt').readlines()[0].rstrip('\n').split(',')
-    missing_ids = [ide for ide in all_ids if ide not in found_ids]
-    print('Found IDs: ' + str(len(found_ids)))
-    print('Missing IDs: ' + str(len(missing_ids)))
-    '''
-    '''
-    annotater = Annotater()
-    result = annotater.recursive_uniprot_information('MOSCAfinal/Annotation/aligned.blast',
-                                                     'MOSCAfinal/Annotation/uniprot.info1')
-    '''
-    #result = pd.concat([result, ui])
-    #result.to_csv('uniprot.info',sep='\t',index=False)
-    
-    '''
-    mosca_dir = os.path.dirname(os.path.realpath(__file__))
-    
-    annotater = Annotater(out_dir = 'MGMP',
-                      fun = mosca_dir + '/Databases/COG/fun.txt',
-                      cog = mosca_dir + '/Databases/COG/Cog',
-                      cddid = mosca_dir + '/Databases/COG/cddid.tbl',
-                      whog = mosca_dir + '/Databases/COG/whog',
-                      cdd2cog_executable = mosca_dir + '/cdd2cog.pl')
-    
-    annotater.global_information()
-    '''
-    '''
-    annotater = Annotater(out_dir = 'MOSCAfinal', threads = '1')
-
-    annotater.cog_annotation('MOSCAfinal/Annotation/fgs_failed.faa', 'debugCOG', 
-                             threads = '12')
-    '''
-    '''
-    annotater = Annotater()
-    
-    #annotater.cog_annotation('/home/jsequeira/Catia_MS/original_results/original_analysis_sequences.fasta','/home/jsequeira/Catia_MS/original_results')
-    
-    cogs = annotater.organize_cdd_blast('/home/jsequeira/Catia_MS/original_results/results/rps-blast_cog.txt')
-    
-    cogs['Entry'] = [ide.split('|')[1] if len(ide.split('|')) == 3 else ide for ide in cogs.qseqid]
-    del cogs['qseqid']
-    
-    data = pd.read_excel('/home/jsequeira/Catia_MS/original_results/oa_simplified.xlsx')
-    
-    joined = pd.merge(data, cogs, on = 'Entry', how = 'outer')
-    
-    joined.to_csv('/home/jsequeira/Catia_MS/original_results/joined.csv',index=False)
-    '''
-    annotater = Annotater()
-    
-    data = pd.read_excel('/home/jsequeira/Catia_MS/formicicum_analysis.xlsx')
-    
-    data = annotater.further_annotation(data)
-    
-    data.to_excel('/home/jsequeira/Catia_MS/formicicum_analysis_added_names.xlsx')
