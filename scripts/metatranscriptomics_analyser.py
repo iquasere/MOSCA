@@ -110,17 +110,5 @@ class MetaTranscriptomicsAnalyser:
         print('Readcounts file: ' + readcounts)
         print('Conditions: ' + ','.join(conditions))
         print('Results will be exported to: ' + output)
-        mtools.run_command('Rscript MOSCA/de_analysis.R --readcounts ' + readcounts +
-                         ' --conditions "' + ' '.join(conditions) + '" --output ' + output)
-
-if __name__ == '__main__':
-    
-    mta = MetaTranscriptomicsAnalyser(out_dir = 'MOSCAfinal/Metatranscriptomics',
-                          contigs = 'MOSCAfinal/Assembly/joined/contigs.fasta',
-                          blast = 'MOSCAfinal/Annotation/joined/aligned.blast',
-                          reads = ['MOSCAfinal/Preprocess/Trimmomatic/quality_trimmed_4478-R4-1-MiSeqKapa_forward_paired.fq',
-                                   'MOSCAfinal/Preprocess/Trimmomatic/quality_trimmed_4478-R4-1-MiSeqKapa_reverse_paired.fq'],
-                          mt = '4478-R4-1-MiSeqKapa',
-                          threads = '12')
-    mta.readcounts_file()
-    
+        mtools.run_command('Rscript MOSCA/scripts/de_analysis.R --readcounts {}  --conditions "{}" --output {}'.format(
+                readcounts, ' '.join(conditions), output))

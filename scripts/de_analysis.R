@@ -2,7 +2,11 @@
 # By João Sequeira
 # Sep 2017
 
-library("optparse")
+packages <- c("optparse", "DESeq2", "pheatmap", "RColorBrewer")
+
+for (package in packages){
+    eval(bquote(library(.(package))))
+    }
 
 option_list = list(
     make_option(c("-r", "--readcounts"), type="character", default=NULL, 
@@ -32,7 +36,6 @@ total <- total[ rowSums(total) > 1, ]
 cd = data.frame(opt$conditions)
 colnames(cd)[1]="condition"
 rownames(cd)=colnames(total)
-library("DESeq2")
 
 dds <- DESeqDataSetFromMatrix(countData = total, colData = cd, design = ~condition)
 dds <- DESeq(dds)
@@ -49,9 +52,6 @@ dev.off()
 jpeg(paste(opt$output, "counts.jpeg", sep = '/'))
 plotCounts(dds, gene=which.min(res$padj), intgroup="condition")
 dev.off()
-
-library("pheatmap")
-library("RColorBrewer")
 
 # Protein expressions differential analysis
 if(identical(opt$method, "differential")) {

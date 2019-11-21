@@ -48,14 +48,14 @@ class Annotater:
         bashCommand += ' -thread=' + self.threads
         mtools.run_command(bashCommand)
     
-    def annotation(self):
+    def annotation(self, max_target_seqs = '50'):
         diamond = DIAMOND(threads = self.threads,
                           db = self.db,
                           out = self.out_dir + '/aligned.blast',
                           query = self.out_dir + '/fgs.faa',
                           un = self.out_dir + '/unaligned.fasta',
                           unal = '1',
-                          max_target_seqs = '50')
+                          max_target_seqs = max_target_seqs)
         
         if self.db[-6:] == '.fasta':
             print('FASTA database was inputed')
@@ -559,10 +559,10 @@ class Annotater:
             pathways.columns = ['Superpathway','Pathway','Subpathway']
             del funcdf['Pathway']; del uniprotinfo['Pathway']
             funcdf = pd.concat([pathways, funcdf], axis = 1)
-            uniprotinfo = pd.merge(uniprotinfo, funcdf, on = ['Entry'], how = 'outer')
+            uniprotinfo = pd.merge(uniprotinfo, funcdf, on = ['Entry'], how = 'left')
         result = pd.merge(result, uniprotinfo, on = ['Entry'], how = 'left')
         cog_blast = self.organize_cdd_blast(cog_blast, fun)
-        result = pd.merge(result, cog_blast, on = ['qseqid'], how = 'outer')
+        result = pd.merge(result, cog_blast, on = ['qseqid'], how = 'left')
         
         result.to_csv(out_dir + '/full_analysis_results.tsv', sep = '\t', index = False)
         
@@ -603,6 +603,7 @@ class Annotater:
     def run(self):
         self.gene_calling(self.file, self.out_dir, self.assembled)
         self.annotation()
+        self.annotation(max_target_seqs = '1')
     
     '''
     Input: 
@@ -630,7 +631,7 @@ class Annotater:
         
         self.annotate_cogs(output + '/cdd_aligned.blast', output, cddid, fun, whog)
         self.write_cogblast(output + '/results/rps-blast_cog.txt', output + '/cogs.xlsx')
-
+    
     def set_to_uniprotID(self, fasta, aligned, output):
         pbar = ProgressBar()
         result = mtools.parse_blast(aligned)
@@ -644,7 +645,6 @@ class Annotater:
                     print(result[result.qseqid == key]['sseqid'])
                     
     def global_information(self):
-        
         # Join blast reports
         if not os.path.isfile(self.out_dir + '/Annotation/aligned.blast'):
             mtools.run_command('cat ' + ' '.join(glob.glob(self.out_dir + '/Annotation/*/aligned.blast')), 
@@ -662,15 +662,12 @@ class Annotater:
                     self.out_dir + '/Annotation/*/results/rps-blast_cog.txt')), 
                 file = self.out_dir + '/Annotation/general_rps-blast_cog.txt')
         
-        
-        
         # Integration of all reports - BLAST, UNIPROTINFO, COG
         joined = self.join_reports(self.out_dir + '/Annotation/aligned.blast', 
                                self.out_dir + '/Annotation/uniprot_info.tsv', 
                                self.out_dir + '/Annotation/general_rps-blast_cog.txt',
                                self.out_dir)
         
-
         # MG quantification for each MG name of each Sample
         for sample in self.sample2name.keys():
             for mg_name in self.sample2name[sample]:
@@ -683,11 +680,10 @@ class Annotater:
                                              name = mg_name)
         
         joined.to_csv(self.out_dir + '/joined_information.tsv', sep = '\t', index = False)
+        print('joined was written to ' + self.out_dir + '/joined_information.tsv')  
         
         # TODO - this EXCEL writing is not working
         '''
-        print('joined was written to ' + self.out_dir + '/joined_information.tsv')  
-        
         if os.path.isfile(self.out_dir + '/joined_information.xlsx'):
             os.remove(self.out_dir + '/joined_information.xlsx')
         

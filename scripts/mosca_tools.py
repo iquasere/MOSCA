@@ -7,6 +7,7 @@ By João Sequeira
 Jun 2017
 '''
 
+from tqdm import tqdm
 import pandas as pd, subprocess, glob, os, gzip, time, numpy as np, shutil
 
 class MoscaTools:
@@ -113,7 +114,9 @@ class MoscaTools:
         GFF annotation file named blast.replace(.blast,.gff)
         SAM alignment and READCOUNTS files named output + .sam and .readcounts
     '''
-    def perform_alignment(self, reference, reads, basename, threads = 1, blast = None):
+    def perform_alignment(self, reference, reads, basename, threads = 1, blast = None,
+                          blast_unique_ids = True):
+        
         if not self.check_bowtie2_index(reference.replace('.fasta', '_index')):
             print('INDEX files not found. Generating new ones')
             self.generate_mg_index(reference, reference.replace('.fasta', '_index'))
@@ -122,6 +125,7 @@ class MoscaTools:
         self.align_reads(reads, reference.replace('.fasta', '_index'), basename + '.sam',
                          basename + '_bowtie2_report.txt', log = basename + '.log', 
                          threads = threads)
+        
         if blast is None:
             if not os.path.isfile(reference.replace('.fasta', '.gff')):
                 print('GFF file not found at ' + reference.replace('.fasta','.gff') + 
@@ -134,7 +138,8 @@ class MoscaTools:
             if not os.path.isfile(blast.replace('.blast', '.gff')):
                 print('GFF file not found at ' + blast.replace('.blast', '.gff') + 
                       '. Generating a new one.')
-                self.build_gff(blast, blast.replace('.blast', '.gff'))
+                if blast_unique_ids:
+                    self.build_gff(blast, blast.replace('.blast', '.gff'))
             else:
                 print('GFF file was located at ' + blast.replace('.blast', '.gff'))
         self.run_htseq_count(basename + '.sam', reference.replace('.fasta','.gff')
@@ -200,6 +205,32 @@ class MoscaTools:
                           'gapopen', 'qstart', 'qend', 'sstart', 'send', 
                           'evalue', 'bitscore']
         return result
+    
+    '''
+    Input:
+        file - str, name of blast file
+        output - str, name of blast processed file to output
+    Output:
+        This function applies for blast files with multiple IDs for same protein.
+        Only the first identification will be kept in a new file, to serve as 
+        reference for GFF generation.
+    '''
+    def remove_multiple_ids_from_blast(self, file, output):
+        print('Removing multiple identifications from ' + file + '. This may take a while...')
+        file = self.parse_blast(file)
+        output = pd.DataFrame(columns = file.columns)
+        i = 0
+        pbar = tqdm(total = len(file) + 1)
+        while i < len(file):
+            qseqid = file.iloc[i]['qseqid']
+            output = output.append(file.iloc[i])
+            i += 1
+            while file.iloc[i]['qseqid'] == qseqid: 
+                i += 1
+            pbar.update(1)
+        pbar.close()
+            
+        output.to_csv(output, sep = '\t', index = False)
     
     def build_gff(self, blast, output, assembler = 'metaspades'):
         gff = pd.DataFrame()
