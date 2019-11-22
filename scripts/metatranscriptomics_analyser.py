@@ -110,5 +110,5 @@ class MetaTranscriptomicsAnalyser:
         print('Readcounts file: ' + readcounts)
         print('Conditions: ' + ','.join(conditions))
         print('Results will be exported to: ' + output)
-        mtools.run_command('Rscript MOSCA/scripts/de_analysis.R --readcounts {}  --conditions "{}" --output {}'.format(
-                readcounts, ' '.join(conditions), output))
+        mtools.run_command('Rscript MOSCA/scripts/de_analysis.R --readcounts {} --conditions {} --output {}'.format(
+                readcounts, ','.join(conditions), output))

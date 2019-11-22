@@ -38,8 +38,8 @@ conda install -y -c anaconda reportlab
 #ant jar
 #cd ../../../..
 conda install -y -c bioconda bioconductor-deseq2=1.22.1
-conda install -y -c bioconda bioconductor-genomeinfodb                         # genomeinfodb might be required after deseq
-conda install -y -c bioconda bioconductor-genomeinfodbdata                     # genomeinfodb might be required after deseq
+#conda install -y -c bioconda bioconductor-genomeinfodb                         # genomeinfodb might be required after deseq
+#conda install -y -c bioconda bioconductor-genomeinfodbdata                     # genomeinfodbdata might be required after deseq
 conda install -y -c bioconda bioconductor-edger
 conda install -y -c bioconda r-pheatmap
 conda install -y -c r r-rcolorbrewer

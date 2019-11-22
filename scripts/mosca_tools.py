@@ -87,9 +87,9 @@ class MoscaTools:
         info = pd.read_csv(joined, sep = '\t')
         info[columns] = info[columns].fillna(value=0)
         info[columns].to_csv(working_dir + '/to_normalize.tsv', sep = '\t', index = False)
-        print('Normalizing ' + joined + ' on columns ' + ','.join(columns))
-        self.run_command('Rscript MOSCA/normalization.R --readcounts ' + working_dir + '/to_normalize.tsv --output '
-                         + working_dir + '/normalization_factors.txt')
+        print('Normalizing {} on columns {}'.format(joined, ','.join(columns)))
+        self.run_command('Rscript MOSCA/scripts/normalization.R --readcounts {0}/to_normalize.tsv --output {0}/normalization_factors.txt'.format(
+                working_dir))
         factors = open(working_dir + '/normalization_factors.txt').read().split('\n')[:-1]      # there is always the \n as last element
         
         for i in range(len(columns)):
@@ -187,7 +187,7 @@ class MoscaTools:
     
     def run_command(self, bashCommand, file = '', mode = 'w', sep = ' ', print_message = True):
         if print_message:
-            print(bashCommand)
+            print(bashCommand.replace(sep, ' '))
         if file == '':
                 subprocess.run(bashCommand.split(sep), stdout=subprocess.PIPE, check = True)       # was subprocess.Popen
         else:

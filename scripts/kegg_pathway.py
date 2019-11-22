@@ -438,7 +438,7 @@ class KEGGPathway:
                     print(correct_taxon)
         return data
 
-    def run(self, input_file, output_directory, mg_samples = None, mt_samples = None, 
+    def run(self, data, input_file, output_directory, mg_samples = None, mt_samples = None, 
             metabolic_maps = None):
         '''
         Represents in small heatmaps the expression levels of each sample on the
@@ -452,11 +452,9 @@ class KEGGPathway:
         for differential expression representations
         '''
         
-        if metabolic_maps is None:
+        if not hasattr(self, 'metabolic_maps'):
             metabolic_maps = self.default_maps
         
-        data = pd.read_csv(input_file, sep = '\t', low_memory = False)
-        '''
         kegg_ids = data[data['Cross-reference (KEGG)'].notnull()]['Cross-reference (KEGG)']
         kegg_ids = [ide.split(';')[0] for ide in kegg_ids]                      # should be fixed by 'solve_kegg_ids', but not yet possible because of UniProt
         kos = self.keggid2ko(kegg_ids)
@@ -468,13 +466,14 @@ class KEGGPathway:
         
         data = self.solve_ec_numbers(data)
         data.to_csv(input_file, sep = '\t', index = False)
-        '''
         print('Creating KEGG Pathway representations for ' + str(len(metabolic_maps)) + 
               ' metabolic pathways.')
         genomic = list(); differential = list()
         mt_samples = None
+        i = 1
         for metabolic_map in metabolic_maps:
-            print('Creating representation for pathway: ' + self.maps[metabolic_map])
+            print('Creating representation for pathway: {} [{}/{}]'.format(
+                    self.maps[metabolic_map], str(i), str(len(metabolic_maps))))
             if mg_samples:
                 try:
                     self.genomic_potential_taxa(data, mg_samples, 
@@ -490,6 +489,7 @@ class KEGGPathway:
                 except:
                     differential.append(metabolic_map)
             plt.cla()
+            i += 1
         genomic_failed = output_directory + '/genomic_failed_maps.txt'
         differential_failed = output_directory + '/differential_failed_maps.txt'
         print(('Failed {} maps for genomic potential representation. You can consult' + 
@@ -804,18 +804,3 @@ class KeggMap():
         for i in box_list:
             self.set_bgcolor(self.pathway.orthologs[i], "#7c7272")
             self.set_fgcolor(self.pathway.orthologs[i], "#7c7272")
-
-if __name__ == '__main__':
-
-    kp = KEGGPathway()
-    '''
-    kp.run(input_file = 'MGMP/all_info_normalized.tsv',
-           output_directory = 'MGMP/KEGGPathway',
-           mg_samples = ['EST6_S1_L001', 'OL6_S3_L001', 'OLDES6_S4_L001', 'PAL6_S2_L001'])
-    '''
-    kp.run(input_file = 'MOSCAfinal/all_info_normalized.tsv',
-           output_directory = 'MOSCAfinal/KEGGPathway',
-           mg_samples = ['4478-DNA-S1613-MiSeqKapa', '4478-DNA-S1616-MiSeqKapa', 
-                         '4478-DNA-S1618-MiSeqKapa'],
-           mt_samples = ['4478-R1-1-MiSeqKapa_normalized','4478-R2-1-MiSeqKapa_normalized', 
-                         '4478-R3-1-MiSeqKapa_normalized','4478-R4-1-MiSeqKapa_normalized'])

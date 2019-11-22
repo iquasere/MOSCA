@@ -123,7 +123,7 @@ class RNASeqSim:
                         handler.write(rna + '\t' + str(base + abundance) + '\n')
         
     def use_grinder(self, reference_file, abundance_file, output_dir, coverage_fold = None, total_reads = None, seed = None):
-        command = '{} -fastq_output 1 -qual_levels 30 10  -read_dist 151 -insert_dist 2500 -mutation_dist poly4 3e-3 3.3e-8 -mate_orientation FR -output_dir {} -reference_file {} -abundance_file {}{}{}{}'.format(
+        command = '{} -fastq_output 1 -qual_levels 30 10 -read_dist 151 -insert_dist 2500 -mutation_dist poly4 3e-3 3.3e-8 -mate_orientation FR -output_dir {} -reference_file {} -abundance_file {}{}{}{}'.format(
                 'grinder', output_dir, reference_file, abundance_file, 
                    ' -total_reads ' + str(total_reads) if total_reads is not None else '',
                    ' -random_seed ' + seed if seed is not None else '',
@@ -138,6 +138,8 @@ if __name__ == '__main__':
     data = pd.read_excel('SimulatedMGMT/simulated_taxa.xlsx')
     
     output_dir = 'SimulatedMGMT'
+    
+    rnaseqsimer = RNASeqSim()
     
     # date is 14th November 2019
     '''
@@ -155,7 +157,7 @@ if __name__ == '__main__':
     
     # Extract genomes and transcriptomes
     mtools.run_command('gunzip -v ' + ' '.join(glob.glob(output_dir + '/*/*.gz')))
-    '''
+    
     # Join all genomes into one file
     mg_files = glob.glob('SimulatedMGMT/dna/*.fa')
     #mtools.run_command('cat ' + ' '.join(mg_files), file = 'SimulatedMGMT/dna/genomes.fasta')
@@ -218,8 +220,6 @@ if __name__ == '__main__':
                         }
                     }
                     
-    rnaseqsimer = RNASeqSim()
-            
     for factor in [3,0.17,1]:
         rnaseqsimer.define_abundance_mt('SimulatedMGMT/simulated_taxa.xlsx',
            profiles, 'SimulatedMGMT/uniprot_info.tsv', 'SimulatedMGMT/rna', factor = factor)
@@ -241,6 +241,20 @@ if __name__ == '__main__':
                 'SimulatedMGMT/rna/' + letter + '/' + str(factor), seed = str(seed),
                 coverage_fold = '25')
             seed += 1
-
+    '''
+    '''
+    with open(output_dir + '/dna/abundance.config', 'w') as f:
+        for i in range(len(data)):
+            if data.iloc[i]['Abundance'] > 0:
+                file = '{}/dna/{}'.format(output_dir, data.iloc[i]['Genome link'].split('/')[-1].split('.gz')[0])
+                seq_names = mtools.parse_fasta(file).keys()
+                for seq_name in seq_names:
+                    f.write('{}\t{}\n'.format(seq_name, str(float(data.iloc[i]['Abundance']) / len(seq_names))))
+    '''
+    import subprocess
+    subprocess.check_output("sed -i 's/ /-/g' SimulatedMGMT/dna/*", shell=True)
     
+    rnaseqsimer.use_grinder('SimulatedMGMT/dna/genomes.fasta',
+                'SimulatedMGMT/dna/abundance.config', 'SimulatedMGMT/dna', 
+                seed = '12', coverage_fold = '100')
     

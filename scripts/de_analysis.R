@@ -12,7 +12,7 @@ option_list = list(
     make_option(c("-r", "--readcounts"), type="character", default=NULL, 
                 help="The expression matrix", metavar="character"),
     make_option(c("-c", "--conditions"), type="list", metavar="character",
-                help="The conditions to define duplicates (e.g. 'c1 c1 c2 c2')",
+                help="The conditions to define duplicates (e.g. 'c1,c1,c2,c2')",
                 default=NULL),
     make_option(c("-m", "--method"), default="differential", type="character", 
                 help="Method for ordering rows in protein expression heatmap 
@@ -28,7 +28,7 @@ paste("Conditions:", opt$conditions, sep=' ')
 paste("Method:", opt$method, sep=' ')
 paste("Output:", opt$output, sep=' ')
 
-opt$conditions <- strsplit(opt$conditions, "[[:space:]]")[[1]]
+opt$conditions <- strsplit(opt$conditions, ",")[[1]]
 
 total <- read.table(opt$readcounts, h=T, row.names=1, sep = '\t')
 condition <- factor(opt$conditions)
