@@ -221,7 +221,7 @@ class KEGGPathway:
         :param kegg_map_file: str - filename of PDF kegg metabolic map
         :param legend_file: str - filename of PNG legend
         '''
-        #self.pdf2png(kegg_map_file)
+        self.pdf2png(kegg_map_file)
         imgs = [PIL.Image.open(file) for file in 
                 [kegg_map_file.replace('.pdf', '.png'), legend_file]]
         imgs[0] = imgs[0].convert('RGBA')                                       # KEGG Maps are converted to RGB by pdftoppm, dunno if converting to RGBA adds any transparency
@@ -258,7 +258,7 @@ class KEGGPathway:
             
         colors = self.taxa_colors(ncolor = len(genera))
         dic_colors = {genera[i] : colors[i] for i in range(len(genera))}
-        '''
+        
         pathway = KeggMap(data, metabolic_map)
         taxa_in_box = dict()
         for genus in genera:
@@ -299,7 +299,7 @@ class KEGGPathway:
         
         name_pdf = '{}_{}.pdf'.format(output_basename, metabolic_map)              #maps[metabolic_map].replace('/','|').replace(' ','_'), 
         pathway.pathway_pdf(name_pdf)
-        '''
+        
         grey_boxes = [1]
         name_pdf = '{}_{}.pdf'.format(output_basename, metabolic_map)
         if len(grey_boxes) > 0:
@@ -310,14 +310,11 @@ class KEGGPathway:
                                      name_pdf.replace('.pdf','_legend.png'))
             
         self.add_legend(name_pdf, name_pdf.replace('.pdf','_legend.png'), 
-                        name_pdf.replace(metabolic_map, self.maps[metabolic_map].replace('/','_')))
-        
-        for file in [name_pdf, name_pdf.replace('.pdf','_legend.png'), 
-                     name_pdf.replace('.pdf', '.png')]:
-            os.remove(file)
+                        name_pdf.replace(metabolic_map + '.pdf', 
+                            self.maps[metabolic_map].replace('/','_') + '.png'))
             
     def differential_expression_sample(self, data, samples, output_basename = None,
-                                       log = False, metabolic_map = None):
+                                       log = True, metabolic_map = None):
         '''
         Represents in small heatmaps the expression levels of each sample on the
         dataset present in the given pathway map. The values can be transford to
@@ -338,7 +335,7 @@ class KEGGPathway:
                                                                                 # 6              151800.0
         df = df.groupby('Boxes')[samples].sum()
 
-        pathway.pathway_boxes_diferential(df, log)
+        pathway.pathway_boxes_differential(df, log)
         
         name_pdf = '{}_{}{}.pdf'.format(output_basename, metabolic_map,               #maps[metabolic_map].replace('/','|').replace(' ','_'), 
                     '_log' if log else '')
@@ -349,11 +346,6 @@ class KEGGPathway:
         self.add_legend(name_pdf, name_pdf.replace('.pdf','_legend.png'), 
                         name_pdf.replace(metabolic_map + '.pdf', 
                             self.maps[metabolic_map].replace('/','_') + '.png'))
-        
-        for file in [name_pdf, name_pdf.replace('.pdf','_legend.png'), 
-                     name_pdf.replace('.pdf', '.png')]:
-            os.remove(file)
-
 
     def differential_colorbar(self, dataframe, filename):
         FIGSIZE = (2,3)
@@ -376,15 +368,17 @@ class KEGGPathway:
         :returns data with new column 'EC numbers' with integrated information
         from UniProt mapping and KEGG API
         '''
+        print('Merging UniProt and KEGG information on EC numbers')
         notnan = data[data['EC number (KEGG Pathway)'].notnull()]
         notnan.drop_duplicates(inplace = True)
-        notnan = notnan.groupby('Entry')['EC number (KEGG Pathway)'].apply(
+        notnan = notnan.groupby('Protein ID')['EC number (KEGG Pathway)'].apply(
                 lambda ecs:'; '.join([ec.split(':')[1] for ec in ecs]))
         del data['EC number (KEGG Pathway)']
         data.drop_duplicates(inplace = True)
-        data = pd.merge(data, notnan, on = 'Entry', how = 'outer')
+        data = pd.merge(data, notnan, on = 'Protein ID', how = 'outer')
         joined_ecs = list()
-        for i in range(len(data)):
+        pbar = ProgressBar()
+        for i in pbar(range(len(data))):
             if data.iloc[i]['EC number'] == data.iloc[i]['EC number (KEGG Pathway)']:   # EC number is the same for both methods
                 joined_ecs.append(data.iloc[i]['EC number'])
             else:
@@ -454,7 +448,7 @@ class KEGGPathway:
         
         if not hasattr(self, 'metabolic_maps'):
             metabolic_maps = self.default_maps
-        
+            
         kegg_ids = data[data['Cross-reference (KEGG)'].notnull()]['Cross-reference (KEGG)']
         kegg_ids = [ide.split(';')[0] for ide in kegg_ids]                      # should be fixed by 'solve_kegg_ids', but not yet possible because of UniProt
         kos = self.keggid2ko(kegg_ids)
@@ -465,39 +459,40 @@ class KEGGPathway:
         data = pd.merge(data, ecs, on = 'KO (KEGG Pathway)', how = 'outer')
         
         data = self.solve_ec_numbers(data)
-        data.to_csv(input_file, sep = '\t', index = False)
         print('Creating KEGG Pathway representations for ' + str(len(metabolic_maps)) + 
               ' metabolic pathways.')
-        genomic = list(); differential = list()
-        mt_samples = None
+        genomic_failed_ids = list(); differential_failed_ids = list()
         i = 1
         for metabolic_map in metabolic_maps:
-            print('Creating representation for pathway: {} [{}/{}]'.format(
-                    self.maps[metabolic_map], str(i), str(len(metabolic_maps))))
+            print('[{}/{}] Creating representation for pathway: {}'.format(
+                    str(i), str(len(metabolic_maps)), self.maps[metabolic_map]))
             if mg_samples:
-                try:
+                try:                                                            # When there are no KOs for that pathway, it fails
                     self.genomic_potential_taxa(data, mg_samples, 
-                            output_basename = output_directory + '/potential',
-                            metabolic_map = metabolic_map)
+                        output_basename = output_directory + '/potential',
+                        metabolic_map = metabolic_map)              # TODO - log should be True, fix the other TODO
                 except:
-                    genomic.append(metabolic_map)
+                    genomic_failed_ids.append(metabolic_map)
             if mt_samples:
                 try:
                     self.differential_expression_sample(data, mt_samples, 
-                        output_basename = output_directory + '/differential',
-                        metabolic_map = metabolic_map)
+                    output_basename = output_directory + '/differential',
+                    metabolic_map = metabolic_map, log = False)
                 except:
-                    differential.append(metabolic_map)
+                    differential_failed_ids.append(metabolic_map)
+            mtools.remove_kegg_pathway_intermediates(output_directory, self.output_level,
+                                                     metabolic_map)
             plt.cla()
             i += 1
+            
         genomic_failed = output_directory + '/genomic_failed_maps.txt'
         differential_failed = output_directory + '/differential_failed_maps.txt'
         print(('Failed {} maps for genomic potential representation. You can consult' + 
-              'which ones at {}').format(len(genomic), genomic_failed))
-        open(genomic_failed, 'w').write('\n'.join(genomic))
+              ' which ones at {}').format(len(genomic_failed_ids), genomic_failed))
+        open(genomic_failed, 'w').write('\n'.join(genomic_failed_ids))
         print(('Failed {} maps for differential expression representation. You can consult' + 
-              'which ones at {}').format(len(differential), differential_failed))
-        open(differential_failed, 'w').write('\n'.join(genomic))
+              'which ones at {}').format(len(differential_failed_ids), differential_failed))
+        open(differential_failed, 'w').write('\n'.join(differential_failed_ids))
         
 class KeggMap():
     '''
@@ -764,14 +759,14 @@ class KeggMap():
                 self.pathway.orthologs[box].graphics.append(newrecord)
             self.create_tile_box(self.pathway.orthologs[box])
 
-    def pathway_boxes_diferential(self, dataframe, log = False, colormap = "coolwarm"):
+    def pathway_boxes_differential(self, dataframe, log = True, colormap = "coolwarm"):
         '''
         Represents expression values present in a dataframe in the
         pathway map
         :param dataframe: pandas DataFrame with each column representing a sample
         and index corresponding to int list index of the ortholog element in the
         pathway
-        :param log: bol providing the option for a log normalization of data
+        :param log: bol providing the option for a log transformation of data
         :param colormap: str representing a costum matplotlib colormap to be used
         '''
 
@@ -781,7 +776,7 @@ class KeggMap():
             norm = cm.colors.Normalize(vmin=dataframe.min().min(), vmax=dataframe.max().max())
 
         colormap = cm.get_cmap(colormap)
-        dataframe = dataframe.apply(self.conv_value_rgb, args=(colormap, norm))
+        dataframe = dataframe.apply(self.conv_value_rgb, args=(colormap, norm)) # TODO - Doesn't work if using log
         dataframe = dataframe.apply(self.conv_rgb_hex)
         
         dataframe = dataframe[dataframe.columns.tolist()]

@@ -559,6 +559,19 @@ class MoscaTools:
                 for sample in samples:
                     os.remove('{}/Annotation/{}/{}{}'.format(output_dir, sample, termination)
                     for termination in ['_fgs.faa', '_aligned.blast'])
+                    
+    '''
+    Input:
+        output_dir: str - the base project directory
+        output_level: str - maximum, medium or minimum
+    Output:
+        All intermediate files of assembly will be removed if output_level < max,
+        all files will be removed if output_level < med
+    '''
+    def remove_kegg_pathway_intermediates(self, output_dir, output_level, metabolic_map):
+        if output_level != 'maximum':
+            for file in glob.glob('{}/*{}*'.format(output_dir, metabolic_map)):
+                os.remove(file)
     
     '''
     Input:

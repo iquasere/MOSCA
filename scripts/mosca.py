@@ -18,7 +18,7 @@ from kegg_pathway import KEGGPathway
 from report import Reporter
 from time import gmtime, strftime
 
-import argparse, pathlib, os, glob, multiprocessing
+import argparse, pathlib, os, multiprocessing
 
 parser = argparse.ArgumentParser(description="Multi Omics Software for Community Analysis",
                                  epilog="""A tool for performing metagenomics, metatranscriptomics 
@@ -94,7 +94,8 @@ parser.add_argument("-assstrat", "--assembly-strategy", type = str, default = 'a
                     'unique' - for each MG sample, an assembly is performed\n
                     'samples' - requires the --mg-samples argument. Defines the 
                     communities corresponding to each MG sample, MG samples from 
-                    the same community will be assembled together.""")
+                    the same community will be assembled together.""",
+                    choices=['all', 'unique', 'samples'])
 parser.add_argument("-samp", "--mg-samples", type = str,
                     help="""Groups of MG data to assemble together, separated by 
                     comma (,) (e.g. Sample1,Sample1,Sample2,Sample2). If not 
@@ -109,6 +110,9 @@ parser.add_argument("-mpw","--metaproteomics-workflow", default = 'compomics', t
 mtools = MoscaTools()
 args = mtools.validate_arguments(parser)
 
+#mtools.write_technical_report(args.output + 'technical_report.txt')             # TODO - must be improved
+print('Versions of the tools used is available at {}/technical_report.txt'.format(args.output))
+
 mosca_dir = os.path.dirname(os.path.realpath(__file__))
 reporter = Reporter(metatranscriptomics = True if args.type_of_data == 'metatranscriptomics' else False)
 
@@ -116,7 +120,6 @@ mtools.print_arguments(args)            # TODO - refine this function
 monitorization_file = args.output + '/monitorization_report.txt'
 
 experiments = [experiment.split(':') for experiment in args.files]
-
 mtools.timed_message('MOSCA analysis has started')
 
 print('Creating directories at ' + args.output)
@@ -138,13 +141,16 @@ if args.type_of_data == 'metatranscriptomics':
 else:
     mp2mg = dict()
 
+import pandas as pd
+reporter.report = pd.read_csv('MOSCAfinal/report3.tsv', sep='\t',index_col=0)    # TODO - to remove
+
 '''    
 Preprocess
 '''
 if not args.no_preprocessing:
     mtools.timed_message('Preprocessing reads')
 
-    for experiment in experiments[:2]:
+    for experiment in experiments:
         
         ''''
         Metagenomics preprocessing
@@ -161,12 +167,9 @@ if not args.no_preprocessing:
                                         threads = args.threads)
             if hasattr(args, 'quality_score'):
                 setattr(preprocesser, 'quality_score', args.quality_score)
-
-            #preprocesser.run()
-            #reporter.info_from_preprocessing(args.output, mg_name, mg[0])          
-            mtools.remove_preprocessing_intermediates(args.output + '/Preprocess', 
-                                                      args.output_level)
-
+            preprocesser.run()
+            reporter.info_from_preprocessing(args.output, mg_name, mg[0])          
+            mtools.remove_preprocessing_intermediates(args.output + '/Preprocess', args.output_level)
             mg = [args.output + '/Preprocess/Trimmomatic/quality_trimmed_' + mg_name + 
                   '_' + fr + '_paired.fq' for fr in ['forward', 'reverse']]
             
@@ -202,13 +205,11 @@ if not args.no_preprocessing:
                                                 threads = args.threads)
                     if hasattr(args, 'quality_score'):
                         setattr(preprocesser, 'quality_score', args.quality_score)
-                    
-                    #preprocesser.run()
+                        
+                    preprocesser.run()
                     reporter.info_from_preprocessing(args.output, mt_name, mt[0],
                                                      performed_rrna_removal = True)
-                    reporter.report.to_csv(args.output + '/report.tsv', sep = '\t')
                     mtools.remove_preprocessing_intermediates(args.output + '/Preprocess', args.output_level)
-
                     mt_preprocessed.append(mt_name)
                     
                 mt2mg[mt_name] = mg_name
@@ -217,14 +218,11 @@ mtools.task_is_finished(task = 'Preprocessing',
                         file = monitorization_file, 
                         task_output = args.output + '/Preprocess')
 
-reporter.report.to_csv(args.output + '/report.tsv', sep = '\t')
-exit()
-
 if args.assembly_strategy == 'all':
     sample2name = {'Sample': [mg_name for mg_name in mg_preprocessed]}
 elif args.assembly_strategy == 'unique':
     samples = {'Sample' + str(i) : mg_names[i] for i in range(len(mg_preprocessed))}
-else:
+elif args.assembly_strategy == 'samples':
     samples = args.mg_samples.split(',')
     sample2name = dict()
     for i in range(len(mg_names)):
@@ -234,18 +232,16 @@ else:
             sample2name[samples[i]] = [mg_names[i]]
         for k in sample2name.keys():
             sample2name[k] = set(sample2name[k])
-            
-reporter.set_samples(sample2name)
+name2sample = {vx : k for k, v in sample2name.items() for vx in v}
+reporter.set_samples(name2sample)
 
 '''
 Assembly
 '''
-
 if not args.no_assembly:
     mtools.timed_message('Assembling reads')
     
     for sample in sample2name.keys():
-        '''
         forward_files = ['{}/Preprocess/Trimmomatic/quality_trimmed_{}_forward_paired.fq'.format(
                 args.output, name) for name in sample2name[sample]]
         reverse_files = ['{}/Preprocess/Trimmomatic/quality_trimmed_{}_reverse_paired.fq'.format(
@@ -254,7 +250,7 @@ if not args.no_assembly:
                 args.output, sample))
         mtools.run_command('cat ' + ' '.join(reverse_files), file = '{}/Assembly/{}_reverse.fastq'.format(
                 args.output, sample))
-        '''
+        
         pathlib.Path('{}/Assembly/{}'.format(args.output, sample)).mkdir(parents=True, exist_ok=True)
         assembler = Assembler(out_dir = '{}/Assembly/{}'.format(args.output, sample),
                              assembler = args.assembler,
@@ -269,12 +265,12 @@ if not args.no_assembly:
             setattr(assembler, 'phred_offset', args.quality_score)              # --phred-offset is the name of the parameter in MetaSPAdes
         if args.memory != 'None':
             setattr(assembler, 'memory', args.memory)
-        '''
+        
         assembler.run()
         reporter.info_from_assembly(args.output, sample)
-        '''
-    #mtools.remove_assembly_intermediates(args.output, args.output_level, sample2name.keys())
-    
+        
+    mtools.remove_assembly_intermediates(args.output, args.output_level, sample2name.keys())
+
 mtools.task_is_finished(task = 'Assembly',
                         file = monitorization_file, 
                         task_output = args.output + '/Assembly')
@@ -294,15 +290,15 @@ if not args.no_annotation:
                       assembled = False if args.no_assembly else True,
                       error_model = args.fgs_train_file,
                       threads = args.threads)
-    
-        #annotater.run()
+        annotater.run()
         annotater.cog_annotation('{}/Annotation/{}/fgs.faa'.format(args.output, sample),
                                  '{}/Annotation/{}'.format(args.output, sample),
                                  threads = args.threads)        
-    
+        
+    reporter.info_from_annotation(args.output, sample)
     mtools.remove_annotation_intermediates(args.output, args.output_level, 
                                            sample2name.keys())
-    
+
 mtools.task_is_finished(task = 'Annotation',
         file = monitorization_file, 
         task_output = args.output + '/Annotation')
@@ -327,7 +323,7 @@ if not args.no_binning:
                     reverse = '{}/Assembly/{}_reverse.fastq'.format(
                             args.output, sample),
                     markerset = args.marker_gene_set)
-    binner.maxbin_workflow()
+        binner.maxbin_workflow()
 
 
     mtools.task_is_finished(task = 'Binning',
@@ -343,109 +339,116 @@ annotater = Annotater(out_dir = args.output,
                       threads = args.threads,
                       sample2name = sample2name,
                       columns = (args.annotation_columns.split(',') if 
-                      hasattr(args, 'annotation_columns') else None),
+                      args.annotation_columns is not None else None),
                       databases = (args.annotation_databases.split(',') if 
-                      hasattr(args, 'annotation_databases') else None))
+                      args.annotation_databases is not None else None),
+                      mg_names = mg_preprocessed)
 joined = annotater.global_information()
 
 mtools.timed_message('Integration is available at ' + args.output)
 
 expression_analysed = list()
 
-for experiment in experiments:
-    if len(experiment) > 1:                                                     # this forces all analysis to be the same, but it is not the goal of MOSCA. Must allow for different types of analysis (with and without MT/MP, single/paired-ended, ...)
-        if args.type_of_data == 'metatranscriptomics':
-            '''
-            Metatranscriptomics Quantification
-            '''
-            mtools.timed_message('Analysing gene expression with metatranscriptomics')
+if len(experiment[0]) > 1:                                                     # this forces all analysis to be the same, but it is not the goal of MOSCA. Must allow for different types of analysis (with and without MT/MP, single/paired-ended, ...)
+    if args.type_of_data == 'metatranscriptomics':
+        '''
+        Metatranscriptomics Quantification
+        '''
+        mtools.timed_message('Analysing gene expression with metatranscriptomics')
+        
+        for mt_name in mt_preprocessed:
+            path = pathlib.Path('{}/Metatranscriptomics/{}'.format(args.output, 
+                                mt_name)).mkdir(parents=True, exist_ok=True)
             
-            for mt_name in mt_preprocessed:
-                path = pathlib.Path('{}/Metatranscriptomics/{}'.format(args.output, 
-                                    mt_name)).mkdir(parents=True, exist_ok=True)
-                
-                mt = ['{}/Preprocess/Trimmomatic/quality_trimmed_{}_{}_paired.fq'.format(
-                        args.output, mt_name, fr) for fr in ['forward', 'reverse']]
-                mg_name = mt2mg[mt_name]
-                mta = MetaTranscriptomicsAnalyser(out_dir = args.output + '/Metatranscriptomics',
-                              contigs = '{}/Assembly/{}/contigs.fasta'.format(args.output, mg_name),
-                              blast = '{}/Annotation/{}/aligned.blast'.format(args.output, mg_name),
-                              reads = mt,
-                              mt = mt_name,
-                              threads = args.threads)
-                mta.readcounts_file()
-                
-                joined = mtools.define_abundance(joined, origin_of_data = 'metatranscriptomics',
-                                                 name = mt_name, readcounts = '{}/Metatranscriptomics/{}.readcounts'.format(
-                                                         args.output, mt_name))
-                
-            readcount_files = glob.glob(args.output + '/Metatranscriptomics/*.readcounts')
-            mta.generate_expression_matrix(readcount_files, expression_analysed, 
-                args.output + '/Metatranscriptomics/all_experiments.readcounts')
-    
-            mta.differential_analysis(args.output + '/Metatranscriptomics/all_experiments.readcounts', 
-                            args.conditions[0].split(','), args.output + '/Metatranscriptomics/')
-                
-            mtools.task_is_finished(task = 'Metatranscriptomics analysis',
-                  file = monitorization_file, 
-                  task_output = args.output + '/Metatranscriptomics')
-                
+            mt = ['{}/Preprocess/Trimmomatic/quality_trimmed_{}_{}_paired.fq'.format(
+                    args.output, mt_name, fr) for fr in ['forward', 'reverse']]
+            mg_name = mt2mg[mt_name]
+            mta = MetaTranscriptomicsAnalyser(out_dir = args.output + '/Metatranscriptomics',
+                          contigs = '{}/Assembly/{}/contigs.fasta'.format(args.output, name2sample[mg_name]),
+                          blast = '{}/Annotation/{}/aligned.blast'.format(args.output, name2sample[mg_name]),
+                          reads = mt,
+                          mt = mt_name,
+                          threads = args.threads)
+            
+            mta.readcounts_file()
+            joined = mtools.define_abundance(joined, origin_of_data = 'metatranscriptomics',
+                                             name = mt_name, readcounts = '{}/Metatranscriptomics/{}.readcounts'.format(
+                                                     args.output, mt_name))
             expression_analysed.append(mt_name)
-        
-        else:
-            '''
-            MetaProteomics Analysis
-            '''
-            mtools.timed_message('Analysing gene expression with metaproteomics')
-            
-            spectra_folder = experiment[1]
-            (mg, mg_name) = mtools.process_argument_file(experiment[0], 'mg', 
-                                        args.output, args.sequencing_technology) 
-            mp_name = spectra_folder.split('/')[-1]
-            path = pathlib.Path(args.output + '/Metaproteomics/' + mp_name).mkdir(parents=True, exist_ok=True)   
-            
-            analyser = MetaproteomicsAnalyser(faa = args.output + '/Annotation/' + mg_name + '/fgs.faa',
-                          blast = args.output + '/Annotation/' + mg_name + '/aligned.blast',
-                          crap_folder = '/HDDStorage/jsequeira/Thesis/Metaproteomics',
-                          output = args.output + '/Metaproteomics/' + mp_name,
-                          protease = 'trypsin',
-                          spectra_folder = spectra_folder,
-                          experiment_name = args.output,
-                          sample_name = mg_name,
-                          replicate_number = '1',
-                          threads = args.threads,
-                          workflow = args.metaproteomics_workflow)
-        
-            analyser.run()
-            
-            mtools.task_is_finished(task = 'Metaproteomics analysis',
-                    file = monitorization_file, 
-                    task_output = args.output + '/Metaproteomics/' + mt_name)
 
-# MG normalization by sample and protein expression
+        readcount_files = ['{}/Metatranscriptomics/{}.readcounts'.format(args.output, mt)
+                            for mt in expression_analysed]
+        
+        mta.generate_expression_matrix(readcount_files, expression_analysed, 
+            args.output + '/Metatranscriptomics/all_experiments.readcounts')
+        
+        mta.differential_analysis(args.output + '/Metatranscriptomics/all_experiments.readcounts', 
+                        args.conditions[0].split(','), args.output + '/Metatranscriptomics/')
+        
+        mtools.task_is_finished(task = 'Metatranscriptomics analysis',
+              file = monitorization_file, 
+              task_output = args.output + '/Metatranscriptomics')
+            
+    else:
+        '''
+        MetaProteomics Analysis
+        '''
+        mtools.timed_message('Analysing gene expression with metaproteomics')
+        
+        spectra_folder = experiment[1]
+        (mg, mg_name) = mtools.process_argument_file(experiment[0], 'mg', 
+                                    args.output, args.sequencing_technology) 
+        mp_name = spectra_folder.split('/')[-1]
+        path = pathlib.Path(args.output + '/Metaproteomics/' + mp_name).mkdir(parents=True, exist_ok=True)   
+        
+        analyser = MetaproteomicsAnalyser(faa = args.output + '/Annotation/' + mg_name + '/fgs.faa',
+                      blast = args.output + '/Annotation/' + mg_name + '/aligned.blast',
+                      crap_folder = '/HDDStorage/jsequeira/Thesis/Metaproteomics',
+                      output = args.output + '/Metaproteomics/' + mp_name,
+                      protease = 'trypsin',
+                      spectra_folder = spectra_folder,
+                      experiment_name = args.output,
+                      sample_name = mg_name,
+                      replicate_number = '1',
+                      threads = args.threads,
+                      workflow = args.metaproteomics_workflow)
+    
+        analyser.run()
+        
+        mtools.task_is_finished(task = 'Metaproteomics analysis',
+                file = monitorization_file, 
+                task_output = args.output + '/Metaproteomics/' + mt_name)
+
+# MG normalization by sample and protein abundance
 joined[mg_preprocessed].to_csv(args.output + '/mg_preprocessed_readcounts.table',
       sep = '\t', index = False)
-joined = mtools.normalize_readcounts(args.output + '/mg_preprocessed_readcounts.table', 
-            mg_preprocessed, args.output + '/mg_preprocessed_normalization_factors.txt')
+joined = pd.concat([joined, mtools.normalize_readcounts(
+        args.output + '/mg_preprocessed_readcounts.table', mg_preprocessed, 
+        args.output + '/mg_preprocessed_normalization_factors.txt')], axis = 1)
 
 # MT normalization by sample and protein expression
 joined[expression_analysed].to_csv(args.output + '/expression_analysed_readcounts.table',
       sep = '\t', index = False)
-joined = mtools.normalize_readcounts(args.output + '/expression_analysed_readcounts.table', 
-            expression_analysed, args.output + '/expression_analysed_normalization_factors.txt')
+joined = pd.concat([joined, mtools.normalize_readcounts(
+        args.output + '/expression_analysed_readcounts.table', expression_analysed, 
+        args.output + '/expression_analysed_normalization_factors.txt')], axis = 1)
 
 joined.to_csv(args.output + '/mosca_results.tsv', sep = '\t', index = False)
+
 joined.to_excel(args.output + '/mosca_results.xlsx', index = False)
 
-# KEGG Pathway representations
-pathlib.Path(args.output + '/KEGG Pathway').mkdir(parents=True, exist_ok=True)
-kp = KEGGPathway(input_file = args.output + '/mosca_results.tsv',
-                 output_directory = args.output + '/KEGG Pathway',
-                 mg_samples = mg_preprocessed,
-                 mt_samples = expression_analysed)
-kp.run()
+print('MOSCA results written to {0}/mosca_results.tsv and {0}/mosca_results.xlsx'.format(args.output))
 
+# KEGG Pathway representations
+pathlib.Path(args.output + '/KEGGPathway').mkdir(parents=True, exist_ok=True)
+kp = KEGGPathway(input_file = args.output + '/mosca_results.tsv',
+                 output_directory = args.output + '/KEGGPathway',
+                 mg_samples = mg_preprocessed,
+                 mt_samples = expression_analysed,
+                 output_level = args.output_level)
+kp.run(joined, args.output + '/mosca_results.tsv', args.output + '/KEGGPathway',
+       mg_samples = mg_preprocessed, mt_samples = expression_analysed)
+
+mtools.timed_message('MOSCA results written to {0}/mosca_results.tsv and {0}/mosca_results.xlsx'.format(args.output))
 mtools.timed_message('Analysis with MOSCA was concluded with success!')
 
-mtools.write_technical_report(args.output + 'technical_report.txt')             # TODO - must be improved
-print('Versions of the tools used is available at {}/technical_report.txt'.format(args.output))
