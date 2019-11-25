@@ -488,10 +488,12 @@ class KEGGPathway:
         genomic_failed = output_directory + '/genomic_failed_maps.txt'
         differential_failed = output_directory + '/differential_failed_maps.txt'
         print(('Failed {} maps for genomic potential representation. You can consult' + 
-              ' which ones at {}').format(len(genomic_failed_ids), genomic_failed))
+              ' which ones at {}. This is most likely due to absence of KEGG IDs mapping' + 
+              ' to those pathways.').format(len(genomic_failed_ids), genomic_failed))
         open(genomic_failed, 'w').write('\n'.join(genomic_failed_ids))
         print(('Failed {} maps for differential expression representation. You can consult' + 
-              'which ones at {}').format(len(differential_failed_ids), differential_failed))
+              ' which ones at {}. This is most likely due to absence of KEGG IDs mapping' + 
+              ' to those pathways.').format(len(differential_failed_ids), differential_failed))
         open(differential_failed, 'w').write('\n'.join(differential_failed_ids))
         
 class KeggMap():
