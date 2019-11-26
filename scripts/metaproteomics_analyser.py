@@ -261,7 +261,7 @@ class MetaproteomicsAnalyser:
         the "file" file will be updated with the new parameters
     '''
     def edit_maxquant_mqpar(self, mqpar, fasta_database, spectra_folder, 
-                            experiment_names, threads = 1):
+                            experiment_names, threads = 1, file_type = 'raw'):
         print('Updating parameters file information.')
         parser = etree.XMLParser(remove_blank_text=True)
         tree = etree.parse(mqpar, parser)
@@ -280,7 +280,7 @@ class MetaproteomicsAnalyser:
         fractions = root.find("fractions")
         ptms = root.find("ptms")
         paramGroupIndices = root.find("paramGroupIndices")
-        files = mtools.sort_alphanumeric(glob.glob(spectra_folder + '/*.wiff'))
+        files = mtools.sort_alphanumeric(glob.glob('{}/*.{}'.format(spectra_folder, file_type)))
         for i in range(len(files)):
             print('Adding file: ' + files[i])
             etree.SubElement(filePaths, 'string').text = files[i]

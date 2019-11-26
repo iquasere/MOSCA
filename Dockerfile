@@ -20,16 +20,17 @@ RUN buildDeps='build-essential zlib1g-dev' \
 && svn export https://github.com/timflutre/trimmomatic/trunk/adapters /MOSCA/Databases/illumina_adapters \
 && conda install megahit \
 && conda install -c bioconda spades \
-&& conda install quast \
-&& conda install fraggenescan \
-&& conda install diamond \
+# && conda install -c bioconda quast \                                            # TODO - introduce version control so quast can be installed through conda
+&& pip install quast \
+&& conda install -c bioconda fraggenescan \
+&& conda install -c bioconda diamond \
 && conda install -c conda-forge progressbar33 \
 && conda install -c bioconda htseq \
 && conda install -c bioconda bowtie2 \
-#&& git clone -b devel https://github.com/claczny/VizBin.git \
 && conda install -c bioconda maxbin2 \
+&& conda install -c anaconda biopython \
+&& conda install -c anaconda reportlab \
 && conda install -c bioconda bioconductor-deseq2 \
-&& conda install -c bioconda bioconductor-genomeinfodbdata \
 && conda install bioconductor-edger \
 && conda install -c bioconda r-pheatmap \
 && conda install -c r r-rcolorbrewer \
@@ -38,11 +39,14 @@ RUN buildDeps='build-essential zlib1g-dev' \
 && conda install -c conda-forge tqdm \
 && conda install scikit-learn \
 && conda install -c bioconda blast \
-&& mkdir /MOSCA/Databases/annotation_databases \
+&& mkdir -p /MOSCA/Databases/annotation_databases \
 && mkdir /input_data \
-&& mkdir -p /MOSCA/Databases/COG \
+&& mkdir /MOSCA/Databases/COG \
 && wget ftp://ftp.ncbi.nih.gov/pub/mmdb/cdd/cdd.tar.gz -P /MOSCA/Databases/COG \
-&& tar -xzvf /MOSCA/Databases/COG/cdd.tar.gz --wildcards --no-anchored 'COG*.smp' -C /MOSCA/Databases/COG \
+# && tar -xzvf /MOSCA/Databases/COG/cdd.tar.gz --wildcards --no-anchored 'COG*.smp' -C /MOSCA/Databases/COG \
+&& cd MOSCA/Databases/COG \
+&& tar -xzvf cdd.tar.gz --wildcards --no-anchored 'COG*.smp' \
+&& cd ../../.. \
 && rm /MOSCA/Databases/COG/cdd.tar.gz \
 && wget ftp://ftp.ncbi.nlm.nih.gov/pub/mmdb/cdd/cddid.tbl.gz -P /MOSCA/Databases/COG \
 && gunzip /MOSCA/Databases/COG/cddid.tbl.gz \
