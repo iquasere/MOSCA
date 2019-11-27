@@ -67,14 +67,15 @@ class Preprocesser:
         print('rRNA sequences removal done')
     
     # Trimmomatic - removal of low quality regions and short reads
-    def quality_trimming(self):
+    def quality_trimming(self, adapters):
         print('Beggining quality trimming')
         
-        print('Generating quality check')
-        fastqc = FastQC(outdir = self.working_dir + '/Preprocess/FastQC',
-                        extract = True,
-                        files = self.files)
-        fastqc.run()
+        if len(adapters) > 0 or self.data == 'mrna':
+            print('Generating quality check')
+            fastqc = FastQC(outdir = self.working_dir + '/Preprocess/FastQC',
+                            extract = True,
+                            files = self.files)
+            fastqc.run()
         
         trimmomatic = Trimmomatic(input_files = self.files,
                                   paired = self.paired,
@@ -88,10 +89,16 @@ class Preprocesser:
         if hasattr(self, 'quality_score'):
             setattr(trimmomatic, 'quality_score', self.quality_score)
         
-        reports = [filename.replace('SortMeRNA' if self.data == 'mrna' else     # if data is mRNA, SortMeRNA will be used
-                                    'Trimmomatic', 'FastQC').split('.f')[0] + 
-                   '_fastqc/fastqc_data.txt' for filename in self.files]        # .f works for SortMeRNA (.fastq) and Trimmomatic (.fq) terminations
-                
+        if self.data == 'mrna':
+            reports = [filename.replace('SortMeRNA', 'FastQC').split('.fastq')[0] + 
+                   '_fastqc/fastqc_data.txt' for filename in self.files]
+        elif len(adapters) > 0:
+            reports = [filename.replace('Trimmomatic', 'FastQC').split('.fq')[0] + 
+                   '_fastqc/fastqc_data.txt' for filename in self.files]
+        else:
+            reports = ['{}/Preprocess/FastQC/{}_fastqc/fastqc_data.txt'.format(
+                    self.working_dir, filename.split('/')[-1].split('.f')[0]) 
+                    for filename in self.files]
         trimmomatic.define_by_reports(reports)
         
         for attr in ['headcrop', 'crop', 'avgqual', 'minlen']:
@@ -125,11 +132,10 @@ class Preprocesser:
         
         
     def run(self):
-        
-        self.first_check()
+        #self.first_check()
         
         adapters = self.trim_adapters()
-
+        
         open('{}/Preprocess/Trimmomatic/{}_adapters.txt'.format(self.working_dir, 
              self.name), 'w').write('\n'.join(set(adapters)))                   # TODO - something phony is going on here, as adapters.txt has correct files but duplicated
         
@@ -142,6 +148,6 @@ class Preprocesser:
         if self.data == 'mrna':
             self.rrna_removal()
         
-        self.quality_trimming()
+        self.quality_trimming(adapters)
         
         self.final_quality_check()

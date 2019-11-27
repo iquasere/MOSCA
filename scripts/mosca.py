@@ -141,7 +141,6 @@ if args.type_of_data == 'metatranscriptomics':
 else:
     mp2mg = dict()
 
-
 '''    
 Preprocess
 '''
