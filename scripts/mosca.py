@@ -141,8 +141,6 @@ if args.type_of_data == 'metatranscriptomics':
 else:
     mp2mg = dict()
 
-import pandas as pd
-reporter.report = pd.read_csv('MOSCAfinal/report3.tsv', sep='\t',index_col=0)    # TODO - to remove
 
 '''    
 Preprocess

@@ -157,14 +157,12 @@ class Reporter:
             self.report.loc[name]['[Quality trimming] # of reads remaining']) /
             self.report.loc[name]['[rRNA removal] # of reads remaining'] * 100, 2)
         self.info_from_fastqc(output_dir, name, '[After quality trimming]', prefix2terms)
-        self.report.to_csv(output_dir + '/report.tsv', sep = '\t')
         
     def set_samples(self, name2sample):
         name2sample = pd.DataFrame.from_dict(name2sample, orient='index', 
                                              columns = ['Sample'])
         self.report = pd.merge(name2sample, self.report, left_index = True, 
                                right_index = True, how = 'outer')
-        self.report.to_csv('MOSCAfinal/report1.tsv',sep='\t')
     
     def info_from_assembly(self, output_dir, sample):
         print('Retrieving assembly information for sample ' + sample)

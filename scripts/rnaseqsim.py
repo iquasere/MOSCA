@@ -141,6 +141,8 @@ if __name__ == '__main__':
     
     rnaseqsimer = RNASeqSim()
     
+    mtools = MoscaTools()
+    
     # date is 14th November 2019
     '''
     # Download genomes and transcriptomes
@@ -250,7 +252,7 @@ if __name__ == '__main__':
                 seq_names = mtools.parse_fasta(file).keys()
                 for seq_name in seq_names:
                     f.write('{}\t{}\n'.format(seq_name, str(float(data.iloc[i]['Abundance']) / len(seq_names))))
-    '''
+    
     import subprocess
     subprocess.check_output("sed -i 's/ /-/g' SimulatedMGMT/dna/*", shell=True)
     
@@ -258,3 +260,23 @@ if __name__ == '__main__':
                 'SimulatedMGMT/dna/abundance.config', 'SimulatedMGMT/dna', 
                 seed = '12', coverage_fold = '100')
     
+    mtools.run_command('cat ' + ' '.join(glob.glob('SimulatedMGMT/dna/part*/grinder-reads.fastq')), 
+                       file = 'SimulatedMGMT/dna/mg.fastq')
+    mtools.divide_fq('SimulatedMGMT/dna/mg.fastq', 'SimulatedMGMT/dna/pretty_commune_R1.fastq', 'SimulatedMGMT/dna/pretty_commune_R2.fastq')
+    
+    for factor in [1,3,0.17]:
+        for letter in ['a','b','c']:
+            mtools.divide_fq('SimulatedMGMT/rna/{}/{}/grinder-reads.fastq'.format(letter, str(factor)),
+                             'SimulatedMGMT/rna/{0}/{1}/rnaseq_{0}{1}reads_R1.fastq'.format(letter, str(factor)),
+                             'SimulatedMGMT/rna/{0}/{1}/rnaseq_{0}{1}reads_R2.fastq'.format(letter, str(factor)))
+    '''
+    input_files = ' '.join(['SimulatedMGMT/dna/pretty_commune_R1.fastq,SimulatedMGMT/dna/pretty_commune_R2.fastq:' + 
+          'SimulatedMGMT/rna/{0}/{1}/rnaseq_{0}{1}reads_R1.fastq,SimulatedMGMT/rna/{0}/{1}/rnaseq_{0}{1}reads_R2.fastq'.format(
+                  letter, factor) for letter in ['a','b','c'] for factor in ['0.17','1','3']])
+    
+    conditions = 'c1,c2,c3,c1,c2,c3,c1,c2,c3'
+    
+    mtools.run_command('docker run -v /mnt/HDDStorage/jsequeira/:/input_data ' + 
+        '-v /mnt/HDDStorage/jsequeira/SimulatedMGMT/:/MOSCA_analysis ' + 
+        '-v /HDDStorage/jsequeira/MOSCA/Databases/annotation_databases/:/MOSCA/Databases/annotation_databases ' + 
+        'iquasere/mosca -f {} -c {} -o SimulatedMGMT -t 14 -assstrat all'.format(input_files, conditions))
