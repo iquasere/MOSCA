@@ -18,7 +18,7 @@ from kegg_pathway import KEGGPathway
 from report import Reporter
 from time import gmtime, strftime
 
-import argparse, pathlib, os, multiprocessing
+import argparse, pathlib, os, multiprocessing, pandas as pd
 
 parser = argparse.ArgumentParser(description="Multi Omics Software for Community Analysis",
                                  epilog="""A tool for performing metagenomics, metatranscriptomics 
@@ -164,9 +164,11 @@ if not args.no_preprocessing:
                                         threads = args.threads)
             if hasattr(args, 'quality_score'):
                 setattr(preprocesser, 'quality_score', args.quality_score)
+            
             preprocesser.run()
             reporter.info_from_preprocessing(args.output, mg_name, mg[0])          
             mtools.remove_preprocessing_intermediates(args.output + '/Preprocess', args.output_level)
+            
             mg = [args.output + '/Preprocess/Trimmomatic/quality_trimmed_' + mg_name + 
                   '_' + fr + '_paired.fq' for fr in ['forward', 'reverse']]
             
@@ -202,15 +204,16 @@ if not args.no_preprocessing:
                                                 threads = args.threads)
                     if hasattr(args, 'quality_score'):
                         setattr(preprocesser, 'quality_score', args.quality_score)
-                        
+                      
                     preprocesser.run()
                     reporter.info_from_preprocessing(args.output, mt_name, mt[0],
                                                      performed_rrna_removal = True)
                     mtools.remove_preprocessing_intermediates(args.output + '/Preprocess', args.output_level)
+                    
                     mt_preprocessed.append(mt_name)
                     
                 mt2mg[mt_name] = mg_name
-                    
+
 mtools.task_is_finished(task = 'Preprocessing', 
                         file = monitorization_file, 
                         task_output = args.output + '/Preprocess')
@@ -267,7 +270,7 @@ if not args.no_assembly:
         reporter.info_from_assembly(args.output, sample)
         
     mtools.remove_assembly_intermediates(args.output, args.output_level, sample2name.keys())
-
+    
 mtools.task_is_finished(task = 'Assembly',
                         file = monitorization_file, 
                         task_output = args.output + '/Assembly')
@@ -322,10 +325,9 @@ if not args.no_binning:
                     markerset = args.marker_gene_set)
         binner.maxbin_workflow()
 
-
-    mtools.task_is_finished(task = 'Binning',
-            file = monitorization_file, 
-            task_output = '{}/Binning/{}'.format(args.output, sample))
+mtools.task_is_finished(task = 'Binning',
+        file = monitorization_file, 
+        task_output = '{}/Binning/{}'.format(args.output, sample))
     
 '''
 Join all information on one report
@@ -366,13 +368,12 @@ if len(experiment[0]) > 1:                                                     #
                           reads = mt,
                           mt = mt_name,
                           threads = args.threads)
-            
             mta.readcounts_file()
             joined = mtools.define_abundance(joined, origin_of_data = 'metatranscriptomics',
                                              name = mt_name, readcounts = '{}/Metatranscriptomics/{}.readcounts'.format(
                                                      args.output, mt_name))
             expression_analysed.append(mt_name)
-
+            
         readcount_files = ['{}/Metatranscriptomics/{}.readcounts'.format(args.output, mt)
                             for mt in expression_analysed]
         
@@ -381,7 +382,6 @@ if len(experiment[0]) > 1:                                                     #
         
         mta.differential_analysis(args.output + '/Metatranscriptomics/all_experiments.readcounts', 
                         args.conditions[0].split(','), args.output + '/Metatranscriptomics/')
-        
         mtools.task_is_finished(task = 'Metatranscriptomics analysis',
               file = monitorization_file, 
               task_output = args.output + '/Metatranscriptomics')
@@ -419,21 +419,22 @@ if len(experiment[0]) > 1:                                                     #
 # MG normalization by sample and protein abundance
 joined[mg_preprocessed].to_csv(args.output + '/mg_preprocessed_readcounts.table',
       sep = '\t', index = False)
+
 joined = pd.concat([joined, mtools.normalize_readcounts(
         args.output + '/mg_preprocessed_readcounts.table', mg_preprocessed, 
-        args.output + '/mg_preprocessed_normalization_factors.txt')], axis = 1)
+        args.output + '/mg_preprocessed_normalization_factors.txt')[[
+        col + '_normalized' for col in mg_preprocessed]]], axis = 1)
 
 # MT normalization by sample and protein expression
 joined[expression_analysed].to_csv(args.output + '/expression_analysed_readcounts.table',
       sep = '\t', index = False)
 joined = pd.concat([joined, mtools.normalize_readcounts(
         args.output + '/expression_analysed_readcounts.table', expression_analysed, 
-        args.output + '/expression_analysed_normalization_factors.txt')], axis = 1)
+        args.output + '/expression_analysed_normalization_factors.txt')[[
+        col + '_normalized' for col in expression_analysed]]], axis = 1)
 
 joined.to_csv(args.output + '/mosca_results.tsv', sep = '\t', index = False)
-
 joined.to_excel(args.output + '/mosca_results.xlsx', index = False)
-
 print('MOSCA results written to {0}/mosca_results.tsv and {0}/mosca_results.xlsx'.format(args.output))
 
 # KEGG Pathway representations
@@ -443,6 +444,7 @@ kp = KEGGPathway(input_file = args.output + '/mosca_results.tsv',
                  mg_samples = mg_preprocessed,
                  mt_samples = expression_analysed,
                  output_level = args.output_level)
+
 kp.run(joined, args.output + '/mosca_results.tsv', args.output + '/KEGGPathway',
        mg_samples = mg_preprocessed, mt_samples = expression_analysed)
 

@@ -211,7 +211,11 @@ class Annotater:
             uniprotinfo = self.get_uniprot_information(ids_missing,
                                 columns = columns, databases = databases)
             ids_done += list(set(uniprotinfo['Entry']))
-            result = result[uniprotinfo.columns]
+            try:                                                                # Will keep this as it has worked before, even not being supposed to. SBF1
+                result = result[uniprotinfo.columns]
+            except:
+                print('SBF1: please contact the author by email to jsequeira@ceb.uminho.pt or raise a new issue at github.com/iquasere/MOSCA/issues')
+                result.to_csv('uniprot_info.tsv',sep='\t',index=False)
             result = pd.concat([result, uniprotinfo])
             ids_missing = list(set(all_ids) - set(ids_done))
             if len(ids_missing) > 0:
@@ -649,7 +653,7 @@ class Annotater:
         if not os.path.isfile(self.out_dir + '/Annotation/aligned.blast'):
             mtools.run_command('cat ' + ' '.join(glob.glob(self.out_dir + '/Annotation/*/aligned.blast')), 
                            file = self.out_dir + '/Annotation/aligned.blast')
-            
+        
         # Retrieval of information from UniProt IDs
         self.recursive_uniprot_information(self.out_dir + '/Annotation/aligned.blast', 
                                            self.out_dir + '/Annotation/uniprot_info.tsv',

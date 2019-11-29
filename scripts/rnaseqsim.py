@@ -276,7 +276,4 @@ if __name__ == '__main__':
     
     conditions = 'c1,c2,c3,c1,c2,c3,c1,c2,c3'
     
-    mtools.run_command('docker run -v /mnt/HDDStorage/jsequeira/:/input_data ' + 
-        '-v /mnt/HDDStorage/jsequeira/SimulatedMGMT/:/MOSCA_analysis ' + 
-        '-v /HDDStorage/jsequeira/MOSCA/Databases/annotation_databases/:/MOSCA/Databases/annotation_databases ' + 
-        'iquasere/mosca -f {} -c {} -o SimulatedMGMT -t 14 -assstrat all'.format(input_files, conditions))
+    mtools.run_command('python MOSCA/scripts/mosca.py -f {} -c {} -o SimulatedMGMT -t 14 -assstrat all'.format(input_files, conditions))
