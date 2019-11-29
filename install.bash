@@ -30,7 +30,8 @@ conda install -y -c bioconda bowtie2
 conda install -y -c bioconda maxbin2
 curl -L -O https://data.ace.uq.edu.au/public/CheckM_databases/checkm_data_2015_01_16.tar.gz
 tar xzf checkm_data_2015_01_16.tar.gz
-conda install -y -c bioconda checkm-genome
+checkm data setRoot .
+conda install -y -n py27 python=2.7 
 conda install -y -c anaconda biopython
 conda install -y -c anaconda reportlab
 conda install -y -c bioconda bioconductor-deseq2 #=1.22.1

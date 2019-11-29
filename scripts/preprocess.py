@@ -132,7 +132,7 @@ class Preprocesser:
         
         
     def run(self):
-        #self.first_check()
+        self.first_check()
         
         adapters = self.trim_adapters()
         

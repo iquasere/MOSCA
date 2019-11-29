@@ -75,6 +75,9 @@ class Reporter:
                 '{}/Preprocess/FastQC/{}{}_{}_fastqc/fastqc_data.txt'.format(output_dir, 
                  prefix2terms[prefix][0], name, prefix2terms[prefix][i])) for i in [1, 2]]
         for column in self.fastq_columns:
+            for i in range(2):
+                if column not in reports[i].keys():
+                    reports[i][column] = ('Not available', None)                # only the not available matters
             if reports[0][column][0] == reports[1][column][0]:
                 self.report.at[name, '{} {}'.format(prefix, column)] = reports[0][column][0]
             else:
@@ -84,8 +87,8 @@ class Reporter:
                         
     def info_from_preprocessing(self, output_dir, name, input_file, performed_rrna_removal = False):
         print('Retrieving preprocessing information for sample: ' + name)
-        
-        self.report = self.report.append(pd.Series(name = name))
+        if name not in self.report.index:
+            self.report = self.report.append(pd.Series(name = name))
         self.report.loc[name] = self.report.loc[name].fillna(value = '')
 
         adapter_files = open('{}/Preprocess/Trimmomatic/{}_adapters.txt'.format(output_dir, name)).read().split('\n')

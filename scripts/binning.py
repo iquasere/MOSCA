@@ -448,13 +448,17 @@ class Binner:
     
     '''
     Input:
+        bins_folder: str - foldername where the bins are
+        output_directory: str - foldername where to store output
     Output:
+        
     '''
     def run_check_m(self, bins_folder, output_directory):
-        mtools.run_command('checkm data setRoot .')
+        mtools.run_command('conda activate py27')
+        # mtools.run_command('checkm data setRoot .')                           # Is this needed? Hopefully only once D:
         mtools.run_command('checkm lineage_wf -x fasta -r --ali --nt -t {0}' +
         '--pplacer_threads {0} {1} {2}'.format(self.threads, bins_folder, output_directory))
-
+        mtools.run_command('conda deactivate')                                  # back to (base)
         
 if __name__ == '__main__':
     

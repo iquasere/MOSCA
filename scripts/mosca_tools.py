@@ -577,7 +577,7 @@ class MoscaTools:
     Input:
         filename: str - filename of FastQC report
     Output:
-        returns pd.DataFrame with data from FastQC report
+        returns dict{module:(value, pd.DataFrame)} with data from FastQC report
     '''      
     def parse_fastqc_report(self, filename):
         data = dict()
