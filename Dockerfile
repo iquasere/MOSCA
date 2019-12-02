@@ -27,12 +27,14 @@ RUN buildDeps='build-essential zlib1g-dev' \
 && conda install -c conda-forge progressbar33 \
 && conda install -c bioconda htseq \
 && conda install -c bioconda bowtie2 \
-&& conda install -c bioconda maxbin2 \
-&& curl -L -O https://data.ace.uq.edu.au/public/CheckM_databases/checkm_data_2015_01_16.tar.gz \
-&& tar xzf checkm_data_2015_01_16.tar.gz \
-&& checkm data setRoot . \
-&& conda install -n py27 python=2.7 \
-&& conda install -c anaconda biopython \
+&& conda install -c bioconda maxbin2
+RUN curl -L -O https://data.ace.uq.edu.au/public/CheckM_databases/checkm_data_2015_01_16.tar.gz
+RUN tar xzf checkm_data_2015_01_16.tar.gz
+RUN conda create -n py27 python=2.7
+RUN echo "source activate py27" > ~/.bashrc
+ENV PATH /opt/conda/envs/env/bin:$PATH
+CMD [ " conda activate py27 && checkm data setRoot ." ]
+RUN conda install -c anaconda biopython \
 && conda install -c anaconda reportlab \
 && conda install -c bioconda bioconductor-deseq2 \
 && conda install bioconductor-edger \
