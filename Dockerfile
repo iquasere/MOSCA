@@ -65,5 +65,7 @@ RUN conda install -c anaconda biopython \
 && conda install -c bioconda maxquant \
 && conda clean --all \
 && apt-get purge -y --auto-remove $buildDeps
+RUN cd MOSCA \
+&& git checkout 
 
 ENTRYPOINT [ "python", "/MOSCA/scripts/mosca.py" ]
