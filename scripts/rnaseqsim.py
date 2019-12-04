@@ -144,7 +144,7 @@ if __name__ == '__main__':
     mtools = MoscaTools()
     
     # date is 14th November 2019
-    '''
+    
     # Download genomes and transcriptomes
     for i in range(len(data)):
         print(data.iloc[i]['Species'])
@@ -243,8 +243,7 @@ if __name__ == '__main__':
                 'SimulatedMGMT/rna/' + letter + '/' + str(factor), seed = str(seed),
                 coverage_fold = '25')
             seed += 1
-    '''
-    '''
+    
     with open(output_dir + '/dna/abundance.config', 'w') as f:
         for i in range(len(data)):
             if data.iloc[i]['Abundance'] > 0:
@@ -269,7 +268,7 @@ if __name__ == '__main__':
             mtools.divide_fq('SimulatedMGMT/rna/{}/{}/grinder-reads.fastq'.format(letter, str(factor)),
                              'SimulatedMGMT/rna/{0}/{1}/rnaseq_{0}{1}reads_R1.fastq'.format(letter, str(factor)),
                              'SimulatedMGMT/rna/{0}/{1}/rnaseq_{0}{1}reads_R2.fastq'.format(letter, str(factor)))
-    '''
+    
     input_files = ' '.join(['SimulatedMGMT/dna/pretty_commune_R1.fastq,SimulatedMGMT/dna/pretty_commune_R2.fastq:' + 
           'SimulatedMGMT/rna/{0}/{1}/rnaseq_{0}{1}reads_R1.fastq,SimulatedMGMT/rna/{0}/{1}/rnaseq_{0}{1}reads_R2.fastq'.format(
                   letter, factor) for letter in ['a','b','c'] for factor in ['0.17','1','3']])

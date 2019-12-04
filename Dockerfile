@@ -7,11 +7,11 @@ RUN buildDeps='build-essential zlib1g-dev' \
 && conda config --add channels defaults \
 && conda config --add channels bioconda \
 && conda config --add channels conda-forge \
-&& git clone https://github.com/iquasere/MOSCA.git \
+&& git clone https://github.com/iquasere/MOSCA.git -b development \
 && conda install fastqc \
 && conda install -c biocore sortmerna \
 && conda install -c anaconda svn \
-&& svn export https://github.com/biocore/sortmerna/trunk/rRNA_databases /MOSCA/Databases/rRNA_databases \
+&& svn export https://github.com/biocore/sortmerna/trunk/data/rRNA_databases /MOSCA/Databases/rRNA_databases \
 && find /MOSCA/Databases/rRNA_databases/* | grep -v ".fasta" | xargs rm -fr \
 && wget https://github.com/biocore/sortmerna/raw/master/scripts/merge-paired-reads.sh -P /MOSCA/scripts \
 && wget https://github.com/biocore/sortmerna/raw/master/scripts/unmerge-paired-reads.sh -P /MOSCA/scripts \
@@ -47,6 +47,7 @@ RUN conda install -c anaconda biopython \
 && conda install -c bioconda blast \
 && mkdir -p /MOSCA/Databases/annotation_databases \
 && mkdir /input_data \
+&& mkdir /output \
 && mkdir /MOSCA/Databases/COG \
 && wget ftp://ftp.ncbi.nih.gov/pub/mmdb/cdd/cdd.tar.gz -P /MOSCA/Databases/COG \
 # && tar -xzvf /MOSCA/Databases/COG/cdd.tar.gz --wildcards --no-anchored 'COG*.smp' -C /MOSCA/Databases/COG \
