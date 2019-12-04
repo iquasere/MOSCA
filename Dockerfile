@@ -13,8 +13,6 @@ RUN buildDeps='build-essential zlib1g-dev' \
 && conda install -c anaconda svn \
 && svn export https://github.com/biocore/sortmerna/trunk/data/rRNA_databases /MOSCA/Databases/rRNA_databases \
 && find /MOSCA/Databases/rRNA_databases/* | grep -v ".fasta" | xargs rm -fr \
-&& wget https://github.com/biocore/sortmerna/raw/master/scripts/merge-paired-reads.sh -P /MOSCA/scripts \
-&& wget https://github.com/biocore/sortmerna/raw/master/scripts/unmerge-paired-reads.sh -P /MOSCA/scripts \
 && conda install seqtk \
 && conda install -c bioconda trimmomatic \
 && svn export https://github.com/timflutre/trimmomatic/trunk/adapters /MOSCA/Databases/illumina_adapters \
