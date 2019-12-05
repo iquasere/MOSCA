@@ -8,7 +8,7 @@ conda config --add channels defaults
 conda config --add channels bioconda
 conda config --add channels conda-forge
 conda install -y -c bioconda fastqc
-conda install -y -c bioconda sortmerna
+conda install -y -c bioconda sortmerna #=2.1
 conda install -y -c anaconda svn
 apt install -y subversion
 svn export https://github.com/biocore/sortmerna/trunk/rRNA_databases MOSCA/Databases/rRNA_databases
