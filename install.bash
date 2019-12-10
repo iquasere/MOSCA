@@ -13,24 +13,24 @@ conda install -y -c anaconda svn
 apt install -y subversion
 svn export https://github.com/biocore/sortmerna/trunk/rRNA_databases MOSCA/Databases/rRNA_databases
 find MOSCA/Databases/rRNA_databases/* | grep -v ".fasta" | xargs rm -fr
-wget https://github.com/biocore/sortmerna/raw/master/scripts/merge-paired-reads.sh -P MOSCA/scripts
-wget https://github.com/biocore/sortmerna/raw/master/scripts/unmerge-paired-reads.sh -P MOSCA/scripts
 conda install -y -c bioconda seqtk
 conda install -y -c bioconda trimmomatic
 svn export https://github.com/timflutre/trimmomatic/trunk/adapters MOSCA/Databases/illumina_adapters
 conda install -y -c bioconda megahit
 conda install -y -c bioconda spades
 # conda install -y -c bioconda quast                                            # TODO - introduce version control so quast can be installed through conda
-pip install -y quast
+pip install quast
 conda install -y -c bioconda fraggenescan
 conda install -y -c bioconda diamond
 conda install -y -c conda-forge progressbar33
 conda install -y -c bioconda htseq
 conda install -y -c bioconda bowtie2
 conda install -y -c bioconda maxbin2
+conda install -y -c bioconda checkm
 curl -L -O https://data.ace.uq.edu.au/public/CheckM_databases/checkm_data_2015_01_16.tar.gz
-tar xzf checkm_data_2015_01_16.tar.gz
-checkm data setRoot .
+mkdir checkm_data
+tar xzf checkm_data_2015_01_16.tar.gz -C checkm_data
+checkm data setRoot checkm_data
 conda install -y -n py27 python=2.7 
 conda install -y -c anaconda biopython
 conda install -y -c anaconda reportlab
@@ -54,6 +54,7 @@ cat uniprot_trembl.fasta uniprot_sprot.fasta > MOSCA/Databases/annotation_databa
 rm uniprot_trembl.fasta uniprot_sprot.fasta uniprot_trembl.fasta.gz uniprot_sprot.fasta.gz
 mkdir -p MOSCA/Databases/COG
 wget ftp://ftp.ncbi.nih.gov/pub/mmdb/cdd/cdd.tar.gz -P MOSCA/Databases/COG
+# && tar -xzvf /MOSCA/Databases/COG/cdd.tar.gz --wildcards --no-anchored 'COG*.smp' -C /MOSCA/Databases/COG
 cd MOSCA/Databases/COG
 tar -xzvf cdd.tar.gz --wildcards --no-anchored 'COG*.smp'
 cd ../../..

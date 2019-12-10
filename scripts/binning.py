@@ -453,7 +453,7 @@ class Binner:
     Output:
         
     '''
-    def run_check_m(self, bins_folder, output_directory):
+    def run_checkm(self, bins_folder, output_directory):
         mtools.run_command('conda activate py27')
         # mtools.run_command('checkm data setRoot .')                           # Is this needed? Hopefully only once D:
         mtools.run_command('checkm lineage_wf -x fasta -r --ali --nt -t {0}' +

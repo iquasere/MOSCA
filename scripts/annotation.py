@@ -467,7 +467,7 @@ class Annotater:
                 blast, cddid, fun, whog))
         if os.path.isdir(output + '/results'):
             shutil.rmtree(output + '/results')
-        os.rename('results', output + '/results')
+        shutil.copytree('results', output + '/results')
         
     '''
     Input: 
@@ -500,7 +500,7 @@ class Annotater:
         cogblast = self.organize_cdd_blast(cogblast)
         del cogblast['qseqid']
         cogblast = cogblast.groupby(cogblast.columns.tolist()).size().reset_index().rename(columns={0:'count'})
-        cogblast.to_csv(output, sep = '\t', index = False)
+        cogblast.to_excel(output, index = False)
         
     '''
     Input: name of cddblast to parse
@@ -630,7 +630,7 @@ class Annotater:
         databases = [pn.split('.pn')[0] for pn in pns]
         self.run_rpsblast(faa, output + '/cdd_aligned.blast', ' '.join(databases))
         if os.path.isdir(os.getcwd() + '/results'):                              # the cdd2cog tool does not overwrite, and fails if results directory already exists
-            print('Eliminating ' + os.getcwd() + '/results')
+            print('Eliminating {}{}results'.format(os.getcwd(), '/' if os.getcwd() != '/' else ''))  # if working on the docker, working directory is /
             shutil.rmtree(os.getcwd() + '/results', ignore_errors=True)          # is not necessary when running the tool once, but better safe then sorry!
         
         self.annotate_cogs(output + '/cdd_aligned.blast', output, cddid, fun, whog)
