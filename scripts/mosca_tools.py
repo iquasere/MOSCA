@@ -8,7 +8,7 @@ Jun 2017
 '''
 
 from tqdm import tqdm
-import pandas as pd, subprocess, glob, os, gzip, time, numpy as np, shutil
+import pandas as pd, subprocess, glob, os, gzip, time, numpy as np, shutil, sys
 
 class MoscaTools:
     
@@ -189,10 +189,10 @@ class MoscaTools:
         if print_message:
             print(bashCommand.replace(sep, ' '))
         if file == '':
-                subprocess.run(bashCommand.split(sep), stdout=subprocess.PIPE, check = True)       # was subprocess.Popen
+                subprocess.run(bashCommand.split(sep), stdout=sys.stdout, check = True)
         else:
             with open(file, mode) as output_file:
-                subprocess.run(bashCommand.split(sep), stdout=output_file)           # was subprocess.Popen
+                subprocess.run(bashCommand.split(sep), stdout=output_file)
     
     def run_pipe_command(self, bashCommand, file = '', mode = 'w', sep = ' ', print_message = True):
         if print_message:
