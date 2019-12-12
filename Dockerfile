@@ -36,6 +36,8 @@ RUN buildDeps='build-essential zlib1g-dev' \
 RUN conda install -c anaconda biopython \
 && conda install -c anaconda reportlab \
 && conda install -c bioconda bioconductor-deseq2 \
+&& conda install -c r r-stringi \                                               # reference to https://github.com/jupyter/docker-stacks/issues/927 (loading DESeq2 fails otherwise)
+&& conda install -c anaconda openpyxl \                                         # normalization fails otherwise with "No module named 'openpyxl'"
 && conda install bioconductor-edger \
 && conda install -c bioconda r-pheatmap \
 && conda install -c r r-rcolorbrewer \

@@ -259,6 +259,10 @@ if __name__ == '__main__':
                 'SimulatedMGMT/dna/abundance.config', 'SimulatedMGMT/dna', 
                 seed = '12', coverage_fold = '100')
     
+    # For MG, with one thread, after 600h only 15G of 28G had been generated.
+    # So I used 10 different processes at the same time - seeds 1 to 9.
+    # For RNASeqSimer, will have to implement multiprocess.
+    
     mtools.run_command('cat ' + ' '.join(glob.glob('SimulatedMGMT/dna/part*/grinder-reads.fastq')), 
                        file = 'SimulatedMGMT/dna/mg.fastq')
     mtools.divide_fq('SimulatedMGMT/dna/mg.fastq', 'SimulatedMGMT/dna/pretty_commune_R1.fastq', 'SimulatedMGMT/dna/pretty_commune_R2.fastq')

@@ -35,6 +35,8 @@ conda install -y -n py27 python=2.7
 conda install -y -c anaconda biopython
 conda install -y -c anaconda reportlab
 conda install -y -c bioconda bioconductor-deseq2 #=1.22.1
+conda install -y -c r r-stringi
+conda install -y -c anaconda openpyxl                                           # normalization fails otherwise with "No module named 'openpyxl'"
 #conda install -y -c bioconda bioconductor-genomeinfodb                         # genomeinfodb might be required after deseq
 #conda install -y -c bioconda bioconductor-genomeinfodbdata                     # genomeinfodbdata might be required after deseq
 conda install -y -c bioconda bioconductor-edger

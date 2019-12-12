@@ -382,6 +382,7 @@ if len(experiment[0]) > 1:                                                     #
         
         mta.differential_analysis(args.output + '/Metatranscriptomics/all_experiments.readcounts', 
                         args.conditions[0].split(','), args.output + '/Metatranscriptomics/')
+        
         mtools.task_is_finished(task = 'Metatranscriptomics analysis',
               file = monitorization_file, 
               task_output = args.output + '/Metatranscriptomics')
@@ -419,7 +420,6 @@ if len(experiment[0]) > 1:                                                     #
 # MG normalization by sample and protein abundance
 joined[mg_preprocessed].to_csv(args.output + '/mg_preprocessed_readcounts.table',
       sep = '\t', index = False)
-
 joined = pd.concat([joined, mtools.normalize_readcounts(
         args.output + '/mg_preprocessed_readcounts.table', mg_preprocessed, 
         args.output + '/mg_preprocessed_normalization_factors.txt')[[
