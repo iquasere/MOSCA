@@ -26,18 +26,17 @@ RUN buildDeps='build-essential zlib1g-dev' \
 && conda install -c bioconda htseq \
 && conda install -c bioconda bowtie2 \
 && conda install -c bioconda maxbin2 \
-&& conda install -c bioconda checkm \
+&& conda install -c bioconda checkm-genome \
+&& mkdir MOSCA/Databases/checkm_data \
+&& cd MOSCA/Databases/check_data \
 && curl -L -O https://data.ace.uq.edu.au/public/CheckM_databases/checkm_data_2015_01_16.tar.gz \
 && tar xzf checkm_data_2015_01_16.tar.gz \
-&& conda create -n py27 python=2.7 \
-&& echo "source activate py27" > ~/.bashrc
-#ENV PATH /opt/conda/envs/env/bin:$PATH
-#CMD [ " conda activate py27 && checkm data setRoot ." ]
-RUN conda install -c anaconda biopython \
+&& checkm data setRoot \
+&& cd ../../.. \
 && conda install -c anaconda reportlab \
 && conda install -c bioconda bioconductor-deseq2 \
-&& conda install -c r r-stringi \                                               # reference to https://github.com/jupyter/docker-stacks/issues/927 (loading DESeq2 fails otherwise)
-&& conda install -c anaconda openpyxl \                                         # normalization fails otherwise with "No module named 'openpyxl'"
+&& conda install -c r r-stringi \
+&& conda install -c anaconda openpyxl \
 && conda install -c bioconda bioconductor-edger \
 && conda install -c bioconda r-pheatmap \
 && conda install -c r r-rcolorbrewer \
