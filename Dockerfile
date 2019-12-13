@@ -13,12 +13,12 @@ RUN buildDeps='build-essential zlib1g-dev' \
 && conda install -c anaconda svn \
 && svn export https://github.com/biocore/sortmerna/trunk/data/rRNA_databases /MOSCA/Databases/rRNA_databases \
 && find /MOSCA/Databases/rRNA_databases/* | grep -v ".fasta" | xargs rm -fr \
-&& conda install seqtk \
+&& conda install -c bioconda seqtk \
 && conda install -c bioconda trimmomatic \
 && svn export https://github.com/timflutre/trimmomatic/trunk/adapters /MOSCA/Databases/illumina_adapters \
-&& conda install megahit \
+&& conda install -c bioconda megahit \
 && conda install -c bioconda spades \
-# && conda install -c bioconda quast \                                            # TODO - introduce version control so quast can be installed through conda, or wait until it gets python3
+# && conda install -c bioconda quast \                                           # TODO - introduce version control so quast can be installed through conda, or wait until it gets python3
 && pip install quast \
 && conda install -c bioconda fraggenescan \
 && conda install -c bioconda diamond \
@@ -31,20 +31,20 @@ RUN buildDeps='build-essential zlib1g-dev' \
 && tar xzf checkm_data_2015_01_16.tar.gz \
 && conda create -n py27 python=2.7 \
 && echo "source activate py27" > ~/.bashrc
-#ENV PATH /opt/conda/envs/env/bin:$PATH 											# CheckM installation is still a nono
+#ENV PATH /opt/conda/envs/env/bin:$PATH
 #CMD [ " conda activate py27 && checkm data setRoot ." ]
 RUN conda install -c anaconda biopython \
 && conda install -c anaconda reportlab \
 && conda install -c bioconda bioconductor-deseq2 \
 && conda install -c r r-stringi \                                               # reference to https://github.com/jupyter/docker-stacks/issues/927 (loading DESeq2 fails otherwise)
 && conda install -c anaconda openpyxl \                                         # normalization fails otherwise with "No module named 'openpyxl'"
-&& conda install bioconductor-edger \
+&& conda install -c bioconda bioconductor-edger \
 && conda install -c bioconda r-pheatmap \
 && conda install -c r r-rcolorbrewer \
 && conda install -c bioconda r-optparse \
 && conda install -c anaconda pandas \
 && conda install -c conda-forge tqdm \
-&& conda install scikit-learn \
+&& conda install -c anaconda scikit-learn \
 && conda install -c bioconda blast \
 && mkdir -p /MOSCA/Databases/annotation_databases \
 && mkdir /input_data \
