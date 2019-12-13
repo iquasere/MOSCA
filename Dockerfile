@@ -28,7 +28,7 @@ RUN buildDeps='build-essential zlib1g-dev' \
 && conda install -c bioconda maxbin2 \
 && conda install -c bioconda checkm-genome \
 && mkdir MOSCA/Databases/checkm_data \
-&& cd MOSCA/Databases/check_data \
+&& cd MOSCA/Databases/checkm_data \
 && curl -L -O https://data.ace.uq.edu.au/public/CheckM_databases/checkm_data_2015_01_16.tar.gz \
 && tar xzf checkm_data_2015_01_16.tar.gz \
 && checkm data setRoot \
