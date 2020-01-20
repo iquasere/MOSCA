@@ -65,6 +65,11 @@ RUN buildDeps='build-essential zlib1g-dev' \
 && conda install -c bioconda searchgui \
 && conda install -c bioconda peptide-shaker \
 && conda install -c bioconda -c conda-forge maxquant \
+&& conda install -c conda-forge biopython \
+&& conda install -c anaconda perl \
+&& git clone https://github.com/marbl/Krona.git \
+&& cd Krona/KronaTools/ \
+&& perl install.pl \
 && conda clean --all \
 && apt-get purge -y --auto-remove $buildDeps
 

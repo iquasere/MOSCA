@@ -34,7 +34,6 @@ tar xzf checkm_data_2015_01_16.tar.gz
 checkm data setRoot
 cd ../../..
 conda install -y -n py27 python=2.7 
-conda install -y -c anaconda biopython
 conda install -y -c anaconda reportlab
 conda install -y -c bioconda bioconductor-deseq2 #=1.22.1
 conda install -y -c r r-stringi
@@ -75,7 +74,9 @@ tar -xzvf SearchGUI-3.3.16-mac_and_linux.tar.gz
 wget http://genesis.ugent.be/maven2/eu/isas/peptideshaker/PeptideShaker/1.16.41/PeptideShaker-1.16.41.zip
 unzip PeptideShaker-1.16.41.zip
 conda install -y -c bioconda maxquant
+conda install -y -c anaconda biopython
 # Krona plotting
+conda install -y -c anaconda perl
 git clone https://github.com/marbl/Krona.git
 cd Krona/KronaTools/
 perl install.pl
