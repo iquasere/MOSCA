@@ -417,7 +417,7 @@ if len(experiment[0]) > 1:                                                     #
                 file = monitorization_file, 
                 task_output = args.output + '/Metaproteomics/' + mt_name)
 
-# MG normalization by sample and protein abundance
+# MG normalization by sample and protein abundance - normalization is the same as in DESeq2 analysis
 joined[mg_preprocessed].to_csv(args.output + '/mg_preprocessed_readcounts.table',
       sep = '\t', index = False)
 joined = pd.concat([joined, mtools.normalize_readcounts(
@@ -425,7 +425,7 @@ joined = pd.concat([joined, mtools.normalize_readcounts(
         args.output + '/mg_preprocessed_normalization_factors.txt')[[
         col + '_normalized' for col in mg_preprocessed]]], axis = 1)
 
-# MT normalization by sample and protein expression
+# MT normalization by sample and protein expression - normalization is repeated here because it's not stored from DESeq2 analysis
 joined[expression_analysed].to_csv(args.output + '/expression_analysed_readcounts.table',
       sep = '\t', index = False)
 joined = pd.concat([joined, mtools.normalize_readcounts(
@@ -433,21 +433,19 @@ joined = pd.concat([joined, mtools.normalize_readcounts(
         args.output + '/expression_analysed_normalization_factors.txt')[[
         col + '_normalized' for col in expression_analysed]]], axis = 1)
 
+annotater.joined2kronas(joined, args.output + '/Annotation/krona', 
+                        [col + '_normalized' for col in expression_analysed])
+
 joined.to_csv(args.output + '/mosca_results.tsv', sep = '\t', index = False)
 joined.to_excel(args.output + '/mosca_results.xlsx', index = False)
 print('MOSCA results written to {0}/mosca_results.tsv and {0}/mosca_results.xlsx'.format(args.output))
 
 # KEGG Pathway representations
 pathlib.Path(args.output + '/KEGGPathway').mkdir(parents=True, exist_ok=True)
-kp = KEGGPathway(input_file = args.output + '/mosca_results.tsv',
-                 output_directory = args.output + '/KEGGPathway',
-                 mg_samples = mg_preprocessed,
-                 mt_samples = expression_analysed,
-                 output_level = args.output_level)
 
-kp.run(joined, args.output + '/mosca_results.tsv', args.output + '/KEGGPathway',
-       mg_samples = mg_preprocessed, mt_samples = expression_analysed)
+KEGGPathway.run(joined, args.output + '/mosca_results.tsv', args.output + '/KEGGPathway',
+       mg_samples = [col + '_normalized' for col in mg_preprocessed], 
+       mt_samples = [col + '_normalized' for col in expression_analysed])
 
 mtools.timed_message('MOSCA results written to {0}/mosca_results.tsv and {0}/mosca_results.xlsx'.format(args.output))
 mtools.timed_message('Analysis with MOSCA was concluded with success!')
-
