@@ -606,7 +606,7 @@ class Annotater:
     
     def run(self):
         self.gene_calling(self.file, self.out_dir, self.assembled)
-        self.annotation()
+        #self.annotation()
         self.annotation(max_target_seqs = '1')
     
     '''

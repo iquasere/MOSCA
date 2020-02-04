@@ -290,6 +290,7 @@ if not args.no_annotation:
                       assembled = False if args.no_assembly else True,
                       error_model = args.fgs_train_file,
                       threads = args.threads)
+        
         annotater.run()
         annotater.cog_annotation('{}/Annotation/{}/fgs.faa'.format(args.output, sample),
                                  '{}/Annotation/{}'.format(args.output, sample),
@@ -298,6 +299,7 @@ if not args.no_annotation:
     reporter.info_from_annotation(args.output, sample)
     mtools.remove_annotation_intermediates(args.output, args.output_level, 
                                            sample2name.keys())
+    
 
 mtools.task_is_finished(task = 'Annotation',
         file = monitorization_file, 
@@ -372,6 +374,7 @@ if len(experiment[0]) > 1:                                                     #
             joined = mtools.define_abundance(joined, origin_of_data = 'metatranscriptomics',
                                              name = mt_name, readcounts = '{}/Metatranscriptomics/{}.readcounts'.format(
                                                      args.output, mt_name))
+            
             expression_analysed.append(mt_name)
             
         readcount_files = ['{}/Metatranscriptomics/{}.readcounts'.format(args.output, mt)
@@ -443,7 +446,8 @@ print('MOSCA results written to {0}/mosca_results.tsv and {0}/mosca_results.xlsx
 # KEGG Pathway representations
 pathlib.Path(args.output + '/KEGGPathway').mkdir(parents=True, exist_ok=True)
 
-KEGGPathway.run(joined, args.output + '/mosca_results.tsv', args.output + '/KEGGPathway',
+kp = KEGGPathway(output_level = args.output_level)
+kp.run(joined, args.output + '/mosca_results.tsv', args.output + '/KEGGPathway',
        mg_samples = [col + '_normalized' for col in mg_preprocessed], 
        mt_samples = [col + '_normalized' for col in expression_analysed])
 

@@ -51,7 +51,6 @@ RUN buildDeps='build-essential zlib1g-dev' \
 && mkdir /output \
 && mkdir /MOSCA/Databases/COG \
 && wget ftp://ftp.ncbi.nih.gov/pub/mmdb/cdd/cdd.tar.gz -P /MOSCA/Databases/COG \
-# && tar -xzvf /MOSCA/Databases/COG/cdd.tar.gz --wildcards --no-anchored 'COG*.smp' -C /MOSCA/Databases/COG \
 && cd MOSCA/Databases/COG \
 && tar -xzvf cdd.tar.gz --wildcards --no-anchored 'COG*.smp' \
 && cd ../../.. \
@@ -75,6 +74,7 @@ RUN buildDeps='build-essential zlib1g-dev' \
 && git clone https://github.com/marbl/Krona.git \
 && cd Krona/KronaTools/ \
 && perl install.pl \
+&& apt-get install poppler-utils                                                # shouldn't be needed outside Docker
 # && conda clean --all \
 && apt-get purge -y --auto-remove $buildDeps
 

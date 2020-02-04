@@ -482,7 +482,7 @@ class KEGGPathway:
                     differential_failed_ids.append(metabolic_map)
             mtools.remove_kegg_pathway_intermediates(output_directory, self.output_level,
                                                      metabolic_map)
-            plt.cla()
+            plt.close()
             i += 1
             
         genomic_failed = output_directory + '/genomic_failed_maps.txt'
