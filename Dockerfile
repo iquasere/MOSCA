@@ -74,7 +74,7 @@ RUN buildDeps='build-essential zlib1g-dev' \
 && git clone https://github.com/marbl/Krona.git \
 && cd Krona/KronaTools/ \
 && perl install.pl \
-&& apt-get install poppler-utils                                                # shouldn't be needed outside Docker
+&& apt-get install poppler-utils \                                               # shouldn't be needed outside Docker
 # && conda clean --all \
 && apt-get purge -y --auto-remove $buildDeps
 
