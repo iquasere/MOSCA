@@ -63,18 +63,18 @@ RUN buildDeps='build-essential zlib1g-dev' \
 # sed -i '302s#.*#    my $pssm_id = $1 if $line[1] =~ /^gnl\\|CDD\\|(\\d+)/; \# get PSSM-Id from the subject hit#' MOSCA/cdd2cog.pl      # Sometimes this is needed... will save when use of uninitialized value floods the screen - when they change from CDD:number to gnl|CDD|number
 # && conda install -c bioconda searchgui \
 # && conda install -c bioconda peptide-shaker \
+&& apt-get update \
 && apt-get install -y libpwiz-tools \
 && wget http://genesis.ugent.be/maven2/eu/isas/searchgui/SearchGUI/3.3.16/SearchGUI-3.3.16-mac_and_linux.tar.gz \
 && tar -xzvf SearchGUI-3.3.16-mac_and_linux.tar.gz \
+&& apt-get install -y zip unzip \
 && wget http://genesis.ugent.be/maven2/eu/isas/peptideshaker/PeptideShaker/1.16.41/PeptideShaker-1.16.41.zip \
 && unzip PeptideShaker-1.16.41.zip \
 && conda install -c bioconda -c conda-forge maxquant \
 && conda install -c conda-forge biopython \
 && conda install -c anaconda perl \
 && git clone https://github.com/marbl/Krona.git \
-&& cd Krona/KronaTools/ \
-&& perl install.pl \
-&& apt-get install poppler-utils \
+# && apt-get install poppler-utils \ # have to fix this installation
 # && conda clean --all \
 && apt-get purge -y --auto-remove $buildDeps
 

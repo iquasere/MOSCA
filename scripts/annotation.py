@@ -789,7 +789,7 @@ class Annotater:
     def create_krona_plot(self, tsv, output = None):
         if output is None:
             output = tsv.replace('.tsv','.html')
-        mtools.run_command('ktImportText {} -o {}'.format(tsv, output))
+        mtools.run_command('perl Krona/KronaTools/scripts/ImportText.pl {} -o {}'.format(tsv, output))
         
     '''
     Input:
