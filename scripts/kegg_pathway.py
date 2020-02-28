@@ -311,7 +311,7 @@ class KEGGPathway:
             
         self.add_legend(name_pdf, name_pdf.replace('.pdf','_legend.png'), 
                         name_pdf.replace(metabolic_map + '.pdf', 
-                            self.maps[metabolic_map].replace('/','_') + '.png'))
+                            self.maps[metabolic_map].replace('/','|') + '.png'))
             
     def differential_expression_sample(self, data, samples, output_basename = None,
                                        log = True, metabolic_map = None):
@@ -342,10 +342,9 @@ class KEGGPathway:
         pathway.pathway_pdf(name_pdf)
             
         self.differential_colorbar(df, name_pdf.replace(".pdf",'_legend.png'))
-        
         self.add_legend(name_pdf, name_pdf.replace('.pdf','_legend.png'), 
                         name_pdf.replace(metabolic_map + '.pdf', 
-                            self.maps[metabolic_map].replace('/','_') + '.png'))
+                            self.maps[metabolic_map].replace('/','|') + '.png'))
 
     def differential_colorbar(self, dataframe, filename):
         FIGSIZE = (2,3)
@@ -459,6 +458,7 @@ class KEGGPathway:
         data = pd.merge(data, ecs, on = 'KO (KEGG Pathway)', how = 'outer')
         
         data = self.solve_ec_numbers(data)
+        
         print('Creating KEGG Pathway representations for ' + str(len(metabolic_maps)) + 
               ' metabolic pathways.')
         genomic_failed_ids = list(); differential_failed_ids = list()

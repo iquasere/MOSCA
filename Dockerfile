@@ -18,7 +18,6 @@ RUN buildDeps='build-essential zlib1g-dev' \
 && svn export https://github.com/timflutre/trimmomatic/trunk/adapters /MOSCA/Databases/illumina_adapters \
 && conda install -c bioconda megahit \
 && conda install -c bioconda spades \
-# && conda install -c bioconda quast \                                           # TODO - introduce version control so quast can be installed through conda, or wait until it gets python3
 && pip install quast \
 && conda install -c bioconda fraggenescan \
 && conda install -c bioconda diamond \
@@ -34,10 +33,9 @@ RUN buildDeps='build-essential zlib1g-dev' \
 && checkm data setRoot \
 && cd ../../.. \
 && conda install -c anaconda reportlab \
-&& conda install -c bioconda bioconductor-deseq2 \
-&& conda install -c r r-stringi \
+&& conda install -c bioconda bioconductor-deseq2=1.22.1 \
 && conda install -c anaconda openpyxl \
-&& conda install -c bioconda bioconductor-edger \
+&& conda install -c bioconda bioconductor-edger=3.24.3 \
 && conda install -c bioconda r-pheatmap \
 && conda install -c r r-rcolorbrewer \
 && conda install -c bioconda r-optparse \
@@ -60,9 +58,6 @@ RUN buildDeps='build-essential zlib1g-dev' \
 && wget ftp://ftp.ncbi.nlm.nih.gov/pub/COG/COG/fun.txt -P MOSCA/Databases/COG \
 && wget ftp://ftp.ncbi.nlm.nih.gov/pub/COG/COG/whog -P MOSCA/Databases/COG \
 && wget https://github.com/aleimba/bac-genomics-scripts/raw/master/cdd2cog/cdd2cog.pl -P MOSCA/scripts \
-# sed -i '302s#.*#    my $pssm_id = $1 if $line[1] =~ /^gnl\\|CDD\\|(\\d+)/; \# get PSSM-Id from the subject hit#' MOSCA/cdd2cog.pl      # Sometimes this is needed... will save when use of uninitialized value floods the screen - when they change from CDD:number to gnl|CDD|number
-# && conda install -c bioconda searchgui \
-# && conda install -c bioconda peptide-shaker \
 && apt-get update \
 && apt-get install -y libpwiz-tools \
 && wget http://genesis.ugent.be/maven2/eu/isas/searchgui/SearchGUI/3.3.16/SearchGUI-3.3.16-mac_and_linux.tar.gz \
@@ -74,8 +69,7 @@ RUN buildDeps='build-essential zlib1g-dev' \
 && conda install -c conda-forge biopython \
 && conda install -c anaconda perl \
 && git clone https://github.com/marbl/Krona.git \
-# && apt-get install poppler-utils \ # have to fix this installation
-# && conda clean --all \
+&& apt-get install poppler-utils \
 && apt-get purge -y --auto-remove $buildDeps
 
 ENTRYPOINT [ "python", "/MOSCA/scripts/mosca.py" ]

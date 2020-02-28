@@ -204,7 +204,7 @@ if not args.no_preprocessing:
                                                 threads = args.threads)
                     if hasattr(args, 'quality_score'):
                         setattr(preprocesser, 'quality_score', args.quality_score)
-                      
+                    
                     preprocesser.run()
                     reporter.info_from_preprocessing(args.output, mt_name, mt[0],
                                                      performed_rrna_removal = True)
@@ -242,6 +242,7 @@ if not args.no_assembly:
     mtools.timed_message('Assembling reads')
     
     for sample in sample2name.keys():
+        
         forward_files = ['{}/Preprocess/Trimmomatic/quality_trimmed_{}_forward_paired.fq'.format(
                 args.output, name) for name in sample2name[sample]]
         reverse_files = ['{}/Preprocess/Trimmomatic/quality_trimmed_{}_reverse_paired.fq'.format(
@@ -269,6 +270,7 @@ if not args.no_assembly:
         assembler.run()
         reporter.info_from_assembly(args.output, sample)
         
+    
     mtools.remove_assembly_intermediates(args.output, args.output_level, sample2name.keys())
     
 mtools.task_is_finished(task = 'Assembly',
@@ -296,6 +298,7 @@ if not args.no_annotation:
                                  '{}/Annotation/{}'.format(args.output, sample),
                                  threads = args.threads)        
         
+    
     reporter.info_from_annotation(args.output, sample)
     mtools.remove_annotation_intermediates(args.output, args.output_level, 
                                            sample2name.keys())
@@ -325,8 +328,9 @@ if not args.no_binning:
                     reverse = '{}/Assembly/{}_reverse.fastq'.format(
                             args.output, sample),
                     markerset = args.marker_gene_set)
+        
         binner.maxbin_workflow()
-
+        
 mtools.task_is_finished(task = 'Binning',
         file = monitorization_file, 
         task_output = '{}/Binning/{}'.format(args.output, sample))
@@ -370,6 +374,7 @@ if len(experiment[0]) > 1:                                                     #
                           reads = mt,
                           mt = mt_name,
                           threads = args.threads)
+            
             mta.readcounts_file()
             joined = mtools.define_abundance(joined, origin_of_data = 'metatranscriptomics',
                                              name = mt_name, readcounts = '{}/Metatranscriptomics/{}.readcounts'.format(
@@ -439,17 +444,16 @@ joined = pd.concat([joined, mtools.normalize_readcounts(
 annotater.joined2kronas(joined, args.output + '/Annotation/krona', 
                         [col + '_normalized' for col in expression_analysed])
 
-joined.to_csv(args.output + '/mosca_results.tsv', sep = '\t', index = False)
-joined.to_excel(args.output + '/mosca_results.xlsx', index = False)
-print('MOSCA results written to {0}/mosca_results.tsv and {0}/mosca_results.xlsx'.format(args.output))
-
 # KEGG Pathway representations
 pathlib.Path(args.output + '/KEGGPathway').mkdir(parents=True, exist_ok=True)
 
 kp = KEGGPathway(output_level = args.output_level)
-kp.run(joined, args.output + '/mosca_results.tsv', args.output + '/KEGGPathway',
+joined = kp.run(joined, args.output + '/mosca_results.tsv', args.output + '/KEGGPathway',
        mg_samples = [col + '_normalized' for col in mg_preprocessed], 
        mt_samples = [col + '_normalized' for col in expression_analysed])
+
+joined.to_csv(args.output + '/mosca_results.tsv', sep = '\t', index = False)
+joined.to_excel(args.output + '/mosca_results.xlsx', index = False)
 
 mtools.timed_message('MOSCA results written to {0}/mosca_results.tsv and {0}/mosca_results.xlsx'.format(args.output))
 mtools.timed_message('Analysis with MOSCA was concluded with success!')

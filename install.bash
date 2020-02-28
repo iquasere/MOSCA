@@ -32,14 +32,13 @@ tar xzf checkm_data_2015_01_16.tar.gz
 checkm data setRoot .
 cd ../../..
 conda install -y -c anaconda reportlab
-conda install -y -c bioconda bioconductor-deseq2 #=1.22.1
-conda install -y -c r r-stringi
+conda install -y -c bioconda bioconductor-deseq2=1.22.1
 conda install -y -c anaconda openpyxl                                           # normalization fails otherwise with "No module named 'openpyxl'"
 #conda install -y -c bioconda bioconductor-genomeinfodb                         # genomeinfodb might be required after deseq
 #conda install -y -c bioconda bioconductor-genomeinfodbdata                     # genomeinfodbdata might be required after deseq
-conda install -y -c bioconda bioconductor-edger
+conda install -y -c bioconda bioconductor-edger=3.24.3
 conda install -y -c bioconda r-pheatmap
-conda install -y -c r r-rcolorbrewer
+conda install -y -c anaconda r-rcolorbrewer
 conda install -y -c bioconda r-optparse
 conda install -y -c anaconda pandas
 conda install -y -c anaconda xlrd                                               # pandas Excel support
@@ -65,6 +64,8 @@ wget ftp://ftp.ncbi.nlm.nih.gov/pub/COG/COG/whog -P MOSCA/Databases/COG
 wget https://github.com/aleimba/bac-genomics-scripts/raw/master/cdd2cog/cdd2cog.pl -P MOSCA/scripts
 #sed -i '302s#.*#    my $pssm_id = $1 if $line[1] =~ /^gnl\\|CDD\\|(\\d+)/; \# get PSSM-Id from the subject hit#' MOSCA/cdd2cog.pl      # Sometimes this is needed... will save when use of uninitialized value floods the screen - when they change from CDD:number to gnl|CDD|number
 # Proteomics
+# conda install -y -c bioconda searchgui
+# conda install -y -c bioconda peptide-shaker
 apt-get install -y libpwiz-tools
 wget http://genesis.ugent.be/maven2/eu/isas/searchgui/SearchGUI/3.3.16/SearchGUI-3.3.16-mac_and_linux.tar.gz
 tar -xzvf SearchGUI-3.3.16-mac_and_linux.tar.gz
@@ -73,6 +74,9 @@ unzip PeptideShaker-1.16.41.zip
 conda install -y -c bioconda -c conda-forge maxquant
 conda install -y -c anaconda biopython
 # Krona plotting
+conda install -y -c anaconda perl
 git clone https://github.com/marbl/Krona.git
 cd Krona/KronaTools/
 perl install.pl
+apt-get install -y poppler-utils
+# conda clean --all
