@@ -69,7 +69,7 @@ RUN buildDeps='build-essential zlib1g-dev' \
 && conda install -c conda-forge biopython \
 && conda install -c anaconda perl \
 && git clone https://github.com/marbl/Krona.git \
-&& apt-get install poppler-utils \
+&& apt-get install -y poppler-utils \
 && apt-get purge -y --auto-remove $buildDeps
 
 ENTRYPOINT [ "python", "/MOSCA/scripts/mosca.py" ]
