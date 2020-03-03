@@ -32,6 +32,7 @@ Logo by [Sérgio A. Silva](https://www.ceb.uminho.pt/People/Details/64888072-5cd
     * alignment of MT reads to the MG contigs with **Bowtie2**, and quantification of reads to protein using **HTSeq-count**
     * differential gene expression and multisample comparison using **DESeq2**
 * **Normalization** of protein quantification for the final report using **edgeR**
+* **Pathway representation** in **KEGG maps**, representing both the metabolic networks of most abundant taxa and expression levels of metabolic functions
 
 ## Setting up MOSCA
 
@@ -98,7 +99,7 @@ usage: mosca.py [-h] [-f [Input files [Input files ...]]]
                 [-c [CONDITIONS [CONDITIONS ...]]] [-t Threads] [-m Memory]
                 [-mark Marker gene set]
 
-Multi Omics Software for Community Analysis
+Meta-Omics Software for Community Analysis
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -147,7 +148,7 @@ A tool for performing metagenomics, metatranscriptomics and metaproteomics
 analysis.
 ```
 
-## MOSCA is finally available as a Docker image!
+## MOSCA is available as a Docker image!
 
 To use MOSCA's Docker version, Docker must first be installed.
 

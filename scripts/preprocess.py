@@ -50,7 +50,8 @@ class Preprocesser:
         print('Beggining rRNA sequences removal')
         ref = (['MOSCA/Databases/rRNA_databases/' + database for database in
                     ['silva-arc-16s-id95', 'silva-arc-23s-id98', 'silva-bac-16s-id90', 
-                     'silva-bac-23s-id98', 'silva-euk-18s-id95', 'silva-euk-28s-id98']])
+                     'silva-bac-23s-id98', 'silva-euk-18s-id95', 'silva-euk-28s-id98',
+                     'rfam-5.8s-database-id98', 'rfam-5s-database-id98']])
     
         sortmerna = SortMeRNA(ref = ref,
                               reads = self.files,

@@ -624,3 +624,29 @@ class MoscaTools:
     '''
     def count_lines(self, file):
         return int((subprocess.check_output("wc -l " + file, shell = True)).split()[0])
+
+    '''
+    Input:
+        readcounts: str - file from htseq-count to normalize by contig size
+    Output:
+        The readcounts by contig in the file will be normalized by contig size
+    '''
+    def normalize_readcounts_by_size_metaspades(self, readcounts):
+        self.run_command("awk '{split($1,a,\"_\"); print $1\"\\t\"$2/a[4]*150}' {}".format(
+                readcounts), file = 'temp.readcounts')
+        shutil.copy('temp.readcounts', readcounts)
+        
+    '''
+    Input:
+        readcounts: str - file from htseq-count to normalize by contig size
+        assembler: str - 'metaspades' or 'megahit'
+    Output:
+        The readcounts by contig in the file will be normalized by contig size
+    '''
+    def normalize_readcounts_by_size(self, readcounts, assembler = 'metaspades'):
+        if assembler == 'metaspades':
+            self.normalize_readcounts_by_size_metaspades(readcounts)
+        elif assembler == 'megahit':
+            pass                                                                # TODO - build this for megahit (have to check names of contigs for it)
+        else:
+            print("[MoscaTools.normalize_readcounts_by_size] Invalid value for assembler!")

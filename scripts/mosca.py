@@ -20,7 +20,7 @@ from time import gmtime, strftime
 
 import argparse, pathlib, os, multiprocessing, pandas as pd
 
-parser = argparse.ArgumentParser(description="Multi Omics Software for Community Analysis",
+parser = argparse.ArgumentParser(description="Meta-Omics Software for Community Analysis",
                                  epilog="""A tool for performing metagenomics, metatranscriptomics 
                                  and metaproteomics analysis.""")
 parser.add_argument("-f","--files", type=str, nargs = '*', required=True,
@@ -347,7 +347,8 @@ annotater = Annotater(out_dir = args.output,
                       args.annotation_columns is not None else None),
                       databases = (args.annotation_databases.split(',') if 
                       args.annotation_databases is not None else None),
-                      mg_names = mg_preprocessed)
+                      mg_names = mg_preprocessed,
+                      assembler = args.assembler)
 joined = annotater.global_information()
 
 mtools.timed_message('Integration is available at ' + args.output)
@@ -425,7 +426,7 @@ if len(experiment[0]) > 1:                                                     #
                 file = monitorization_file, 
                 task_output = args.output + '/Metaproteomics/' + mt_name)
 
-# MG normalization by sample and protein abundance - normalization is the same as in DESeq2 analysis
+# MG normalization by contig size and sample and protein abundance
 joined[mg_preprocessed].to_csv(args.output + '/mg_preprocessed_readcounts.table',
       sep = '\t', index = False)
 joined = pd.concat([joined, mtools.normalize_readcounts(

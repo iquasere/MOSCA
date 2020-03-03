@@ -11,8 +11,6 @@ RUN buildDeps='build-essential zlib1g-dev' \
 && conda install -c bioconda fastqc \
 && conda install -c biocore sortmerna=2.1 \
 && conda install -c anaconda svn \
-&& svn export https://github.com/biocore/sortmerna/trunk/data/rRNA_databases /MOSCA/Databases/rRNA_databases \
-&& find /MOSCA/Databases/rRNA_databases/* | grep -v ".fasta" | xargs rm -fr \
 && conda install -c bioconda seqtk \
 && conda install -c bioconda trimmomatic \
 && svn export https://github.com/timflutre/trimmomatic/trunk/adapters /MOSCA/Databases/illumina_adapters \
@@ -61,7 +59,7 @@ RUN buildDeps='build-essential zlib1g-dev' \
 && apt-get update \
 && apt-get install -y libpwiz-tools \
 && wget http://genesis.ugent.be/maven2/eu/isas/searchgui/SearchGUI/3.3.16/SearchGUI-3.3.16-mac_and_linux.tar.gz \
-&& tar -xzvf SearchGUI-3.3.16-mac_and_linux.tar.gz \
+&& tar -xzf SearchGUI-3.3.16-mac_and_linux.tar.gz \
 && apt-get install -y zip unzip \
 && wget http://genesis.ugent.be/maven2/eu/isas/peptideshaker/PeptideShaker/1.16.41/PeptideShaker-1.16.41.zip \
 && unzip PeptideShaker-1.16.41.zip \

@@ -679,6 +679,8 @@ class Annotater:
                         ['{}/Preprocess/Trimmomatic/quality_trimmed_{}_{}_paired.fq'.format(self.out_dir, mg_name, fr)
                         for fr in ['forward', 'reverse']], '{}/Annotation/{}/{}'.format(self.out_dir, sample, mg_name),
                         threads = self.threads)
+                mtools.normalize_readcounts_by_size('{}/Annotation/{}/{}.readcounts'.format(
+                        self.out_dir, sample, mg_name), assembler = self.assembler)
                 joined = mtools.define_abundance(joined, readcounts = '{}/Annotation/{}/{}.readcounts'.format(self.out_dir, sample, mg_name), 
                                              blast = '{}/Annotation/{}/aligned.blast'.format(self.out_dir, sample),
                                              name = mg_name)

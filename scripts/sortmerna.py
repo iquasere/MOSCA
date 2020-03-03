@@ -40,9 +40,14 @@ class SortMeRNA:
             and os.path.isfile(file + '.idx.kmer_0.dat') and os.path.isfile(file + '.idx.bursttrie_0.dat')): 
                 result += file + '.fasta,' + file + '.idx:'
             else:
-                print('Creating index for database at ' + file)
-                self.generate_index(file)
-                result += file + '.fasta,' + file + '.idx:'
+                if os.path.isfile(file):
+                    print('Creating index for database at ' + file)
+                    self.generate_index(file)
+                    result += file + '.fasta,' + file + '.idx:'
+                else:                                                           # Download rRNA databases
+                    print('Downloading rRNA databases to "MOSCA/Databases/rRNA_databases"')
+                    mtools.run_command('svn export https://github.com/biocore/sortmerna/trunk/data/rRNA_databases MOSCA/Databases/rRNA_databases')
+                    mtools.run_command('find MOSCA/Databases/rRNA_databases/* | grep -v ".fasta" | xargs rm -fr')
         result = result.rstrip(':')
         result += ' --reads ' + self.reads + ' --aligned ' + self.aligned
         for out in self.output_format:

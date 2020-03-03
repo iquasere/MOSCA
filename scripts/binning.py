@@ -454,11 +454,12 @@ class Binner:
         
     '''
     def run_checkm(self, bins_folder, output_directory):
-        mtools.run_command('conda activate py27')
+        # mtools.run_command('conda activate py27')
         # mtools.run_command('checkm data setRoot .')                           # Is this needed? Hopefully only once D:
         mtools.run_command('checkm lineage_wf -x fasta -r --ali --nt -t {0}' +
-        '--pplacer_threads {0} {1} {2}'.format(self.threads, bins_folder, output_directory))
-        mtools.run_command('conda deactivate')                                  # back to (base)
+        '--pplacer_threads {0} {1} {2} --tab_table --file {2}/output.tab'.format(
+                self.threads, bins_folder, output_directory))
+        # mtools.run_command('conda deactivate')                                  # back to (base)
         
 if __name__ == '__main__':
     
