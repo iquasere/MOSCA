@@ -47,7 +47,7 @@ class SortMeRNA:
                 else:                                                           # Download rRNA databases
                     print('Downloading rRNA databases to "MOSCA/Databases/rRNA_databases"')
                     mtools.run_command('svn export https://github.com/biocore/sortmerna/trunk/data/rRNA_databases MOSCA/Databases/rRNA_databases')
-                    mtools.run_command('find MOSCA/Databases/rRNA_databases/* | grep -v ".fasta" | xargs rm -fr')
+                    mtools.run_pipe_command('find MOSCA/Databases/rRNA_databases/* | grep -v ".fasta" | xargs rm -fr')
         result = result.rstrip(':')
         result += ' --reads ' + self.reads + ' --aligned ' + self.aligned
         for out in self.output_format:

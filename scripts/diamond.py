@@ -8,7 +8,7 @@ July 2017
 '''
 
 from mosca_tools import MoscaTools
-import subprocess, os
+import subprocess
 
 mtools = MoscaTools()
 
@@ -18,8 +18,7 @@ class DIAMOND:
         self.__dict__ = kwargs
         
     def set_database(self, db, output):
-        bashCommand = 'diamond makedb --in ' + db + ' -d ' + output
-        mtools.run_command(bashCommand)
+        mtools.run_command('diamond makedb --in {} -d {}'.format(db, output))
     
     def set_argument(self, arg):
         if isinstance(self.__dict__[arg], str):
