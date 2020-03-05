@@ -164,11 +164,11 @@ if not args.no_preprocessing:
                                         threads = args.threads)
             if hasattr(args, 'quality_score'):
                 setattr(preprocesser, 'quality_score', args.quality_score)
-            
+            '''
             preprocesser.run()
             reporter.info_from_preprocessing(args.output, mg_name, mg[0])          
             mtools.remove_preprocessing_intermediates(args.output + '/Preprocess', args.output_level)
-            
+            '''
             mg = [args.output + '/Preprocess/Trimmomatic/quality_trimmed_' + mg_name + 
                   '_' + fr + '_paired.fq' for fr in ['forward', 'reverse']]
             
@@ -204,12 +204,12 @@ if not args.no_preprocessing:
                                                 threads = args.threads)
                     if hasattr(args, 'quality_score'):
                         setattr(preprocesser, 'quality_score', args.quality_score)
-                    
+                    '''
                     preprocesser.run()
                     reporter.info_from_preprocessing(args.output, mt_name, mt[0],
                                                      performed_rrna_removal = True)
                     mtools.remove_preprocessing_intermediates(args.output + '/Preprocess', args.output_level)
-                    
+                    '''
                     mt_preprocessed.append(mt_name)
                     
                 mt2mg[mt_name] = mg_name
@@ -242,7 +242,7 @@ if not args.no_assembly:
     mtools.timed_message('Assembling reads')
     
     for sample in sample2name.keys():
-        
+        '''
         forward_files = ['{}/Preprocess/Trimmomatic/quality_trimmed_{}_forward_paired.fq'.format(
                 args.output, name) for name in sample2name[sample]]
         reverse_files = ['{}/Preprocess/Trimmomatic/quality_trimmed_{}_reverse_paired.fq'.format(
@@ -251,7 +251,7 @@ if not args.no_assembly:
                 args.output, sample))
         mtools.run_command('cat ' + ' '.join(reverse_files), file = '{}/Assembly/{}_reverse.fastq'.format(
                 args.output, sample))
-        
+        '''
         pathlib.Path('{}/Assembly/{}'.format(args.output, sample)).mkdir(parents=True, exist_ok=True)
         assembler = Assembler(out_dir = '{}/Assembly/{}'.format(args.output, sample),
                              assembler = args.assembler,
@@ -266,10 +266,10 @@ if not args.no_assembly:
             setattr(assembler, 'phred_offset', args.quality_score)              # --phred-offset is the name of the parameter in MetaSPAdes
         if args.memory != 'None':
             setattr(assembler, 'memory', args.memory)
-        
+        '''
         assembler.run()
         reporter.info_from_assembly(args.output, sample)
-        
+        '''
     
     mtools.remove_assembly_intermediates(args.output, args.output_level, sample2name.keys())
     
@@ -292,12 +292,12 @@ if not args.no_annotation:
                       assembled = False if args.no_assembly else True,
                       error_model = args.fgs_train_file,
                       threads = args.threads)
-        
+        '''
         annotater.run()
         annotater.cog_annotation('{}/Annotation/{}/fgs.faa'.format(args.output, sample),
                                  '{}/Annotation/{}'.format(args.output, sample),
                                  threads = args.threads)        
-        
+        '''
     
     reporter.info_from_annotation(args.output, sample)
     mtools.remove_annotation_intermediates(args.output, args.output_level, 
@@ -328,9 +328,9 @@ if not args.no_binning:
                     reverse = '{}/Assembly/{}_reverse.fastq'.format(
                             args.output, sample),
                     markerset = args.marker_gene_set)
-        
+        '''
         binner.maxbin_workflow()
-        
+        '''
 mtools.task_is_finished(task = 'Binning',
         file = monitorization_file, 
         task_output = '{}/Binning/{}'.format(args.output, sample))
