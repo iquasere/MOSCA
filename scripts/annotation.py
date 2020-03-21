@@ -168,7 +168,7 @@ class Annotater:
                            file = self.out_dir + '/Annotation/aligned.blast')
         
         # Retrieval of information from UniProt IDs
-        mtools.run_command('python UPIMAPI/upimapi.py -i {0}/Annotation/aligned.blast -o {0}/Annotation/uniprotinfo.tsv -anncols {1} -anndbs {2}'.format(
+        mtools.run_command('python UPIMAPI/upimapi.py -i {0}/Annotation/aligned.blast -o {0}/Annotation/uniprotinfo.tsv --blast -anncols {1} -anndbs {2}'.format(
                 self.out_dir, self.columns, self.databases))
         
         # Join COG reports
