@@ -292,12 +292,12 @@ if not args.no_annotation:
                       assembled = False if args.no_assembly else True,
                       error_model = args.fgs_train_file,
                       threads = args.threads)
-        '''
+        
         annotater.run()
-        annotater.cog_annotation('{}/Annotation/{}/fgs.faa'.format(args.output, sample),
-                                 '{}/Annotation/{}'.format(args.output, sample),
-                                 threads = args.threads)        
-        '''
+        
+        # Functional annotation with reCOGnizer
+        mtools.run_command('python -f reCOGnizer/recognizer.py {0}/Annotation/{1}/fgs.faa -o {0}/Annotation/{1} -t {2}'.format(
+                args.output, sample, str(args.threads))),
     
     reporter.info_from_annotation(args.output, sample)
     mtools.remove_annotation_intermediates(args.output, args.output_level, 

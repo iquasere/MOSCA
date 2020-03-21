@@ -58,7 +58,6 @@ wget ftp://ftp.ncbi.nlm.nih.gov/pub/mmdb/cdd/cddid.tbl.gz -P MOSCA/Databases/COG
 gunzip MOSCA/Databases/COG/cddid.tbl.gz
 wget ftp://ftp.ncbi.nlm.nih.gov/pub/COG/COG/fun.txt -P MOSCA/Databases/COG
 wget ftp://ftp.ncbi.nlm.nih.gov/pub/COG/COG/whog -P MOSCA/Databases/COG
-wget https://github.com/aleimba/bac-genomics-scripts/raw/master/cdd2cog/cdd2cog.pl -P MOSCA/scripts
 #sed -i '302s#.*#    my $pssm_id = $1 if $line[1] =~ /^gnl\\|CDD\\|(\\d+)/; \# get PSSM-Id from the subject hit#' MOSCA/cdd2cog.pl      # Sometimes this is needed... will save when use of uninitialized value floods the screen - when they change from CDD:number to gnl|CDD|number
 # Proteomics
 # conda install -y -c bioconda searchgui
@@ -73,7 +72,12 @@ conda install -y -c anaconda biopython
 # Krona plotting
 conda install -y -c anaconda perl
 git clone https://github.com/marbl/Krona.git
-cd Krona/KronaTools/
-perl install.pl
+# cd Krona/KronaTools/
+# perl install.pl
+# cd ../..
 apt-get install -y poppler-utils
 # conda clean --all
+git clone https://github.com/iquasere/UPIMAPI.git
+git clone https://github.com/iquasere/reCOGnizer.git
+bash reCOGnizer/install.bash
+wget https://github.com/aleimba/bac-genomics-scripts/raw/master/cdd2cog/cdd2cog.pl -P reCOGnizer

@@ -68,6 +68,10 @@ RUN buildDeps='build-essential zlib1g-dev' \
 && conda install -c anaconda perl \
 && git clone https://github.com/marbl/Krona.git \
 && apt-get install -y poppler-utils \
+&& git clone https://github.com/iquasere/UPIMAPI.git \
+&& git clone https://github.com/iquasere/reCOGnizer.git \
+&& bash reCOGnizer/install.bash
+&& wget https://github.com/aleimba/bac-genomics-scripts/raw/master/cdd2cog/cdd2cog.pl -P reCOGnizer \
 && apt-get purge -y --auto-remove $buildDeps
 
 ENTRYPOINT [ "python", "/MOSCA/scripts/mosca.py" ]

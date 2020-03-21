@@ -197,7 +197,11 @@ class MoscaTools:
     def run_pipe_command(self, bashCommand, file = '', mode = 'w', sep = ' ', print_message = True):
         if print_message:
             print(bashCommand)
-        subprocess.Popen(bashCommand, stdin=subprocess.PIPE, shell=True).communicate()
+        if file == '':
+            subprocess.Popen(bashCommand, stdin=subprocess.PIPE, shell=True).communicate()
+        else:
+            with open(file, mode) as output_file:
+                subprocess.Popen(bashCommand, stdin=subprocess.PIPE, shell=True, stdout=output_file).communicate()
       
     def parse_blast(self, blast):
         result = pd.read_csv(blast, sep='\t', header = None)
