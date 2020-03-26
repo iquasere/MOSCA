@@ -460,32 +460,3 @@ class Binner:
         '--pplacer_threads {0} {1} {2} --tab_table --file {2}/output.tab'.format(
                 self.threads, bins_folder, output_directory))
         # mtools.run_command('conda deactivate')                                  # back to (base)
-        
-if __name__ == '__main__':
-    
-    binner = Binner(contigs = 'Binning/all_info_contigs.fasta', 
-                    output = 'SimulatedMGMT/Binning/genus_taxa_description.tsv',
-                    blast = 'SimulatedMGMT/Annotation/aligned.blast',
-                    uniprotinfo = 'SimulatedMGMT/Annotation/uniprot.info')
-    
-    taxa_list = ['superkingdom','phylum','class','order','family','genus','species']
-    
-    pbar = ProgressBar()
-    
-    for taxon in pbar(taxa_list):
-        binner.plot_clusters('SimulatedMGMT/Binning/grinder-reads/binning_results.xlsx',
-                             taxon, 'SimulatedMGMT/Binning/grinder-reads/best_clusters.tsv',
-                             'SimulatedMGMT/Binning/grinder-reads/points.txt',
-                             'SimulatedMGMT/Binning/grinder-reads/' + taxon + '.png',
-                             label = True)
-    
-    
-    
-    '''
-    clusters = binner.cluster_coords('Binning/VizBin/' + sample + '/over_cutoff_contigs.fasta',
-                          'Binning/VizBin/' + sample + '/points.txt')
-    
-    clusters.to_csv('Binning/VizBin/' + sample + '/clusters.tsv', sep = '\t')
-    '''
-
-#MaxBin2 must be used with run_MaxBin.pl

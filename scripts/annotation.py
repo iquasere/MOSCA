@@ -11,11 +11,10 @@ from diamond import DIAMOND
 from mosca_tools import MoscaTools
 from uniprot_mapping import UniprotMapping
 from progressbar import ProgressBar
-from io import StringIO
 from tqdm import tqdm
 import pandas as pd
 import numpy as np
-import time, os, shutil, glob, urllib.request, urllib.parse, urllib.error,urllib.request,urllib.error,urllib.parse
+import os, glob
 
 mtools = MoscaTools()
 upmap = UniprotMapping()
@@ -72,21 +71,6 @@ class Annotater:
         diamond.run()
         
     '''
-    Input: name of a fasta file of proteins to be annotated
-        COG blast DB namebase from ftp://ftp.ncbi.nlm.nih.gov/pub/mmdb/cdd/little_endian/Cog_LE.tar.gz
-        name of output file
-    Output: annotated file with CDD IDs
-    '''
-    def run_rpsblast(self, fasta, output, cog, threads = '0'):
-        bashCommand = ('rpsblast -query ' + fasta + ' -db "' + cog + '" -out ' +
-                       output + ' -outfmt 6 -num_threads ' + threads + 
-                       ' -max_target_seqs 1')
-        open('MOSCA/Databases/COG/command.bash', 'w').write(bashCommand + '\n') # subprocess was not handling well running this command, so an intermediate file is written with the command to run
-        print(bashCommand)
-        mtools.run_command('bash MOSCA/Databases/COG/command.bash')
-        os.remove('MOSCA/Databases/COG/command.bash')
-    
-    '''
     Input: 
         blast: name of the file from the DIAMOND annotation
         uniprotinfo: name of the uniprot information file
@@ -105,7 +89,7 @@ class Annotater:
         result = result[result.sseqid != '*']
         result['Entry'] = [ide.split('|')[1] for ide in result.sseqid]
         uniprotinfo = pd.read_csv(uniprotinfo, sep= '\t', low_memory=False).drop_duplicates()
-        if split_pathways:                                              # TODO - the reorganization of pathways incurs in extra lines for same IDs. Find workaround
+        if split_pathways:                                                      # TODO - the reorganization of pathways incurs in extra lines for same IDs. Find workaround
             print('Reorganizing pathways information.')
             funcdf = uniprotinfo[uniprotinfo.Pathway.notnull()][['Entry','Pathway']]
             funcdf.Pathway = funcdf.Pathway.apply(self.split)
