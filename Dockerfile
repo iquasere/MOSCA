@@ -24,12 +24,6 @@ RUN buildDeps='build-essential zlib1g-dev' \
 && conda install -c bioconda bowtie2 \
 && conda install -c bioconda maxbin2 \
 && conda install -c bioconda checkm-genome \
-&& mkdir MOSCA/Databases/checkm_data \
-&& cd MOSCA/Databases/checkm_data \
-&& curl -L -O https://data.ace.uq.edu.au/public/CheckM_databases/checkm_data_2015_01_16.tar.gz \
-&& tar xzf checkm_data_2015_01_16.tar.gz \
-&& checkm data setRoot \
-&& cd ../../.. \
 && conda install -c anaconda reportlab \
 && conda install -c bioconda bioconductor-deseq2=1.22.1 \
 && conda install -c anaconda openpyxl \
@@ -43,19 +37,6 @@ RUN buildDeps='build-essential zlib1g-dev' \
 && conda install -c anaconda lxml \
 && conda install -c bioconda blast \
 && mkdir -p /MOSCA/Databases/annotation_databases \
-&& mkdir /input_data \
-&& mkdir /output \
-&& mkdir /MOSCA/Databases/COG \
-&& wget ftp://ftp.ncbi.nih.gov/pub/mmdb/cdd/cdd.tar.gz -P /MOSCA/Databases/COG \
-&& cd MOSCA/Databases/COG \
-&& tar -xzvf cdd.tar.gz --wildcards --no-anchored 'COG*.smp' \
-&& cd ../../.. \
-&& rm /MOSCA/Databases/COG/cdd.tar.gz \
-&& wget ftp://ftp.ncbi.nlm.nih.gov/pub/mmdb/cdd/cddid.tbl.gz -P /MOSCA/Databases/COG \
-&& gunzip /MOSCA/Databases/COG/cddid.tbl.gz \
-&& wget ftp://ftp.ncbi.nlm.nih.gov/pub/COG/COG/fun.txt -P MOSCA/Databases/COG \
-&& wget ftp://ftp.ncbi.nlm.nih.gov/pub/COG/COG/whog -P MOSCA/Databases/COG \
-&& wget https://github.com/aleimba/bac-genomics-scripts/raw/master/cdd2cog/cdd2cog.pl -P MOSCA/scripts \
 && apt-get update \
 && apt-get install -y libpwiz-tools \
 && wget http://genesis.ugent.be/maven2/eu/isas/searchgui/SearchGUI/3.3.16/SearchGUI-3.3.16-mac_and_linux.tar.gz \
@@ -70,7 +51,6 @@ RUN buildDeps='build-essential zlib1g-dev' \
 && apt-get install -y poppler-utils \
 && git clone https://github.com/iquasere/UPIMAPI.git \
 && git clone https://github.com/iquasere/reCOGnizer.git \
-&& bash reCOGnizer/install.bash
 && wget https://github.com/aleimba/bac-genomics-scripts/raw/master/cdd2cog/cdd2cog.pl -P reCOGnizer \
 && apt-get purge -y --auto-remove $buildDeps
 
