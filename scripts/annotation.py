@@ -152,8 +152,9 @@ class Annotater:
                            file = self.out_dir + '/Annotation/aligned.blast')
         
         # Retrieval of information from UniProt IDs
-        mtools.run_command('python UPIMAPI/upimapi.py -i {0}/Annotation/aligned.blast -o {0}/Annotation/uniprotinfo.tsv --blast -anncols {1} -anndbs {2}'.format(
-                self.out_dir, self.columns, self.databases))
+        mtools.run_command('python UPIMAPI/upimapi.py -i {0}/Annotation/aligned.blast -o {0}/Annotation/uniprotinfo.tsv --blast{1}{2}'.format(
+                self.out_dir, '-anncols {}'.format(self.columns) if self.columns != '' else '',     # if columns are set, they will be inputed
+                '-anndbs {}'.format(self.databases) if self.databases != '' else ''))               # if databases are set, they will be inputed
         
         # Join COG reports
         if not os.path.isfile(self.out_dir + '/Annotation/general_rps-blast_cog.txt'):
