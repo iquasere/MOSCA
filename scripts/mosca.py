@@ -85,9 +85,9 @@ parser.add_argument("-qs", "--quality-score", type = str,
                     help="""Scoring system of quality of reads""")
 parser.add_argument("-bcl", "--binning-contig-legth", type = str, 
                     help="""Minimum length of contigs to be considered for binning""")
-parser.add_argument("-anncols", "--annotation-columns", type = str, 
+parser.add_argument("-anncols", "--annotation-columns", type = str, default = '',
                     help="""List of UniProt columns to obtain information from""")
-parser.add_argument("-anndbs", "--annotation-databases", type = str, 
+parser.add_argument("-anndbs", "--annotation-databases", type = str, default = '',
                     help="""List of databases to cross-check with UniProt information""")
 parser.add_argument("-assstrat", "--assembly-strategy", type = str, default = 'all',
                     help="""'all' - all MG data is assembled in a single assembly\n
@@ -295,7 +295,7 @@ if not args.no_annotation:
         annotater.run()
         
         # Functional annotation with reCOGnizer
-        mtools.run_command('python -f reCOGnizer/recognizer.py {0}/Annotation/{1}/fgs.faa -o {0}/Annotation/{1} -t {2}'.format(
+        mtools.run_command('python reCOGnizer/recognizer.py -f {0}/Annotation/{1}/fgs.faa -o {0}/Annotation/{1} -t {2}'.format(
                 args.output, sample, str(args.threads))),
     
     reporter.info_from_annotation(args.output, sample)
@@ -342,10 +342,8 @@ mtools.timed_message('Integrating all information.')
 annotater = Annotater(out_dir = args.output,
                       threads = args.threads,
                       sample2name = sample2name,
-                      columns = (args.annotation_columns.split(',') if 
-                      args.annotation_columns is not None else None),
-                      databases = (args.annotation_databases.split(',') if 
-                      args.annotation_databases is not None else None),
+                      columns = args.annotation_columns.split(','),
+                      databases = args.annotation_databases.split(','),
                       mg_names = mg_preprocessed,
                       assembler = args.assembler)
 joined = annotater.global_information()
