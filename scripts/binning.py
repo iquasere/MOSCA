@@ -8,7 +8,7 @@ By João Sequeira
 Nov 2018
 """
 
-from sklearn.cluster import DBSCAN
+#from sklearn.cluster import DBSCAN
 from mosca_tools import MoscaTools
 from diamond import DIAMOND
 from progressbar import ProgressBar
