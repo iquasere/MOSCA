@@ -1,0 +1,6 @@
+openpyxl                                                    # normalization fails otherwise with "No module named 'openpyxl'"
+# bioconda bioconductor-genomeinfodb                        # genomeinfodb might be required after deseq
+# bioconda bioconductor-genomeinfodbdata                    # genomeinfodbdata might be required after deseq
+# bioconda searchgui                                        # not working properly
+# bioconda peptide-shaker                                   # not working properly
+# bioconda quast                                            # TODO - introduce version control so quast can be installed through conda

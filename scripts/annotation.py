@@ -101,7 +101,7 @@ class Annotater:
             funcdf = pd.concat([pathways, funcdf], axis = 1)
             uniprotinfo = pd.merge(uniprotinfo, funcdf, on = ['Entry'], how = 'left')
         result = pd.merge(result, uniprotinfo, on = ['Entry'], how = 'left')
-        cog_blast = self.organize_cdd_blast(cog_blast, fun)
+        cog_blast = pd.read_csv(cog_blast, sep = '\t')
         result = pd.merge(result, cog_blast, on = ['qseqid'], how = 'left')
         
         result.to_csv(out_dir + '/full_analysis_results.tsv', sep = '\t', index = False)
@@ -142,7 +142,7 @@ class Annotater:
     
     def run(self):
         self.gene_calling(self.file, self.out_dir, self.assembled)
-        #self.annotation()
+        #self.annotation()                                                      # annotation has to be refined to retrieved better than hypothetical proteins
         self.annotation(max_target_seqs = '1')
                     
     def global_information(self):
@@ -152,20 +152,20 @@ class Annotater:
                            file = self.out_dir + '/Annotation/aligned.blast')
         
         # Retrieval of information from UniProt IDs
-        mtools.run_command('python UPIMAPI/upimapi.py -i {0}/Annotation/aligned.blast -o {0}/Annotation/uniprotinfo.tsv --blast{1}{2}'.format(
-                self.out_dir, '-anncols {}'.format(self.columns) if self.columns != '' else '',     # if columns are set, they will be inputed
-                '-anndbs {}'.format(self.databases) if self.databases != '' else ''))               # if databases are set, they will be inputed
+        mtools.run_command('python UPIMAPI/upimapi.py -i {0}/Annotation/aligned.blast -o {0}/Annotation/uniprotinfo.tsv --full-id --blast{1}{2}'.format(
+                self.out_dir, ' -anncols {}'.format(self.columns[0]) if self.columns != [''] else '',     # if columns are set, they will be inputed
+                ' -anndbs {}'.format(self.databases[0]) if self.databases != [''] else ''))               # if databases are set, they will be inputed
         
         # Join COG reports
-        if not os.path.isfile(self.out_dir + '/Annotation/general_rps-blast_cog.txt'):
+        if not os.path.isfile(self.out_dir + '/Annotation/protein2cog.tsv'):
             mtools.run_command('cat ' + ' '.join(glob.glob(
-                    self.out_dir + '/Annotation/*/results/rps-blast_cog.txt')), 
-                file = self.out_dir + '/Annotation/general_rps-blast_cog.txt')
+                    self.out_dir + '/Annotation/*/protein2cog.tsv')), 
+                file = self.out_dir + '/Annotation/protein2cog.tsv')
         
         # Integration of all reports - BLAST, UNIPROTINFO, COG
         joined = self.join_reports(self.out_dir + '/Annotation/aligned.blast', 
                                self.out_dir + '/Annotation/uniprot_info.tsv', 
-                               self.out_dir + '/Annotation/general_rps-blast_cog.txt',
+                               self.out_dir + '/Annotation/protein2cog.tsv',
                                self.out_dir)
         
         # MG quantification for each MG name of each Sample

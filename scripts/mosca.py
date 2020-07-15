@@ -17,8 +17,9 @@ from metaproteomics_analyser import MetaproteomicsAnalyser
 from kegg_pathway import KEGGPathway
 from report import Reporter
 from time import gmtime, strftime
-
 import argparse, pathlib, os, multiprocessing, pandas as pd
+
+__version__ = '1.1.0'
 
 parser = argparse.ArgumentParser(description="Meta-Omics Software for Community Analysis",
                                  epilog="""A tool for performing metagenomics, metatranscriptomics 
@@ -106,17 +107,18 @@ parser.add_argument("-mpw","--metaproteomics-workflow", default = 'compomics', t
                     help=("""MOSCA possesses two workflows for metaproteomics,
                           one is an adaptation of software developed at Compomics
                           group and the other an integration of MaxQuant"""))
+parser.add_argument('-v', '--version', action='version', version='MOSCA ' + __version__)
 
 mtools = MoscaTools()
 args = mtools.validate_arguments(parser)
 
-#mtools.write_technical_report(args.output + 'technical_report.txt')             # TODO - must be improved
+mtools.write_technical_report(args.output + 'technical_report.txt')             # TODO - must be improved
 print('Versions of the tools used is available at {}/technical_report.txt'.format(args.output))
 
 mosca_dir = os.path.dirname(os.path.realpath(__file__))
 reporter = Reporter(metatranscriptomics = True if args.type_of_data == 'metatranscriptomics' else False)
 
-mtools.print_arguments(args)            # TODO - refine this function
+mtools.print_arguments(args)                                                    # TODO - refine this function
 monitorization_file = args.output + '/monitorization_report.txt'
 
 experiments = [experiment.split(':') for experiment in args.files]
@@ -186,31 +188,30 @@ if not args.no_preprocessing:
                 (mt, mt_name) = mtools.process_argument_file(experiment[1], 'mt', 
                                         args.output, args.sequencing_technology)
                 
-                if mt_name not in mt_preprocessed:                              # TODO - is this needed?
-                    if len(mt) == 1 and args.sequencing_technology == 'paired':                           # if data is interleaved paired end, it will be split up
-                    
-                        (forward, reverse) = (args.output + '/Preprocess/' + mt[0].split('/')[-1].split('.fastq')[0]
-                                                + fr for fr in ['_R1.fastq','_R2.fastq'])
-                        print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Splitting ' + 
-                              'reads at ' + mt[0] + ' to ' + forward + ' and ' + reverse + '.')
-                        mtools.divide_fq(mt[0], forward, reverse)
-                        mt = [forward, reverse]
-                    
-                    preprocesser = Preprocesser(files = mt,
-                                                paired = 'PE',
-                                                working_dir = args.output,
-                                                data = 'mrna',
-                                                name = mt_name,
-                                                threads = args.threads)
-                    if hasattr(args, 'quality_score'):
-                        setattr(preprocesser, 'quality_score', args.quality_score)
-                    
-                    preprocesser.run()
-                    reporter.info_from_preprocessing(args.output, mt_name, mt[0],
-                                                     performed_rrna_removal = True)
-                    mtools.remove_preprocessing_intermediates(args.output + '/Preprocess', args.output_level)
-                    
-                    mt_preprocessed.append(mt_name)
+                if len(mt) == 1 and args.sequencing_technology == 'paired':                           # if data is interleaved paired end, it will be split up
+                
+                    (forward, reverse) = (args.output + '/Preprocess/' + mt[0].split('/')[-1].split('.fastq')[0]
+                                            + fr for fr in ['_R1.fastq','_R2.fastq'])
+                    print(strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ': Splitting ' + 
+                          'reads at ' + mt[0] + ' to ' + forward + ' and ' + reverse + '.')
+                    mtools.divide_fq(mt[0], forward, reverse)
+                    mt = [forward, reverse]
+                
+                preprocesser = Preprocesser(files = mt,
+                                            paired = 'PE',
+                                            working_dir = args.output,
+                                            data = 'mrna',
+                                            name = mt_name,
+                                            threads = args.threads)
+                if hasattr(args, 'quality_score'):
+                    setattr(preprocesser, 'quality_score', args.quality_score)
+                
+                preprocesser.run()
+                reporter.info_from_preprocessing(args.output, mt_name, mt[0],
+                                                 performed_rrna_removal = True)
+                mtools.remove_preprocessing_intermediates(args.output + '/Preprocess', args.output_level)
+                
+                mt_preprocessed.append(mt_name)
                     
                 mt2mg[mt_name] = mg_name
 
@@ -295,7 +296,7 @@ if not args.no_annotation:
         annotater.run()
         
         # Functional annotation with reCOGnizer
-        mtools.run_command('python reCOGnizer/recognizer.py -f {0}/Annotation/{1}/fgs.faa -o {0}/Annotation/{1} -t {2}'.format(
+        mtools.run_command('python reCOGnizer/recognizer.py -f {0}/Annotation/{1}/fgs.faa -o {0}/Annotation/{1} -t {2} --tsv'.format(
                 args.output, sample, str(args.threads))),
     
     reporter.info_from_annotation(args.output, sample)
