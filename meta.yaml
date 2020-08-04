@@ -1,6 +1,6 @@
 {% set name = "mosca" %}
 {% set version = "1.1.0" %}
-{% set sha256 = "aea5ac40e5b58490c913aa0a1f6d205d54e80e11aa692b40d1fc5c59a5dbe978" %}
+{% set sha256 = "110f3280ce4a6520f5ed775ea72c89a3db3b16ffe10ea8b6a044ecc957e538e0" %}
 
 package:
   name: {{ name|lower }}
@@ -61,6 +61,7 @@ requirements:
     - recognizer
     - maxquant
     - quast
+    - unzip
 
 test:
   commands:
