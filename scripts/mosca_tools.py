@@ -17,47 +17,30 @@ class MoscaTools:
 
     '''
     Input: 
-        relation: pandas.DataFrame from Annotater.join_reports
-        origin_of_data: 'metagenomics', 'metatranscriptomics', 'compomics'
-        name: name of column to add to relation
+        data: pd.DataFrame - Protein Report on the making
         readcounts: readcounts file from quantification with htseq-count
-        blast: blast annotation file
+        origin_of_data: 'metagenomics', 'metatranscriptomics' defines column of joining
+        name: name of column to add to relation
         readcounts_has_tail: boolean, if file is htseq-count expression matrix with
         those last 5 lines of general information
-        readcounts_has_last_ids: boolean, if file still uses the third portion of
-        UniProt IDs (tr|2nd|3rd). I used to use those, I'm sorry
     Output: 
-        'relation' df will receive additional column with abundance/expression 
-        information.This column will be named 'name', if no 'name' input is given, 
-        will be named as the folder containing the blast file if input, else as 
-        the folder containing the readcounts file
+        'data' df will receive additional column with abundance/expression 
+        information. This column will be named 'name'
     '''
-    def define_abundance(self, relation, origin_of_data = 'metagenomics', name = None,
-                         readcounts = None, blast = None, readcounts_has_tail = True, 
-                         readcounts_has_last_ids = False):
-        if name is None and not (readcounts is None and blast is None): 
-            name = blast.split('/')[-2] if blast is not None else readcounts.split('/')[-2]    # name is assumed to be the same as the folder containing the file
-        print('Adding info on sample ' + name)
-        if readcounts is not None:                                              # necessary for 'metagenomics' and 'metatranscriptomics' (probably will be for all in the future)
-            readcounts = pd.read_csv(readcounts, sep = '\t', header = None)  
-            if readcounts_has_tail: readcounts = readcounts[:-5]                  # remove those last resume lines from htseq-count
-            readcounts['Protein ID'] = ([ide.split('_')[0] for ide in readcounts[0]] 
-                        if readcounts_has_last_ids else readcounts[0])
-            readcounts.columns = ['geneid', name, 'Protein ID']
-            del readcounts['geneid']
-        if origin_of_data == 'metagenomics':                                    # quantifying 'metagenomics' makes use of quality control SAM file
-            blast = self.parse_blast(blast)
-            blast['contig'] = ['_'.join(ide.split('_')[:-3]) for ide in blast.qseqid]
-            blast = pd.merge(blast, readcounts, left_on = 'contig', right_on = 'Protein ID')    # Protein ID are the contigs here. Don't judge me, my eyes are burning
-            blast['Protein ID'] = [ide.split('|')[1] if ide != '*' else ide for ide in blast.sseqid]
-            blast = blast.groupby('Protein ID')[name].sum().reset_index()[['Protein ID', name]]
-            result = pd.merge(relation, blast, on = 'Protein ID', how = 'outer')
+    def add_abundance(self, data, readcounts, name, origin_of_data = 'metagenomics', 
+                      readcounts_has_tail = True):
+        readcounts = pd.read_csv(readcounts, sep = '\t', header = None, 
+                                 names = ['qseqid', name])
+        readcounts[name] = readcounts[name].fillna(value = 0)
+        if readcounts_has_tail: readcounts = readcounts[:-5]                    # remove those last resume lines from htseq-count
+        if origin_of_data == 'metagenomics':
+            readcounts['Contig'] = [qseqid.split('_')[1] for qseqid in readcounts['qseqid']]
+            del readcounts['qseqid']
+            return pd.merge(data, readcounts, on = 'Contig', how = 'left')
         elif origin_of_data == 'metatranscriptomics':
-            result = pd.merge(relation, readcounts, on = 'Protein ID', how = 'outer')
+            return pd.merge(data, readcounts, on = 'qseqid', how = 'left')
         elif origin_of_data == 'compomics':
             pass
-        result[name] = result[name].fillna(value = 0).astype(int)
-        return result
     
     '''
     Input:
@@ -115,7 +98,7 @@ class MoscaTools:
         SAM alignment and READCOUNTS files named output + .sam and .readcounts
     '''
     def perform_alignment(self, reference, reads, basename, threads = 1, blast = None,
-                          blast_unique_ids = True):
+                          blast_unique_ids = True, attribute = 'gene_id'):
         
         if not self.check_bowtie2_index(reference.replace('.fasta', '_index')):
             print('INDEX files not found. Generating new ones')
@@ -142,10 +125,11 @@ class MoscaTools:
                     self.build_gff(blast, blast.replace('.blast', '.gff'))
             else:
                 print('GFF file was located at ' + blast.replace('.blast', '.gff'))
-        self.run_htseq_count(basename + '.sam', reference.replace('.fasta','.gff')
-                            if blast is None else blast.replace('.blast', '.gff'),
-                            basename + '.readcounts', 
-                            stranded = False if blast is None else True)
+        
+        
+        self.run_command('htseq-count -i {} {}.sam {}{}'.format(attribute, basename, 
+            (reference.replace('.fasta','.gff') if blast is None else blast.replace('.blast', '.gff')), 
+            ('' if blast is not None else ' --stranded=no')), file = basename + '.readcounts')
     
     '''
     Input:
@@ -171,10 +155,6 @@ class MoscaTools:
         self.run_command('bowtie2 -x ' + index_prefix + ' -1 ' + reads[0] + 
                          ' -2 ' + reads[1] + ' -S ' + sam + ' -p ' + str(threads)
                          + ' 1> ' + report + ' 2> ' + log)
-
-    def run_htseq_count(self, sam, gff, output, attribute = 'gene_id', stranded = True):
-        self.run_command('htseq-count -i ' + ' '.join([attribute, sam, gff]) + 
-                         ('' if stranded else ' --stranded=no'), file = output)
     
     def sort_alphanumeric(self, alphanumeric_list):
         return sorted(alphanumeric_list, key=lambda item: (int(item.partition(' ')[0])
@@ -429,20 +409,16 @@ class MoscaTools:
         a pd.DataFrame object with tools and corresponding versions in the
         local default Conda environment
     '''
-    def get_versions(self, tools = ['anaconda-project', 'ant', 
-                    'bioconductor-deseq2', 'bioconductor-edger', 
-                    'bioconductor-genomeinfodbdata', 'bioconductor-limma', 
-                    'blast', 'bowtie2', 'conda', 'diamond', 'fastqc', 'flask', 
-                    'fraggenescan', 'htseq', 'maxbin2', 'maxquant', 'megahit', 
-                    'numpy', 'pandas', 'peptide-shaker', 'python', 
-                    'progressbar33', 'quast', 'r', 'r-pheatmap', 
-                    'r-rcolorbrewer', 'scikit-learn', 'searchgui', 'sortmerna', 
-                    'spades', 'trimmomatic', 'urllib3']):
-        text = subprocess.check_output('conda list'.split()).decode('utf8').split('\n')[2:]
+    def get_versions(self, tools = ['bioconductor-deseq2', 'bioconductor-edger', 
+        'biopython', 'blast', 'bowtie2', 'checkm-genome', 'diamond', 'fastqc', 
+        'fraggenescan', 'htseq', 'maxbin2', 'maxquant', 'megahit', 'pandas', 
+        'poppler', 'python', 'recognizer', 'scikit-learn', 'sortmerna', 'spades', 
+        'trimmomatic', 'upimapi']):
+        text = subprocess.Popen('conda list'.split(), stdout = subprocess.PIPE).communicate()[0].decode('utf8').split('\n')[2:]
         lines = [line.split() for line in text]
         lines[0] = lines[0][1:]
         df = pd.DataFrame(lines, columns = lines.pop(0)).set_index('Name')
-        return df.loc[self.tools][['Version']]
+        return df.loc[tools][['Version']]
         
     '''
     Input:
@@ -629,29 +605,36 @@ class MoscaTools:
     '''
     def count_lines(self, file):
         return int((subprocess.check_output("wc -l " + file, shell = True)).split()[0])
-
-    '''
-    Input:
-        readcounts: str - file from htseq-count to normalize by contig size
-    Output:
-        The readcounts by contig in the file will be normalized by contig size
-    '''
-    def normalize_readcounts_by_size_metaspades(self, readcounts):
-        self.run_command("awk '{split($1,a,\"_\"); print $1\"\\t\"$2/a[4]*150}' {}".format(
-                readcounts), file = 'temp.readcounts')
-        shutil.copy('temp.readcounts', readcounts)
         
     '''
     Input:
         readcounts: str - file from htseq-count to normalize by contig size
-        assembler: str - 'metaspades' or 'megahit'
+        contigs: str - filename of contigs
     Output:
         The readcounts by contig in the file will be normalized by contig size
     '''
-    def normalize_readcounts_by_size(self, readcounts, assembler = 'metaspades'):
-        if assembler == 'metaspades':
-            self.normalize_readcounts_by_size_metaspades(readcounts)
-        elif assembler == 'megahit':
-            pass                                                                # TODO - build this for megahit (have to check names of contigs for it)
-        else:
-            print("[MoscaTools.normalize_readcounts_by_size] Invalid value for assembler!")
+    def normalize_mg_readcounts_by_size(self, readcounts, contigs):
+        self.run_pipe_command('head -n -5 {}'.format(readcounts), 
+            file = readcounts.replace('.readcounts', '_no_tail.readcounts'))
+        self.run_pipe_command("seqkit fx2tab {} | sort | awk '{{print $1\"\\t\"length($2)}}' | join - {} | awk '{{print $1\"\\t\"$3/$2}}'".format(
+            contigs, readcounts.replace('.readcounts', '_no_tail.readcounts')), 
+            file = readcounts.replace('.readcounts', '_normalized.readcounts'))
+    
+    '''
+    Input:
+        output: str - filename of output
+        data: pd.DataFrame - data to write on several sheets
+        lines: int - number of lines per sheet (Excel's maximum is 1048575)
+        index: bool - write index or not
+    Output:
+        data will be outputed through several sheets
+    '''
+    def multi_sheet_excel(self, output, data, sheet_name = 'Sheet', 
+                          lines = 1000000, index = False):
+        writer = pd.ExcelWriter(output, engine='xlsxwriter')
+        i = 0; j = 1
+        while i + lines < len(data):
+            data.iloc[i:(i + lines)].to_excel(writer, sheet_name='{}({})'.format(sheet_name, str(j)), index = index)
+            j += 1
+        data.iloc[i:len(data)].to_excel(writer, sheet_name='{}({})'.format(sheet_name, str(j)), index = index)
+        writer.save()

@@ -9,11 +9,10 @@ source ~/anaconda3/etc/profile.d/conda.sh
 conda config --add channels defaults
 conda config --add channels bioconda
 conda config --add channels conda-forge
-conda install -y -c bioconda fastqc sortmerna=2.1 seqtk trimmomatic megahit spades fraggenescan diamond upimapi htseq bowtie2 maxbin2 checkm-genome bioconductor-deseq2=1.22.1 bioconductor-edger=3.24.3 r-pheatmap r-optparse blast krona
-conda install -y -c anaconda svn reportlab openpyxl xlrd r-rcolorbrewer pandas xlrd scikit-learn lxml biopython perl
-conda install -y -c conda-forge progressbar33 tqdm
-conda install -y -c bioconda -c conda-forge recognizer maxquant 
-pip install quast
+conda install -y svn reportlab openpyxl xlrd>=0.9.0 r-rcolorbrewer pandas scikit-learn lxml biopython perl
+conda install -y -c bioconda fastqc sortmerna=2.1 seqtk trimmomatic megahit spades fraggenescan diamond upimapi htseq bowtie2 maxbin2 checkm-genome bioconductor-deseq2=1.22.1 bioconductor-edger=3.24.3 r-pheatmap r-optparse blast krona seqkit
+conda install -y -c conda-forge progressbar33 tqdm>=4.33.0 xlsxwriter
+conda install -y -c bioconda -c conda-forge recognizer maxquant quast keggcharter
 apt-get install -y libpwiz-tools poppler-utils
 perl ~/anaconda3/opt/krona/install.pl
 wget http://genesis.ugent.be/maven2/eu/isas/searchgui/SearchGUI/3.3.16/SearchGUI-3.3.16-mac_and_linux.tar.gz

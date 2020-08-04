@@ -4,3 +4,4 @@ openpyxl                                                    # normalization fail
 # bioconda searchgui                                        # not working properly
 # bioconda peptide-shaker                                   # not working properly
 # bioconda quast                                            # TODO - introduce version control so quast can be installed through conda
+tqdm                                                        # tqdm>=4.33.0 is the version that allowed to use its progress bar with newer versions of python

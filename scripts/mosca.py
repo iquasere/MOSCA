@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+#!/usr/bin/env python
 """
 MOSCA main class
 
@@ -14,10 +14,10 @@ from annotation import Annotater
 from binning import Binner
 from metatranscriptomics_analyser import MetaTranscriptomicsAnalyser
 from metaproteomics_analyser import MetaproteomicsAnalyser
-from kegg_pathway import KEGGPathway
 from report import Reporter
 from time import gmtime, strftime
-import argparse, pathlib, os, multiprocessing, pandas as pd
+import argparse, pathlib, os, multiprocessing, pandas as pd, sys, numpy as np, glob
+from tqdm import tqdm
 
 __version__ = '1.1.0'
 
@@ -36,6 +36,9 @@ parser.add_argument("-db","--annotation-database",type=str,
                      default = "MOSCA/Databases/annotation_databases/uniprot.fasta")
 parser.add_argument("-o","--output",type=str,help="Directory for storing the results",
                     metavar = "Directory", default = "/MOSCA_analysis")
+parser.add_argument("-rd","--resources-directory",type=str,
+                    help="Directory for storing temporary files and databases",
+                    default = sys.path[0] + '/../resources_directory')
 parser.add_argument("-nopp","--no-preprocessing",action = "store_true",
                     help="Don't perform preprocessing", default = False)
 parser.add_argument("-noas","--no-assembly",action = "store_true",
@@ -112,7 +115,7 @@ parser.add_argument('-v', '--version', action='version', version='MOSCA ' + __ve
 mtools = MoscaTools()
 args = mtools.validate_arguments(parser)
 
-mtools.write_technical_report(args.output + 'technical_report.txt')             # TODO - must be improved
+mtools.write_technical_report(args.output + '/technical_report.txt')             # TODO - must be improved
 print('Versions of the tools used is available at {}/technical_report.txt'.format(args.output))
 
 mosca_dir = os.path.dirname(os.path.realpath(__file__))
@@ -129,7 +132,7 @@ directories = ([args.output + '/Preprocess/' + software for software in
                 ['FastQC', 'Trimmomatic', 'SortMeRNA']] + 
                [args.output + folder for folder in ['/Assembly','/Annotation',
                 '/Metatranscriptomics' if args.type_of_data == 'metatranscriptomics' 
-                else '/Metaproteomics']])
+                else '/Metaproteomics', args.resources_directory]])
 
 for directory in directories:
     print('Created ' + directory)
@@ -248,6 +251,7 @@ if not args.no_assembly:
                 args.output, name) for name in sample2name[sample]]
         reverse_files = ['{}/Preprocess/Trimmomatic/quality_trimmed_{}_reverse_paired.fq'.format(
                 args.output, name) for name in sample2name[sample]]
+        
         mtools.run_command('cat ' + ' '.join(forward_files), file = '{}/Assembly/{}_forward.fastq'.format(
                 args.output, sample))
         mtools.run_command('cat ' + ' '.join(reverse_files), file = '{}/Assembly/{}_reverse.fastq'.format(
@@ -296,18 +300,29 @@ if not args.no_annotation:
         annotater.run()
         
         # Functional annotation with reCOGnizer
-        mtools.run_command('python reCOGnizer/recognizer.py -f {0}/Annotation/{1}/fgs.faa -o {0}/Annotation/{1} -t {2} --tsv'.format(
-                args.output, sample, str(args.threads))),
+        mtools.run_command('recognizer.py -f {0}/Annotation/{1}/fgs.faa -o {0}/Annotation/{1} -t {2} --tsv -rd {3}'.format(
+                args.output, sample, str(args.threads), args.resources_directory))
     
     reporter.info_from_annotation(args.output, sample)
     mtools.remove_annotation_intermediates(args.output, args.output_level, 
                                            sample2name.keys())
     
-
 mtools.task_is_finished(task = 'Annotation',
         file = monitorization_file, 
         task_output = args.output + '/Annotation')
-    
+
+# Retrieval of information from UniProt IDs with UPIMAPI
+mtools.timed_message('Retrieving information from UniProt IDs.')
+blast_files = glob.glob(args.output + '/Annotation/*/aligned.blast')
+ids = list()
+for file in blast_files: ids += mtools.parse_blast(file)['sseqid'].tolist()
+ids = list(set(ids)); ids.remove('*')
+with open('{0}/Annotation/ids.txt'.format(args.output), 'w') as f: f.write('\n'.join(ids))
+ann_cols = args.annotation_columns.split(','); ann_dbs = args.annotation_databases.split(',')
+mtools.run_command('upimapi.py -i {0}/Annotation/ids.txt -o {0}/Annotation/uniprotinfo --full-id{1}{2}'.format(
+        args.output, ' -anncols {}'.format(ann_cols) if ann_cols != [''] else '',     # if columns are set, they will be inputed
+        ' -anndbs {}'.format(ann_dbs) if ann_dbs != [''] else ''))               # if databases are set, they will be inputed
+
 '''
 Binning
 '''
@@ -330,27 +345,14 @@ if not args.no_binning:
                     markerset = args.marker_gene_set)
         
         binner.maxbin_workflow()
-        
+
 mtools.task_is_finished(task = 'Binning',
         file = monitorization_file, 
         task_output = '{}/Binning/{}'.format(args.output, sample))
-    
+
 '''
-Join all information on one report
+Metatranscriptomics and metaproteomics quantification
 '''
-mtools.timed_message('Integrating all information.')
-
-annotater = Annotater(out_dir = args.output,
-                      threads = args.threads,
-                      sample2name = sample2name,
-                      columns = args.annotation_columns.split(','),
-                      databases = args.annotation_databases.split(','),
-                      mg_names = mg_preprocessed,
-                      assembler = args.assembler)
-joined = annotater.global_information()
-
-mtools.timed_message('Integration is available at ' + args.output)
-
 expression_analysed = list()
 
 if len(experiment[0]) > 1:                                                     # this forces all analysis to be the same, but it is not the goal of MOSCA. Must allow for different types of analysis (with and without MT/MP, single/paired-ended, ...)
@@ -375,21 +377,12 @@ if len(experiment[0]) > 1:                                                     #
                           threads = args.threads)
             
             mta.readcounts_file()
-            joined = mtools.define_abundance(joined, origin_of_data = 'metatranscriptomics',
-                                             name = mt_name, readcounts = '{}/Metatranscriptomics/{}.readcounts'.format(
-                                                     args.output, mt_name))
             
             expression_analysed.append(mt_name)
             
         readcount_files = ['{}/Metatranscriptomics/{}.readcounts'.format(args.output, mt)
                             for mt in expression_analysed]
-        
-        mta.generate_expression_matrix(readcount_files, expression_analysed, 
-            args.output + '/Metatranscriptomics/all_experiments.readcounts')
-        
-        mta.differential_analysis(args.output + '/Metatranscriptomics/all_experiments.readcounts', 
-                        args.conditions[0].split(','), args.output + '/Metatranscriptomics/')
-        
+
         mtools.task_is_finished(task = 'Metatranscriptomics analysis',
               file = monitorization_file, 
               task_output = args.output + '/Metatranscriptomics')
@@ -423,36 +416,133 @@ if len(experiment[0]) > 1:                                                     #
         mtools.task_is_finished(task = 'Metaproteomics analysis',
                 file = monitorization_file, 
                 task_output = args.output + '/Metaproteomics/' + mt_name)
+        
+'''
+Join all information in Protein and Entry Reports
+'''
+mg2mt = dict()
+for mt_name, mg_name in mt2mg.items():
+    if mg_name in mg2mt.keys():
+        mg2mt[mg_name].append(mt_name)
+    else:
+        mg2mt[mg_name] = [mt_name]
+        
+taxonomy_columns = ['Taxonomic lineage (' + level + ')' for level in 
+        ['SUPERKINGDOM', 'PHYLUM', 'CLASS', 'ORDER', 'FAMILY', 'GENUS', 'SPECIES']]
+functional_columns = ['COG general functional category', 'COG functional category',
+       'COG protein description', 'cog']
 
-# MG normalization by contig size and sample and protein abundance
-joined[mg_preprocessed].to_csv(args.output + '/mg_preprocessed_readcounts.table',
-      sep = '\t', index = False)
-joined = pd.concat([joined, mtools.normalize_readcounts(
-        args.output + '/mg_preprocessed_readcounts.table', mg_preprocessed, 
-        args.output + '/mg_preprocessed_normalization_factors.txt')[[
-        col + '_normalized' for col in mg_preprocessed]]], axis = 1)
+for sample in sample2name.keys():
+    mtools.timed_message('Joining data for sample:{}'.format(sample))
+    # Join BLAST and reCOGnizer outputs
+    data = pd.merge(mtools.parse_blast('{}/Annotation/{}/aligned.blast'.format(args.output, sample)),
+                    pd.read_csv('{}/Annotation/{}/protein2cog.tsv'.format(args.output, sample), sep = '\t'), on = 'qseqid',
+                    how = 'left')
+    data['sseqid'] = [ide.split('|')[1] if ide != '*' else ide for ide in data['sseqid']]
+    data.columns = [column.replace('_x', ' (DIAMOND)').replace('_y', ' (reCOGnizer)') for column in data.columns]  # after merging, BLAST columns will be repeated, and this makes explicit their origin
+    data.columns = ['EC number (reCOGnizer)' if column == 'EC number' else column for column in data.columns]
+    # Add UniProt information
+    uniprotinfo = pd.read_csv('{}/Annotation/uniprotinfo.tsv'.format(args.output), sep = '\t')
+    data = pd.merge(data, uniprotinfo, left_on = 'sseqid', right_on = 'Entry', how = 'left')
+    data['Contig'] = [qseqid.split('_')[1] for qseqid in data['qseqid']]
+    
+    # MG quantification for each MG name of each Sample
+    for mg_name in sample2name[sample]:
+        
+        mtools.perform_alignment('{}/Assembly/{}/contigs.fasta'.format(args.output, sample),
+                ['{}/Preprocess/Trimmomatic/quality_trimmed_{}_{}_paired.fq'.format(args.output, mg_name, fr)
+                for fr in ['forward', 'reverse']], '{}/Annotation/{}/{}'.format(args.output, sample, mg_name),
+                threads = args.threads)
+        
+        mtools.normalize_mg_readcounts_by_size(
+            '{}/Annotation/{}/{}.readcounts'.format(args.output, sample, mg_name), 
+            '{}/Assembly/{}/contigs.fasta'.format(args.output, sample, mg_name))
+        data = mtools.add_abundance(data, 
+                '{}/Annotation/{}/{}_normalized.readcounts'.format(args.output, sample, mg_name),
+                mg_name, origin_of_data = 'metagenomics', 
+                readcounts_has_tail = False)                                    # readcounts tail is removed in the normalization function
+    
+        for mt_name in expression_analysed:
+            data = mtools.add_abundance(data, 
+                '{}/Metatranscriptomics/{}.readcounts'.format(args.output, mt_name),
+                mt_name, origin_of_data = 'metatranscriptomics')
+    
+    mtools.multi_sheet_excel('{}/MOSCA_Protein_Report.xlsx'.format(args.output),
+                             data, sheet_name = sample)
+    
+    print('Finding consensus COG for each Entry of Sample: {}'.format(sample))
+    tqdm.pandas()
+    cogs_df = pd.DataFrame()
+    cogs_df['cog'] = data.groupby('Entry')['cog'].progress_apply(lambda x:x.value_counts().index[0] if len(x.value_counts().index) > 0 else np.nan)
+    cogs_categories = data[functional_columns].drop_duplicates()
+    
+    # Aggregate information for each Entry, keep UniProt information, sum MG and MT or MP quantification
+    data = data.groupby('Entry')[list(mg2mt.keys()) + list(mt2mg.keys())].sum().reset_index()
+    data = pd.merge(data, uniprotinfo, on = 'Entry', how = 'left')              # couldn't groupby appropriately by uniprotinfo columns
+    data = pd.merge(data, cogs_df, on = 'Entry', how = 'left')
+    data = pd.merge(data, cogs_categories, on = 'cog', how = 'left')
+    data = data[uniprotinfo.columns.tolist() + functional_columns + 
+                list(mg2mt.keys()) + list(mt2mg.keys())]
+    
+    # MG normalization by sample and protein abundance
+    data[mg_preprocessed].to_csv(args.output + '/mg_preprocessed_readcounts.table',
+          sep = '\t', index = False)
+    data = pd.concat([data, mtools.normalize_readcounts(
+            args.output + '/mg_preprocessed_readcounts.table', mg_preprocessed, 
+            args.output + '/mg_preprocessed_normalization_factors.txt')[[
+            col + '_normalized' for col in mg_preprocessed]]], axis = 1)
 
-# MT normalization by sample and protein expression - normalization is repeated here because it's not stored from DESeq2 analysis
-joined[expression_analysed].to_csv(args.output + '/expression_analysed_readcounts.table',
-      sep = '\t', index = False)
-joined = pd.concat([joined, mtools.normalize_readcounts(
-        args.output + '/expression_analysed_readcounts.table', expression_analysed, 
-        args.output + '/expression_analysed_normalization_factors.txt')[[
-        col + '_normalized' for col in expression_analysed]]], axis = 1)
+    # MT normalization by sample and protein expression - normalization is repeated here because it's not stored from DESeq2 analysis
+    data[expression_analysed].to_csv(args.output + '/expression_analysed_readcounts.table',
+              sep = '\t', index = False)
+    data = pd.concat([data, mtools.normalize_readcounts(
+            args.output + '/expression_analysed_readcounts.table', expression_analysed, 
+            args.output + '/expression_analysed_normalization_factors.txt')[[
+            col + '_normalized' for col in expression_analysed]]], axis = 1)
+    
+    # For each sample, write an Entry Report
+    mtools.multi_sheet_excel('{}/MOSCA_Entry_Report.xlsx'.format(args.output),
+                                 data, sheet_name = sample)
+    
+    for mg_name in sample2name[sample]:
+        # Draw the taxonomy krona plot
+        data.groupby(taxonomy_columns)[mg_name].sum().reset_index()[
+            [mg_name] + taxonomy_columns].to_csv('{}_{}_tax.tsv'.format(
+                args.output, mg_name), sep = '\t', index = False, header = False)
+        mtools.run_command('perl Krona/KronaTools/scripts/ImportText.pl {0}.tsv -o {0}.html'.format(
+            '{}_{}_tax'.format(args.output, mg_name)))
+                                                 
+        # Draw the functional krona plot
+        data.groupby(functional_columns)[mg_name].sum().reset_index()[
+            [mg_name] + functional_columns].to_csv('{}_{}_fun.tsv'.format(
+                args.output, mg_name), sep = '\t', index = False, header = False)
+        mtools.run_command('perl Krona/KronaTools/scripts/ImportText.pl {0}.tsv -o {0}.html'.format(
+            '{}_{}_fun'.format(args.output, mg_name)))
+    
+    '''
+    KEGG Pathway representations
+    '''
+    pathlib.Path(args.output + '/KEGG_metabolic_maps').mkdir(parents=True, exist_ok=True)
+    
+    mg_cols = [col + '_normalized' for col in mg2mt.keys()]
+    mt_cols = [col + '_normalized' for col in mt2mg.keys()]
+    data = pd.read_csv('{}/MOSCA_{}_Entry_Report.tsv'.format(args.output, sample), sep ='\t')
+    
+    mtools.run_command('kegg_charter.py -f {0}/MOSCA_{1}_Entry_Report.tsv -o {0}/KEGG_metabolic_maps -mgc {2} -mtc {3} -not 10 -utc -tl GENUS'.format(
+        args.output, sample, ','.join(mg_cols), ','.join(mt_cols)))
+    
+    # TODO - solve ec numbers - UniProt vs reCOGnizer vs KEGGCharter
+        
+'''
+Gene Expression Differential Analysis
+'''
+mtools.timed_message('Performing differential expression analysis.')
 
-annotater.joined2kronas(joined, args.output + '/Annotation/krona', 
-                        [col + '_normalized' for col in expression_analysed])
+mta.generate_expression_matrix(readcount_files, expression_analysed, 
+            args.output + '/Metatranscriptomics/all_experiments.readcounts')
+mta.differential_analysis(args.output + '/Metatranscriptomics/all_experiments.readcounts', 
+                args.conditions[0].split(','), args.output + '/Metatranscriptomics/')
 
-# KEGG Pathway representations
-pathlib.Path(args.output + '/KEGGPathway').mkdir(parents=True, exist_ok=True)
 
-kp = KEGGPathway(output_level = args.output_level)
-joined = kp.run(joined, args.output + '/mosca_results.tsv', args.output + '/KEGGPathway',
-       mg_samples = [col + '_normalized' for col in mg_preprocessed], 
-       mt_samples = [col + '_normalized' for col in expression_analysed])
-
-joined.to_csv(args.output + '/mosca_results.tsv', sep = '\t', index = False)
-joined.to_excel(args.output + '/mosca_results.xlsx', index = False)
-
-mtools.timed_message('MOSCA results written to {0}/mosca_results.tsv and {0}/mosca_results.xlsx'.format(args.output))
+mtools.timed_message('MOSCA results written to {0}/MOSCA_Protein_Report.tsv and {0}/MOSCA_Entry_Report.xlsx'.format(args.output))
 mtools.timed_message('Analysis with MOSCA was concluded with success!')

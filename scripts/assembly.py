@@ -109,11 +109,12 @@ class Assembler:
         return lines[-1].split('%')[0]
     
     def run_metaquast(self, contigs, out_dir):
-        bashCommand = ('metaquast.py --threads ' + self.threads + ' --output-dir ' + 
-                       out_dir + ' ' + contigs)
+        bashCommand = 'metaquast.py --threads {} --output-dir {} {}'.format(
+            self.threads, out_dir, contigs)
         mtools.run_command(bashCommand)
      
     def quality_control(self):
+        
         contigs = self.out_dir + '/contigs.fasta'
         self.run_metaquast(contigs, self.out_dir + '/quality_control')
         mtools.perform_alignment(contigs, [self.forward, self.reverse], 

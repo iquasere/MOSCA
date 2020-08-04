@@ -105,13 +105,11 @@ class Reporter:
              if adapter is not None else ('', 'R1', 'R2')), '[After quality trimming]': (
                      'quality_trimmed_', 'forward_paired', 'reverse_paired')}
         
-        print('Initial assessment')
         # Initial assessment
         self.report.at[name, '[Initial quality assessment] # of initial reads'] = mtools.count_on_file(
             '@', input_file, compressed = True if input_file.endswith('.gz') else False)
         self.info_from_fastqc(output_dir, name, '[Initial quality assessment]', prefix2terms)
         
-        print('After adapter removal')
         # After adapter removal
         try:
             if len(adapter_files) > 0:
@@ -131,7 +129,6 @@ class Reporter:
         except:
             self.report.to_csv('MOSCAfinal/report.tsv',sep='\t')
             
-        print('rRNA removal')
         # rRNA removal
         if performed_rrna_removal:
             self.report.at[name, '[rRNA removal] # of reads remaining'] = (
@@ -146,7 +143,6 @@ class Reporter:
                 self.report.loc[name]['[Adapter removal] # of reads remaining'])
             self.report.loc[name]['[rRNA removal] % of reads removed'] = 0.00
         
-        print('Quality trimming')
         # Quality trimming
         self.info_from_fastqc(output_dir, name, '[Before quality trimming]', prefix2terms)
         self.report.at[name, '[Quality trimming] Parameters'] = '; '.join([file for file in 

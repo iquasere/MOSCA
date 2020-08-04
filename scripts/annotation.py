@@ -11,10 +11,9 @@ from diamond import DIAMOND
 from mosca_tools import MoscaTools
 from uniprot_mapping import UniprotMapping
 from progressbar import ProgressBar
-from tqdm import tqdm
 import pandas as pd
 import numpy as np
-import os, glob
+import os
 
 mtools = MoscaTools()
 upmap = UniprotMapping()
@@ -56,7 +55,7 @@ class Annotater:
                           unal = '1',
                           max_target_seqs = max_target_seqs)
         
-        if self.db[-6:] == '.fasta':
+        if self.db[-6:] == '.fasta' or self.db[-4:] == '.faa':
             print('FASTA database was inputed')
             if not os.path.isfile(self.db.replace('fasta','dmnd')):
                 print('DMND database not found. Generating a new one')
@@ -69,139 +68,11 @@ class Annotater:
         diamond.db = self.db.split('.dmnd')[0] if '.dmnd' in self.db else self.db.split('.fasta')[0]
         
         diamond.run()
-        
-    '''
-    Input: 
-        blast: name of the file from the DIAMOND annotation
-        uniprotinfo: name of the uniprot information file
-        cog_blast: name of the COG annotation file from self.annotate_cogs
-        fun: name of the fun.txt file
-        split_pathways: boolean, if MOSCA should split the information from the
-        Pathway column provided by UniProt mapping
-        readcounts_matrix: name of the file containing protein expression
-    Output: 
-        pandas.DataFrame with integration of information from UniProt and COGs
-    '''
-    def join_reports(self, blast, uniprotinfo, cog_blast, out_dir,
-                     fun = 'MOSCA/Databases/COG/fun.txt', split_pathways = False):
-        result = mtools.parse_blast(blast)
-        result.index = result.qseqid
-        result = result[result.sseqid != '*']
-        result['Entry'] = [ide.split('|')[1] for ide in result.sseqid]
-        uniprotinfo = pd.read_csv(uniprotinfo, sep= '\t', low_memory=False).drop_duplicates()
-        if split_pathways:                                                      # TODO - the reorganization of pathways incurs in extra lines for same IDs. Find workaround
-            print('Reorganizing pathways information.')
-            funcdf = uniprotinfo[uniprotinfo.Pathway.notnull()][['Entry','Pathway']]
-            funcdf.Pathway = funcdf.Pathway.apply(self.split)
-            funcdf = self.using_repeat(funcdf)
-            pathways = pd.DataFrame([(path.split('; ') + [np.nan] * (3 - len(path.split('; ')))) 
-                                        for path in funcdf.Pathway], index = funcdf.index)
-            pathways.columns = ['Superpathway','Pathway','Subpathway']
-            del funcdf['Pathway']; del uniprotinfo['Pathway']
-            funcdf = pd.concat([pathways, funcdf], axis = 1)
-            uniprotinfo = pd.merge(uniprotinfo, funcdf, on = ['Entry'], how = 'left')
-        result = pd.merge(result, uniprotinfo, on = ['Entry'], how = 'left')
-        cog_blast = pd.read_csv(cog_blast, sep = '\t')
-        result = pd.merge(result, cog_blast, on = ['qseqid'], how = 'left')
-        
-        result.to_csv(out_dir + '/full_analysis_results.tsv', sep = '\t', index = False)
-        
-        print('Defining best consensus COG for each UniProt ID.')
-        cogs_df = pd.DataFrame()
-        tqdm.pandas()
-        cogs_df['cog'] = result.groupby('Entry')['cog'].progress_apply(lambda x:
-            x.value_counts().index[0] if len(x.value_counts().index) > 0 else np.nan)
-        cogs_relation = result[['COG general functional category','COG functional category',
-                            'COG protein description','cog']]
-        cogs_df['Entry'] = cogs_df.index
-        cogs_relation = cogs_relation.drop_duplicates()
-        cogs_df = cogs_df[cogs_df['cog'].notnull()]
-        cogs_df = pd.merge(cogs_df, cogs_relation, on = 'cog', how = 'inner')
-        result.drop(['COG general functional category', 'COG functional category',
-              'COG protein description', 'cog'], axis=1, inplace=True)
-        result = pd.merge(result, cogs_df, on = 'Entry', how = 'outer')
-        result = result[['Entry','Taxonomic lineage (SUPERKINGDOM)',
-              'Taxonomic lineage (PHYLUM)','Taxonomic lineage (CLASS)',
-              'Taxonomic lineage (ORDER)','Taxonomic lineage (FAMILY)',
-              'Taxonomic lineage (GENUS)','Taxonomic lineage (SPECIES)',
-              'EC number', 'Ensembl transcript','Function [CC]', 'Gene names',
-              'Gene ontology (GO)', 'Keywords','Pathway', 'Protein existence',
-              'Protein families', 'Protein names','Cross-reference (BRENDA)', 
-              'Cross-reference (BioCyc)','Cross-reference (CDD)', 
-              'Cross-reference (InterPro)','Cross-reference (KEGG)', 
-              'Cross-reference (KO)','Cross-reference (Pfam)', 
-              'Cross-reference (Reactome)','Cross-reference (RefSeq)', 
-              'Cross-reference (UniPathway)','Cross-reference (eggNOG)',
-              'COG general functional category', 'COG functional category',
-              'COG protein description','cog']]
-        result.columns = ['Protein ID'] + result.columns.tolist()[1:]
-        result = result.drop_duplicates()
-        
-        result.to_csv(out_dir + '/protein_analysis_results.tsv', sep = '\t', index = False)
-        return result
     
     def run(self):
         self.gene_calling(self.file, self.out_dir, self.assembled)
         #self.annotation()                                                      # annotation has to be refined to retrieved better than hypothetical proteins
         self.annotation(max_target_seqs = '1')
-                    
-    def global_information(self):
-        # Join blast reports
-        if not os.path.isfile(self.out_dir + '/Annotation/aligned.blast'):
-            mtools.run_command('cat ' + ' '.join(glob.glob(self.out_dir + '/Annotation/*/aligned.blast')), 
-                           file = self.out_dir + '/Annotation/aligned.blast')
-        
-        # Retrieval of information from UniProt IDs
-        mtools.run_command('python UPIMAPI/upimapi.py -i {0}/Annotation/aligned.blast -o {0}/Annotation/uniprotinfo.tsv --full-id --blast{1}{2}'.format(
-                self.out_dir, ' -anncols {}'.format(self.columns[0]) if self.columns != [''] else '',     # if columns are set, they will be inputed
-                ' -anndbs {}'.format(self.databases[0]) if self.databases != [''] else ''))               # if databases are set, they will be inputed
-        
-        # Join COG reports
-        if not os.path.isfile(self.out_dir + '/Annotation/protein2cog.tsv'):
-            mtools.run_command('cat ' + ' '.join(glob.glob(
-                    self.out_dir + '/Annotation/*/protein2cog.tsv')), 
-                file = self.out_dir + '/Annotation/protein2cog.tsv')
-        
-        # Integration of all reports - BLAST, UNIPROTINFO, COG
-        joined = self.join_reports(self.out_dir + '/Annotation/aligned.blast', 
-                               self.out_dir + '/Annotation/uniprot_info.tsv', 
-                               self.out_dir + '/Annotation/protein2cog.tsv',
-                               self.out_dir)
-        
-        # MG quantification for each MG name of each Sample
-        for sample in self.sample2name.keys():
-            for mg_name in self.sample2name[sample]:
-                mtools.perform_alignment('{}/Assembly/{}/contigs.fasta'.format(self.out_dir, sample),
-                        ['{}/Preprocess/Trimmomatic/quality_trimmed_{}_{}_paired.fq'.format(self.out_dir, mg_name, fr)
-                        for fr in ['forward', 'reverse']], '{}/Annotation/{}/{}'.format(self.out_dir, sample, mg_name),
-                        threads = self.threads)
-                mtools.normalize_readcounts_by_size('{}/Annotation/{}/{}.readcounts'.format(
-                        self.out_dir, sample, mg_name), assembler = self.assembler)
-                joined = mtools.define_abundance(joined, readcounts = '{}/Annotation/{}/{}.readcounts'.format(self.out_dir, sample, mg_name), 
-                                             blast = '{}/Annotation/{}/aligned.blast'.format(self.out_dir, sample),
-                                             name = mg_name)
-        
-        joined.to_csv(self.out_dir + '/joined_information.tsv', sep = '\t', index = False)
-        print('joined was written to ' + self.out_dir + '/joined_information.tsv')  
-        
-        # TODO - this EXCEL writing is not working
-        '''
-        if os.path.isfile(self.out_dir + '/joined_information.xlsx'):
-            os.remove(self.out_dir + '/joined_information.xlsx')
-        
-        # Write EXCEL - at the time of testing, maximmum lines for Excel file were 1048575 per sheet, so must split data between sheets # TODO - this takes forever, see what's wrong here
-        writer = pd.ExcelWriter(self.out_dir + '/joined_information.xlsx', engine='xlsxwriter')
-        i = 0
-        j = 1
-        while i + 1000000 < len(joined):
-            joined.iloc[i:(i + 1000000)].to_excel(writer, sheet_name='Sheet ' + str(j), index = False)
-            j += 1
-        joined.iloc[i:len(joined)].to_excel(writer, sheet_name='Sheet ' + str(j), index = False)
-        print('joined was written to ' + self.out_dir + '/joined_information.xlsx')
-        '''
-        self.joined2kronas(joined, self.out_dir + '/Annotation/krona', self.mg_names)
-        
-        return joined
 
     '''
     UniProt regularly updates its databases. As we are working with MG here, many
@@ -222,48 +93,7 @@ class Annotater:
         for entry in new_uniprotinfo['Entry']:
             missing_uniprotinfo[missing_uniprotinfo['Entry'] == entry] = new_uniprotinfo[new_uniprotinfo['Entry'] == entry]
         new_uniprotinfo.to_csv(uniprotinfo, sep = '\t', index = False)
-
-    '''
-    Input:
-        tsv: filename of TSV file to be inputed. Must have the format 
-        value\tcategorie1\tcategorie2\t..., with no header
-        output: filename of HTML krona plot to output
-    Output:
-        A krona plot will be created at output if it has been specified, else
-        at tsv.replace('.tsv','.html')
-    '''
-    def create_krona_plot(self, tsv, output = None):
-        if output is None:
-            output = tsv.replace('.tsv','.html')
-        mtools.run_command('perl Krona/KronaTools/scripts/ImportText.pl {} -o {}'.format(tsv, output))
-        
-    '''
-    Input:
-        tsv: filename of MOSCA result from analysis
-        output: basename for krona plots
-        mg_columns: names of columns with abundances from which to build krona plots
-    Output:
-    '''
-    def joined2kronas(self, joined, output, mg_columns, taxonomy_columns = [
-            'Taxonomic lineage (' + level + ')' for level in ['SUPERKINGDOM', 
-                    'PHYLUM', 'CLASS', 'ORDER', 'FAMILY', 'GENUS', 'SPECIES']],
-                      functional_columns = ['COG general functional category',
-                                            'COG functional category',
-                                            'COG protein description']):
-        print('Representing taxonomic and functional data in Krona plots at ' + output)
-        for name in mg_columns:
-            partial = joined.groupby(taxonomy_columns)[name].sum().reset_index()
-            partial = partial[[name] + taxonomy_columns]
-            partial.to_csv('{}_{}_tax.tsv'.format(output, name), sep = '\t', 
-                           index = False, header = False)
-            self.create_krona_plot('{}_{}_tax.tsv'.format(output, name))
-            
-            partial = joined.groupby(functional_columns)[name].sum().reset_index()
-            partial = partial[[name] + functional_columns]
-            partial.to_csv('{}_{}_fun.tsv'.format(output, name), sep = '\t', 
-                           index = False, header = False)
-            self.create_krona_plot('{}_{}_fun.tsv'.format(output, name))
-            
+    
     '''
     Input:
         data: str - result from MOSCA analysis

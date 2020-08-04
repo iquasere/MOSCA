@@ -415,11 +415,10 @@ class Binner:
         log of workflow named basename + .log
         markergenes used to compose the bins named basename + .marker
         contigs not included in any bin named basename + .noclass
-        
     '''
     def run_maxbin(self, contigs, output, threads = 8, mg1 = None, mg2 = None,
                    abundance = None, markerset = '40'):
-        output += output.split('/')[-1]
+        output += '/' + output.split('/')[-1]
         mtools.run_command('run_MaxBin.pl -contig {} -out {} -thread {} -markerset {} {}'.format(
                 contigs, output, threads, markerset, 
                 ('-reads {} -reads2 {}'.format(mg1, mg2) if abundance is None 
@@ -428,7 +427,8 @@ class Binner:
     def maxbin_workflow(self):
         self.run_maxbin(self.contigs, self.output, threads = self.threads, mg1 = self.forward, 
                         mg2 = self.reverse, markerset = self.markerset)
-        
+        self.run_checkm(self.output, self.output + '/CheckM_results')
+    
     '''
     Input:
         marker_file: filename of marker gene report from MaxBin2
@@ -454,9 +454,5 @@ class Binner:
         
     '''
     def run_checkm(self, bins_folder, output_directory):
-        # mtools.run_command('conda activate py27')
-        # mtools.run_command('checkm data setRoot .')                           # Is this needed? Hopefully only once D:
-        mtools.run_command('checkm lineage_wf -x fasta -r --ali --nt -t {0}' +
-        '--pplacer_threads {0} {1} {2} --tab_table --file {2}/output.tab'.format(
+        mtools.run_command('checkm lineage_wf -x fasta -r --ali --nt -t {0} --pplacer_threads {0} {1} {2} --tab_table --file {2}/output.tab'.format(
                 self.threads, bins_folder, output_directory))
-        # mtools.run_command('conda deactivate')                                  # back to (base)

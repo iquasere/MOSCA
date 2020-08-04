@@ -25,7 +25,7 @@ class MetaTranscriptomicsAnalyser:
     '''
     def readcounts_file(self):
         mtools.perform_alignment(self.contigs, self.reads, self.out_dir + '/' + self.mt, 
-                                 blast = self.blast, threads = self.threads)
+                                 blast = self.blast, threads = self.threads, attribute = 'Name')
 
     '''
     input: 
