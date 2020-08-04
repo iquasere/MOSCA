@@ -11,9 +11,8 @@ RUN buildDeps='build-essential zlib1g-dev' \
 && conda install svn reportlab openpyxl xlrd>=0.9.0 r-rcolorbrewer pandas scikit-learn lxml biopython perl \
 && conda install -c bioconda fastqc sortmerna=2.1 seqtk trimmomatic megahit spades fraggenescan diamond upimapi htseq bowtie2 maxbin2 checkm-genome bioconductor-deseq2=1.22.1 bioconductor-edger=3.24.3 r-pheatmap r-optparse blast krona seqkit \
 && conda install -c conda-forge progressbar33 tqdm>=4.33.0 xlsxwriter \
-&& conda install -c bioconda -c conda-forge recognizer maxquant \
+&& conda install -c bioconda -c conda-forge recognizer maxquant keggcharter quast \
 && conda clean --all \
-&& pip install quast \
 && apt-get install -y libpwiz-tools poppler-utils \
 && perl ~/anaconda3/opt/krona/install.pl \
 && wget http://genesis.ugent.be/maven2/eu/isas/searchgui/SearchGUI/3.3.16/SearchGUI-3.3.16-mac_and_linux.tar.gz \

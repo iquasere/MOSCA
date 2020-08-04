@@ -418,7 +418,8 @@ class MoscaTools:
         lines = [line.split() for line in text]
         lines[0] = lines[0][1:]
         df = pd.DataFrame(lines, columns = lines.pop(0)).set_index('Name')
-        return df.loc[tools][['Version']]
+        #return df.loc[tools][['Version']]                                      # TODO - for now it will output versions of everything conda has. Later may be updated
+        return df.loc[['Version']]
         
     '''
     Input:
