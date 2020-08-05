@@ -115,11 +115,11 @@ parser.add_argument('-v', '--version', action='version', version='MOSCA ' + __ve
 mtools = MoscaTools()
 args = mtools.validate_arguments(parser)
 
-mtools.write_technical_report(args.output + '/technical_report.txt')             # TODO - must be improved
+mtools.write_technical_report(args.output + '/technical_report.txt')
 print('Versions of the tools used is available at {}/technical_report.txt'.format(args.output))
 
 mosca_dir = os.path.dirname(os.path.realpath(__file__))
-reporter = Reporter(metatranscriptomics = True if args.type_of_data == 'metatranscriptomics' else False)
+reporter = Reporter().initialize_report()
 
 mtools.print_arguments(args)                                                    # TODO - refine this function
 monitorization_file = args.output + '/monitorization_report.txt'
@@ -303,9 +303,9 @@ if not args.no_annotation:
         mtools.run_command('recognizer.py -f {0}/Annotation/{1}/fgs.faa -o {0}/Annotation/{1} -t {2} --tsv -rd {3}'.format(
                 args.output, sample, str(args.threads), args.resources_directory))
     
-    reporter.info_from_annotation(args.output, sample)
+        reporter.info_from_annotation(args.output, sample)
     mtools.remove_annotation_intermediates(args.output, args.output_level, 
-                                           sample2name.keys())
+                                               sample2name.keys())
     
 mtools.task_is_finished(task = 'Annotation',
         file = monitorization_file, 
@@ -345,6 +345,7 @@ if not args.no_binning:
                     markerset = args.marker_gene_set)
         
         binner.maxbin_workflow()
+        reporter.info_from_binning(args.output, sample)
 
 mtools.task_is_finished(task = 'Binning',
         file = monitorization_file, 
@@ -377,6 +378,7 @@ if len(experiment[0]) > 1:                                                     #
                           threads = args.threads)
             
             mta.readcounts_file()
+            reporter.info_from_alignment(args.output, mt_name):
             
             expression_analysed.append(mt_name)
             
@@ -542,7 +544,9 @@ mta.generate_expression_matrix(readcount_files, expression_analysed,
             args.output + '/Metatranscriptomics/all_experiments.readcounts')
 mta.differential_analysis(args.output + '/Metatranscriptomics/all_experiments.readcounts', 
                 args.conditions[0].split(','), args.output + '/Metatranscriptomics/')
+reporter.info_from_differential_expression(output_dir, 'Sample')                # Differential expression analysis will also have to be by sample
 
+reporter.report.to_excel(args.output + '/MOSCA_General_Report.xlsx')
 
 mtools.timed_message('MOSCA results written to {0}/MOSCA_Protein_Report.tsv and {0}/MOSCA_Entry_Report.xlsx'.format(args.output))
 mtools.timed_message('Analysis with MOSCA was concluded with success!')

@@ -175,13 +175,16 @@ class MoscaTools:
             with open(file, mode) as output_file:
                 subprocess.run(bashCommand.split(sep), stdout=output_file)
     
-    def run_pipe_command(self, bashCommand, file = '', mode = 'w', sep = ' ', print_message = True):
+    def run_pipe_command(self, bashCommand, output = '', mode = 'w', sep = ' ', print_message = True):
         if print_message:
             print(bashCommand)
-        if file == '':
+        if output == '':
             subprocess.Popen(bashCommand, stdin=subprocess.PIPE, shell=True).communicate()
+        elif output == 'PIPE':
+            return subprocess.Popen(bashCommand, stdin=subprocess.PIPE, shell=True, 
+                stdout=subprocess.PIPE).communicate()[0].decode('utf8')
         else:
-            with open(file, mode) as output_file:
+            with open(output, mode) as output_file:
                 subprocess.Popen(bashCommand, stdin=subprocess.PIPE, shell=True, stdout=output_file).communicate()
       
     def parse_blast(self, blast):
@@ -401,49 +404,22 @@ class MoscaTools:
             if '*' not in value:
                 handler.write('>' + key + '\n' + value + '\n')
         os.rename(temp, fasta)
-
-    '''
-    Input:
-        tools: List of Str names of tools to get version of
-    Output:
-        a pd.DataFrame object with tools and corresponding versions in the
-        local default Conda environment
-    '''
-    def get_versions(self, tools = ['bioconductor-deseq2', 'bioconductor-edger', 
-        'biopython', 'blast', 'bowtie2', 'checkm-genome', 'diamond', 'fastqc', 
-        'fraggenescan', 'htseq', 'maxbin2', 'maxquant', 'megahit', 'pandas', 
-        'poppler', 'python', 'recognizer', 'scikit-learn', 'sortmerna', 'spades', 
-        'trimmomatic', 'upimapi']):
-        text = subprocess.Popen('conda list'.split(), stdout = subprocess.PIPE).communicate()[0].decode('utf8').split('\n')[2:]
-        lines = [line.split() for line in text]
-        lines[0] = lines[0][1:]
-        df = pd.DataFrame(lines, columns = lines.pop(0)).set_index('Name')
-        #return df.loc[tools][['Version']]                                      # TODO - for now it will output versions of everything conda has. Later may be updated
-        return df.loc[['Version']]
-        
-    '''
-    Input:
-        versions_df: object from self.get_versions
-        output: file to write softwares and respective versions
-    Output:
-        a file named output will be written with information concerning
-        the softwares used by MOSCA and respective versions. When the software
-        is not present/installed/found, 'Not available' will be written instead
-    '''
-    def write_versions(self, versions_df, output):
-        open(output, 'w').write(versions_df.to_string(justify = 'left', 
-                                             na_rep = 'Not available'))
     
     '''
     Input:
-        output: file to write softwares and respective versions
+        output: str - filename to write tools and respective versions
     Output:
-        a file named output will be written with information concerning
+        a file named [output] will be written with information concerning
         the softwares used by MOSCA and respective versions
     '''
-    def write_technical_report(self, output):
-        df = self.get_versions()
-        self.write_versions(df, output)
+    def write_technical_report(self, output):                                   # TODO - add proteomics software that cannot be installed with conda
+        conda_list = self.run_pipe_command('conda list').split('\n')[2:]
+        lines = [line.split() for line in conda_list]
+        lines[0] = lines[0][1:]
+        df = pd.DataFrame(lines, columns = lines.pop(0)).set_index('Name')
+        tools = open('Databases/reporter/tools_for_versions.txt').read().split('\n')
+        open(output, 'w').write(df.loc[tools][['Version']].to_string(
+            justify = 'left', na_rep = 'Not available'))
         
     '''
     Input:
