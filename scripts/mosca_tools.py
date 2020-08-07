@@ -404,22 +404,6 @@ class MoscaTools:
             if '*' not in value:
                 handler.write('>' + key + '\n' + value + '\n')
         os.rename(temp, fasta)
-    
-    '''
-    Input:
-        output: str - filename to write tools and respective versions
-    Output:
-        a file named [output] will be written with information concerning
-        the softwares used by MOSCA and respective versions
-    '''
-    def write_technical_report(self, output):                                   # TODO - add proteomics software that cannot be installed with conda
-        conda_list = self.run_pipe_command('conda list').split('\n')[2:]
-        lines = [line.split() for line in conda_list]
-        lines[0] = lines[0][1:]
-        df = pd.DataFrame(lines, columns = lines.pop(0)).set_index('Name')
-        tools = open('Databases/reporter/tools_for_versions.txt').read().split('\n')
-        open(output, 'w').write(df.loc[tools][['Version']].to_string(
-            justify = 'left', na_rep = 'Not available'))
         
     '''
     Input:

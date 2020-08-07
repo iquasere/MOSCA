@@ -19,7 +19,7 @@ from time import gmtime, strftime
 import argparse, pathlib, os, multiprocessing, pandas as pd, sys, numpy as np, glob
 from tqdm import tqdm
 
-__version__ = '1.1.0'
+__version__ = '1.1.1'
 
 parser = argparse.ArgumentParser(description="Meta-Omics Software for Community Analysis",
                                  epilog="""A tool for performing metagenomics, metatranscriptomics 
@@ -115,11 +115,11 @@ parser.add_argument('-v', '--version', action='version', version='MOSCA ' + __ve
 mtools = MoscaTools()
 args = mtools.validate_arguments(parser)
 
-mtools.write_technical_report(args.output + '/technical_report.txt')
-print('Versions of the tools used is available at {}/technical_report.txt'.format(args.output))
+reporter = Reporter(lists_dir = sys.path[0] + '/../Databases/reporter')
+reporter.initialize_report()
 
-mosca_dir = os.path.dirname(os.path.realpath(__file__))
-reporter = Reporter().initialize_report()
+reporter.write_technical_report(args.output + '/technical_report.txt')
+print('Versions of the tools used is available at {}/technical_report.txt'.format(args.output))
 
 mtools.print_arguments(args)                                                    # TODO - refine this function
 monitorization_file = args.output + '/monitorization_report.txt'
@@ -237,7 +237,14 @@ elif args.assembly_strategy == 'samples':
         for k in sample2name.keys():
             sample2name[k] = set(sample2name[k])
 name2sample = {vx : k for k, v in sample2name.items() for vx in v}
-reporter.set_samples(name2sample)
+
+mg2mt = dict()
+for mt_name, mg_name in mt2mg.items():
+    if mg_name in mg2mt.keys():
+        mg2mt[mg_name].append(mt_name)
+    else:
+        mg2mt[mg_name] = [mt_name]
+reporter.set_samples(name2sample, mg2mt)
 
 '''
 Assembly
@@ -251,12 +258,12 @@ if not args.no_assembly:
                 args.output, name) for name in sample2name[sample]]
         reverse_files = ['{}/Preprocess/Trimmomatic/quality_trimmed_{}_reverse_paired.fq'.format(
                 args.output, name) for name in sample2name[sample]]
-        
+        '''
         mtools.run_command('cat ' + ' '.join(forward_files), file = '{}/Assembly/{}_forward.fastq'.format(
                 args.output, sample))
         mtools.run_command('cat ' + ' '.join(reverse_files), file = '{}/Assembly/{}_reverse.fastq'.format(
                 args.output, sample))
-        
+        '''
         pathlib.Path('{}/Assembly/{}'.format(args.output, sample)).mkdir(parents=True, exist_ok=True)
         assembler = Assembler(out_dir = '{}/Assembly/{}'.format(args.output, sample),
                              assembler = args.assembler,
@@ -296,13 +303,13 @@ if not args.no_annotation:
                       assembled = False if args.no_assembly else True,
                       error_model = args.fgs_train_file,
                       threads = args.threads)
-        
+        '''
         annotater.run()
         
         # Functional annotation with reCOGnizer
         mtools.run_command('recognizer.py -f {0}/Annotation/{1}/fgs.faa -o {0}/Annotation/{1} -t {2} --tsv -rd {3}'.format(
                 args.output, sample, str(args.threads), args.resources_directory))
-    
+        '''
         reporter.info_from_annotation(args.output, sample)
     mtools.remove_annotation_intermediates(args.output, args.output_level, 
                                                sample2name.keys())
@@ -378,7 +385,7 @@ if len(experiment[0]) > 1:                                                     #
                           threads = args.threads)
             
             mta.readcounts_file()
-            reporter.info_from_alignment(args.output, mt_name):
+            reporter.info_from_alignment(args.output, mt_name)
             
             expression_analysed.append(mt_name)
             
@@ -422,13 +429,6 @@ if len(experiment[0]) > 1:                                                     #
 '''
 Join all information in Protein and Entry Reports
 '''
-mg2mt = dict()
-for mt_name, mg_name in mt2mg.items():
-    if mg_name in mg2mt.keys():
-        mg2mt[mg_name].append(mt_name)
-    else:
-        mg2mt[mg_name] = [mt_name]
-        
 taxonomy_columns = ['Taxonomic lineage (' + level + ')' for level in 
         ['SUPERKINGDOM', 'PHYLUM', 'CLASS', 'ORDER', 'FAMILY', 'GENUS', 'SPECIES']]
 functional_columns = ['COG general functional category', 'COG functional category',
@@ -436,6 +436,7 @@ functional_columns = ['COG general functional category', 'COG functional categor
 
 for sample in sample2name.keys():
     mtools.timed_message('Joining data for sample:{}'.format(sample))
+    
     # Join BLAST and reCOGnizer outputs
     data = pd.merge(mtools.parse_blast('{}/Annotation/{}/aligned.blast'.format(args.output, sample)),
                     pd.read_csv('{}/Annotation/{}/protein2cog.tsv'.format(args.output, sample), sep = '\t'), on = 'qseqid',
@@ -544,7 +545,8 @@ mta.generate_expression_matrix(readcount_files, expression_analysed,
             args.output + '/Metatranscriptomics/all_experiments.readcounts')
 mta.differential_analysis(args.output + '/Metatranscriptomics/all_experiments.readcounts', 
                 args.conditions[0].split(','), args.output + '/Metatranscriptomics/')
-reporter.info_from_differential_expression(output_dir, 'Sample')                # Differential expression analysis will also have to be by sample
+
+reporter.info_from_differential_expression(args.output, 'Sample')               # Differential expression analysis will also have to be by sample
 
 reporter.report.to_excel(args.output + '/MOSCA_General_Report.xlsx')
 
