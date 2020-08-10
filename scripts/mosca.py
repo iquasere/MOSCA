@@ -258,12 +258,12 @@ if not args.no_assembly:
                 args.output, name) for name in sample2name[sample]]
         reverse_files = ['{}/Preprocess/Trimmomatic/quality_trimmed_{}_reverse_paired.fq'.format(
                 args.output, name) for name in sample2name[sample]]
-        '''
+        
         mtools.run_command('cat ' + ' '.join(forward_files), file = '{}/Assembly/{}_forward.fastq'.format(
                 args.output, sample))
         mtools.run_command('cat ' + ' '.join(reverse_files), file = '{}/Assembly/{}_reverse.fastq'.format(
                 args.output, sample))
-        '''
+        
         pathlib.Path('{}/Assembly/{}'.format(args.output, sample)).mkdir(parents=True, exist_ok=True)
         assembler = Assembler(out_dir = '{}/Assembly/{}'.format(args.output, sample),
                              assembler = args.assembler,
@@ -303,13 +303,13 @@ if not args.no_annotation:
                       assembled = False if args.no_assembly else True,
                       error_model = args.fgs_train_file,
                       threads = args.threads)
-        '''
+        
         annotater.run()
         
         # Functional annotation with reCOGnizer
         mtools.run_command('recognizer.py -f {0}/Annotation/{1}/fgs.faa -o {0}/Annotation/{1} -t {2} --tsv -rd {3}'.format(
                 args.output, sample, str(args.threads), args.resources_directory))
-        '''
+        
         reporter.info_from_annotation(args.output, sample)
     mtools.remove_annotation_intermediates(args.output, args.output_level, 
                                                sample2name.keys())
