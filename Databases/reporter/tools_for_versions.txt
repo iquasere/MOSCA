@@ -36,3 +36,4 @@ recognizer
 maxquant
 quast
 unzip
+keggcharter

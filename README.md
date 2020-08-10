@@ -148,7 +148,14 @@ A tool for performing metagenomics, metatranscriptomics and metaproteomics
 analysis.
 ```
 
-## MOSCA is available as a Docker image!
+## MOSCA is now also available through Bioconda!
+
+To use MOSCA through Bioconda, an environment must be created containing all the dependencies. 
+Create the environment and install MOSCA with ```conda create -n mosca -c bioconda -c conda-forge mosca```
+Activate the environment with ```conda activate mosca```
+Run MOSCA with ```mosca.py [arguments]```
+
+## MOSCA is also available as a Docker image!
 
 To use MOSCA's Docker version, Docker must first be installed.
 

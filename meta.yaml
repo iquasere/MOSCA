@@ -53,6 +53,7 @@ requirements:
     - recognizer
     - maxquant
     - quast
+    - keggcharter
 
 test:
   commands:
