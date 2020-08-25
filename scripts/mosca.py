@@ -38,7 +38,7 @@ parser.add_argument("-o","--output",type=str,help="Directory for storing the res
                     metavar = "Directory", default = "/MOSCA_analysis")
 parser.add_argument("-rd","--resources-directory",type=str,
                     help="Directory for storing temporary files and databases",
-                    default = sys.path[0] + '/../resources_directory')
+                    default = os.path.expanduser('~/resources_directory'))
 parser.add_argument("-nopp","--no-preprocessing",action = "store_true",
                     help="Don't perform preprocessing", default = False)
 parser.add_argument("-noas","--no-assembly",action = "store_true",
@@ -435,7 +435,7 @@ functional_columns = ['COG general functional category', 'COG functional categor
        'COG protein description', 'cog']
 
 for sample in sample2name.keys():
-    mtools.timed_message('Joining data for sample:{}'.format(sample))
+    mtools.timed_message('Joining data for sample: {}'.format(sample))
     
     # Join BLAST and reCOGnizer outputs
     data = pd.merge(mtools.parse_blast('{}/Annotation/{}/aligned.blast'.format(args.output, sample)),
@@ -459,7 +459,7 @@ for sample in sample2name.keys():
         
         mtools.normalize_mg_readcounts_by_size(
             '{}/Annotation/{}/{}.readcounts'.format(args.output, sample, mg_name), 
-            '{}/Assembly/{}/contigs.fasta'.format(args.output, sample, mg_name))
+            '{}/Assembly/{}/contigs.fasta'.format(args.output, sample))
         data = mtools.add_abundance(data, 
                 '{}/Annotation/{}/{}_normalized.readcounts'.format(args.output, sample, mg_name),
                 mg_name, origin_of_data = 'metagenomics', 
@@ -475,8 +475,10 @@ for sample in sample2name.keys():
     
     print('Finding consensus COG for each Entry of Sample: {}'.format(sample))
     tqdm.pandas()
-    cogs_df = pd.DataFrame()
-    cogs_df['cog'] = data.groupby('Entry')['cog'].progress_apply(lambda x:x.value_counts().index[0] if len(x.value_counts().index) > 0 else np.nan)
+    cogs_df = data.groupby('Entry')['cog'].progress_apply(
+        lambda x:x.value_counts().index[0] if len(x.value_counts().index) > 0 
+        else np.nan)
+    cogs_df.reset_index(inplace = True)
     cogs_categories = data[functional_columns].drop_duplicates()
     
     # Aggregate information for each Entry, keep UniProt information, sum MG and MT or MP quantification
@@ -512,14 +514,14 @@ for sample in sample2name.keys():
         data.groupby(taxonomy_columns)[mg_name].sum().reset_index()[
             [mg_name] + taxonomy_columns].to_csv('{}_{}_tax.tsv'.format(
                 args.output, mg_name), sep = '\t', index = False, header = False)
-        mtools.run_command('perl Krona/KronaTools/scripts/ImportText.pl {0}.tsv -o {0}.html'.format(
+        mtools.run_command('ktImportText {0}.tsv -o {0}.html'.format(
             '{}_{}_tax'.format(args.output, mg_name)))
-                                                 
+                                                
         # Draw the functional krona plot
         data.groupby(functional_columns)[mg_name].sum().reset_index()[
             [mg_name] + functional_columns].to_csv('{}_{}_fun.tsv'.format(
                 args.output, mg_name), sep = '\t', index = False, header = False)
-        mtools.run_command('perl Krona/KronaTools/scripts/ImportText.pl {0}.tsv -o {0}.html'.format(
+        mtools.run_command('ktImportText {0}.tsv -o {0}.html'.format(
             '{}_{}_fun'.format(args.output, mg_name)))
     
     '''

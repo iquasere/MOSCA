@@ -87,7 +87,7 @@ class Reporter:
                                                adapter + '_reverse_paired') 
              if adapter is not None else ('', 'R1', 'R2')), '[After quality trimming]': (
                      'quality_trimmed_', 'forward_paired', 'reverse_paired')}
-        '''
+        
         # Initial assessment
         self.report.loc[name, '[Initial quality assessment] # of initial reads'] = mtools.count_on_file(
             '@', input_file, compressed = True if input_file.endswith('.gz') else False)
@@ -119,7 +119,7 @@ class Reporter:
         
         # Quality trimming
         self.info_from_fastqc(output_dir, name, '[Before quality trimming]', prefix2terms)
-        '''
+        
         self.report.loc[name, '[Quality trimming] Parameters'] = '; '.join([file for file in 
                 set(open('{}/Preprocess/Trimmomatic/{}_quality_params.txt'.format(
                 output_dir, name)).read().split('\n')) if len(file) > 2])                                # TODO - because '' must be interfering, try to cut the problem at the root before troubles
@@ -137,10 +137,8 @@ class Reporter:
                 mtname2sample.append([mt_name, pair[1]])
         name2sample = mg_name2sample + mtname2sample
         name2sample = pd.DataFrame(name2sample, columns = ['Name', 'Sample'])
-        print(self.report)
         self.report = pd.merge(name2sample, self.report, left_on = 'Name', 
                                right_index = True, how = 'outer')
-        print(self.report)
     
     def info_from_assembly(self, output_dir, sample):
         print('Retrieving assembly information for sample ' + sample)

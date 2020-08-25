@@ -575,11 +575,11 @@ class MoscaTools:
         The readcounts by contig in the file will be normalized by contig size
     '''
     def normalize_mg_readcounts_by_size(self, readcounts, contigs):
-        self.run_pipe_command('head -n -5 {}'.format(readcounts), 
-            file = readcounts.replace('.readcounts', '_no_tail.readcounts'))
+        self.run_pipe_command('head -n -5 {}'.format(readcounts),               # I still don't know how to pipe two things together for the join command, when I do I'll be able to merge this two commands
+            output = readcounts.replace('.readcounts', '_no_tail.readcounts'))
         self.run_pipe_command("seqkit fx2tab {} | sort | awk '{{print $1\"\\t\"length($2)}}' | join - {} | awk '{{print $1\"\\t\"$3/$2}}'".format(
             contigs, readcounts.replace('.readcounts', '_no_tail.readcounts')), 
-            file = readcounts.replace('.readcounts', '_normalized.readcounts'))
+            output = readcounts.replace('.readcounts', '_normalized.readcounts'))
     
     '''
     Input:

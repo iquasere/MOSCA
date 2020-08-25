@@ -10,7 +10,7 @@ conda config --add channels defaults
 conda config --add channels bioconda
 conda config --add channels conda-forge
 conda install -y svn reportlab openpyxl xlrd>=0.9.0 r-rcolorbrewer pandas scikit-learn lxml biopython perl
-conda install -y -c bioconda fastqc sortmerna=2.1 seqtk trimmomatic megahit spades fraggenescan diamond upimapi htseq bowtie2 checkm-genome bioconductor-edger=3.24.3 r-pheatmap r-optparse blast krona seqkit
+conda install -y -c bioconda fastqc sortmerna=2.1 seqtk trimmomatic megahit spades fraggenescan diamond upimapi htseq bowtie2 checkm-genome bioconductor-edger=3.24.3 r-pheatmap r-optparse blast krona seqkit samtools
 conda install -y -c bioconda maxbin2 
 conda install -y -c bioconductor-deseq2=1.22.1
 conda install -y -c conda-forge progressbar33 tqdm>=4.33.0 xlsxwriter unzip

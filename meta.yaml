@@ -54,6 +54,7 @@ requirements:
     - maxquant
     - quast
     - keggcharter
+    - samtools
 
 test:
   commands:
