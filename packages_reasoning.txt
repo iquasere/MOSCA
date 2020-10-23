@@ -1,7 +1,0 @@
-openpyxl                                                    # normalization fails otherwise with "No module named 'openpyxl'"
-# bioconda bioconductor-genomeinfodb                        # genomeinfodb might be required after deseq
-# bioconda bioconductor-genomeinfodbdata                    # genomeinfodbdata might be required after deseq
-# searchgui peptide-shaker                                  # not working properly
-tqdm                                                        # tqdm>=4.33.0 is the version that allowed to use its progress bar with newer versions of python
-maxbin2                                                     # initial repo install with maxbin2 fails and seems to mess the installation of the other bioconda packages. So it is installed separately
-bioconductor-deseq2=1.22.1                                  # even more trouble in installing, so separated from maxbin2
