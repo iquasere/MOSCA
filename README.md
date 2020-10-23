@@ -151,9 +151,9 @@ analysis.
 ## MOSCA is now also available through Bioconda!
 
 To use MOSCA through Bioconda, an environment must be created containing all the dependencies. 
-Create the environment and install MOSCA with ```conda create -n mosca -c bioconda -c conda-forge mosca```
-Activate the environment with ```conda activate mosca```
-Run MOSCA with ```mosca.py [arguments]```
+Create the environment and install MOSCA with ```conda create -n mosca -c bioconda -c conda-forge mosca```.
+Activate the environment with ```conda activate mosca```.
+Run MOSCA with ```mosca.py [arguments]```.
 
 ## MOSCA is also available as a Docker image!
 

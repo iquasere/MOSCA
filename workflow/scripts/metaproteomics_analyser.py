@@ -7,15 +7,18 @@ By João Sequeira
 Jul 2018
 """
 
-from progressbar import ProgressBar
-from mosca_tools import MoscaTools
-from diamond import DIAMOND
-from annotation import Annotater
+import glob
+import os
+import pathlib
+import shlex
+import shutil
+import subprocess
 import pandas as pd
+from annotation import Annotater
 from lxml import etree
-import os, pathlib, shlex, subprocess, glob, shutil
+from mosca_tools import parse_fasta, run_command, sort_alphanumeric, parse_blast
+from progressbar import ProgressBar
 
-mtools = MoscaTools()
 
 class MetaproteomicsAnalyser:
     
@@ -55,7 +58,7 @@ class MetaproteomicsAnalyser:
             
         elif how == 'raw':
             database = list()
-            faa = mtools.parse_fasta(faa)
+            faa = parse_fasta(faa)
             print('Removing sequences with unknown bases (*).')
             pbar = ProgressBar()
             for k,v in pbar(faa.items()):
@@ -63,7 +66,7 @@ class MetaproteomicsAnalyser:
                     database.append([k,v])
                     
         elif how == 'uniprot_ids':
-            faa = mtools.parse_fasta(faa)
+            faa = parse_fasta(faa)
             faa = pd.DataFrame.from_dict(faa, orient='index')
             faa.columns = ['sequence']
             faa = pd.merge(blast, faa, left_on = 'qseqid', right_index = True)
@@ -75,11 +78,10 @@ class MetaproteomicsAnalyser:
         if protease == 'trypsin':                                                                   # TODO - pig trypsin is not the only protease used, will have to include more - see from searchgui
             if not os.path.isfile(output + '/P00761.fasta'):
                 print('Trypsin file not found. Will be downloaded from UniProt.')
-                mtools.run_command('wget https://www.uniprot.org/uniprot/P00761.fasta' + 
+                run_command('wget https://www.uniprot.org/uniprot/P00761.fasta' +
                                    ' -P ' + '/'.join(output.split('/')[:-1]))
             protease = output + '/P00761.fasta'
-        mtools.run_command('cat ' + ' '.join([crap_database, protease]), 
-                           file = output, mode = 'a')
+        run_command('cat ' + ' '.join([crap_database, protease]), file = output, mode = 'a')
 
     '''   
     input: 
@@ -94,7 +96,7 @@ class MetaproteomicsAnalyser:
         else:
             print('cRAP database not found at ' + crap_database + '. Downloading cRAP database.')
             crap_folder = '/'.join(crap_database.split('/')[:-1])
-            mtools.run_command('wget ftp://ftp.thegpm.org/fasta/cRAP/crap.fasta -P ' + crap_folder)
+            run_command('wget ftp://ftp.thegpm.org/fasta/cRAP/crap.fasta -P ' + crap_folder)
             
     '''   
     input:
@@ -110,7 +112,7 @@ class MetaproteomicsAnalyser:
         if not os.path.isfile(decoy_database):
             bashCommand = ('java -cp {} eu.isas.searchgui.cmd.FastaCLI -in {} -decoy'.format(
                     searchgui_exe, database))
-            mtools.run_command(bashCommand)
+            run_command(bashCommand)
         else:
             print(decoy_database + ' already exists!')
         
@@ -132,7 +134,7 @@ class MetaproteomicsAnalyser:
         bashCommand_correct = shlex.split(bashCommand)                              #the usual way with MoscaTools is not working here, dunno why
         process = subprocess.Popen(bashCommand_correct, stdout=subprocess.PIPE)
         output, error = process.communicate()
-        mtools.run_command(bashCommand)
+        run_command(bashCommand)
         
     '''   
     input: 
@@ -153,7 +155,7 @@ class MetaproteomicsAnalyser:
                        ''.join([' -' + engine + ' 1' for engine in search_engines])).format(
                                searchgui_exe, spectra_folder, output, parameters_file, 
                                threads)
-        mtools.run_command(bashCommand)
+        run_command(bashCommand)
         
     '''   
     input: 
@@ -179,7 +181,7 @@ class MetaproteomicsAnalyser:
                        '{} -identification_files {} -out {}').format(
                         peptide_shaker_exe, spectra_folder, experiment_name, sample_name, 
                         replicate_number, searchcli_output, peptideshaker_output)
-        mtools.run_command(bashCommand)
+        run_command(bashCommand)
        
     '''   
     input: 
@@ -199,7 +201,7 @@ class MetaproteomicsAnalyser:
         bashCommand = ('java -cp {} eu.isas.peptideshaker.cmd.ReportCLI -in ' + 
                        '{} -out_reports {} -reports ' + ','.join(reports_list)).format(
                                peptide_shaker_exe, peptideshaker_output, reports_folder)
-        mtools.run_command(bashCommand)
+        run_command(bashCommand)
         
     '''   
     input: 
@@ -215,14 +217,14 @@ class MetaproteomicsAnalyser:
     '''
     def spectra_counting(self, protein_reports, output, blast = None, uniprot_ids = False,
                          samples_names = None):
-        protein_reports = mtools.sort_alphanumeric(protein_reports)
+        protein_reports = sort_alphanumeric(protein_reports)
         if samples_names is None:
             samples_names = [filename.split('/')[-3] for filename in protein_reports]  # samples names are the folder containing the reports folder 
         spectra_count = pd.DataFrame(columns = ['Main Accession'])
         for i in range(len(protein_reports)):
             report = pd.read_csv(protein_reports[i], sep = '\t', index_col = 0)
             if not uniprot_ids:
-                blast = DIAMOND(out = blast).parse_result()
+                blast = parse_blast(blast)
                 blast['sseqid'] = [ide.split('|')[-1] for ide in blast.sseqid]
                 report = pd.merge(report, blast[['qseqid','sseqid']], 
                                  left_on = 'Main Accession', right_on = 'qseqid')
@@ -249,7 +251,7 @@ class MetaproteomicsAnalyser:
     def create_mqpar(self, output):
         if os.path.isfile(output):                                              # the create file command will not create a new one if the file already exists
             os.remove(output)                                                   # even if that file already has non-default information in it, messing with the next commands
-        mtools.run_command('maxquant ' + output + ' --create')
+        run_command('maxquant ' + output + ' --create')
         
     '''
     input:
@@ -280,7 +282,7 @@ class MetaproteomicsAnalyser:
         fractions = root.find("fractions")
         ptms = root.find("ptms")
         paramGroupIndices = root.find("paramGroupIndices")
-        files = mtools.sort_alphanumeric(glob.glob('{}/*.{}'.format(spectra_folder, file_type)))
+        files = sort_alphanumeric(glob.glob('{}/*.{}'.format(spectra_folder, file_type)))
         for i in range(len(files)):
             print('Adding file: ' + files[i])
             etree.SubElement(filePaths, 'string').text = files[i]
@@ -305,7 +307,7 @@ class MetaproteomicsAnalyser:
         for directory in [spectra_folder + '/combined', output_folder + '/combined']:
             if os.path.isdir(directory):
                 shutil.rmtree(directory, ignore_errors=True)
-        mtools.run_command('maxquant ' + mqpar)        # TODO - get the shell messages from MaxQuant to appear
+        run_command('maxquant ' + mqpar)        # TODO - get the shell messages from MaxQuant to appear
         os.rename(spectra_folder + '/combined', output_folder + '/maxquant_results')
         
     def run(self):
@@ -345,3 +347,25 @@ class MetaproteomicsAnalyser:
                                   '_' + self.sample_name + '_' +  self.replicate_number + 
                                   '_Default_Protein_Report.txt'), self.blast,
                                   self.output + '/Spectra_counting.tsv')
+            
+    def background_inputation(self, df):
+        return df.fillna(value = df.min().min())
+            
+    def censored_inputation(self, df, replicates):
+        for replicate in replicates:
+            for line in df.index:
+                if df.loc[df.index[0]][replicates[0]].isnull().sum() > 1:
+                    df.loc[df.index[0]][replicates[0]] = (
+                        self.background_inputation(df.loc[df.index[0]][replicates[0]]))
+
+def censored_inputation(df, replicates):
+    pbar = ProgressBar()
+    min_val = df.min().min()
+    for replicate in pbar(replicates):
+        for line in df.index:
+            if df.loc[line][replicate].isnull().sum() > 1:
+                df.loc[line][replicate] = df.loc[line][replicate].fillna(value = min_val)
+    return df
+                    
+def background_inputation(df):
+    return df.fillna(value = df.min())

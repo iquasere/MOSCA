@@ -280,3 +280,36 @@ if __name__ == '__main__':
     conditions = 'c1,c2,c3,c1,c2,c3,c1,c2,c3'
     
     mtools.run_command('python MOSCA/scripts/mosca.py -f {} -c {} -o SimulatedMGMT -t 14 -assstrat all'.format(input_files, conditions))
+    
+   
+    
+    profiles = {'archaea_co2': {
+                        'Pathway':{
+                                'One-carbon metabolism; methanogenesis from CO(2)': 1, 
+                                'Cofactor biosynthesis': 1}, 
+                        'Protein names':{
+                                'ATP synthase': 1}
+                        },
+                'archaea_acetate': {
+                        'Pathway':{
+                                'One-carbon metabolism; methanogenesis from acetate': 1, 
+                                'Cofactor biosynthesis': 1}, 
+                        'Protein names':{
+                                'ATP synthase': 1}
+                        },
+                'bacteria':{
+                        'Pathway':{
+                                'lipid metabolism': 1, 
+                                'Cofactor biosynthesis': 1,
+                                'Metabolic intermediate biosynthesis': 1}, 
+                        'Protein names':{
+                                'ATP synthase': 1}
+                        }
+                    }
+    
+(((((uniprotinfo['Pathway'].str.contains('One-carbon metabolism; methanogenesis from CO\(2\)') |
+uniprotinfo['Pathway'].str.contains('Cofactor biosynthesis')) |
+uniprotinfo['Protein names'].str.contains('ATP synthase')) |
+uniprotinfo['Pathway'].str.contains('One-carbon metabolism; methanogenesis from acetate')) |
+uniprotinfo['Pathway'].str.contains('lipid metabolism')) |
+uniprotinfo['Pathway'].str.contains('Metabolic intermediate biosynthesis')).sum()

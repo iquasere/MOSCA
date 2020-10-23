@@ -1,0 +1,11 @@
+Files	Sample	Data type	Condition
+SimMOSCA2/dna/mg_R1.fastq,SimMOSCA2/dna/mg_R2.fastq	Sample	dna
+SimMOSCA2/rna/a/0.01/mt_0.01a_R1.fastq,SimMOSCA2/rna/a/0.01/mt_0.01a_R2.fastq	Sample	mrna	c1
+SimMOSCA2/rna/b/0.01/mt_0.01b_R1.fastq,SimMOSCA2/rna/b/0.01/mt_0.01b_R2.fastq	Sample	mrna	c1
+SimMOSCA2/rna/c/0.01/mt_0.01c_R1.fastq,SimMOSCA2/rna/c/0.01/mt_0.01c_R2.fastq	Sample	mrna	c1
+SimMOSCA2/rna/a/1/mt_1a_R1.fastq,SimMOSCA2/rna/a/1/mt_1a_R2.fastq	Sample	mrna	c2
+SimMOSCA2/rna/b/1/mt_1b_R1.fastq,SimMOSCA2/rna/b/1/mt_1b_R2.fastq	Sample	mrna	c2
+SimMOSCA2/rna/c/1/mt_1c_R1.fastq,SimMOSCA2/rna/c/1/mt_1c_R2.fastq	Sample	mrna	c2
+SimMOSCA2/rna/a/100/mt_100a_R1.fastq,SimMOSCA2/rna/a/100/mt_100a_R2.fastq	Sample	mrna	c3
+SimMOSCA2/rna/b/100/mt_100b_R1.fastq,SimMOSCA2/rna/b/100/mt_100b_R2.fastq	Sample	mrna	c3
+SimMOSCA2/rna/c/100/mt_100c_R1.fastq,SimMOSCA2/rna/c/100/mt_100c_R2.fastq	Sample	mrna	c3

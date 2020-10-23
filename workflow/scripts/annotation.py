@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 MOSCA's Annotation package for Gene Calling and 
 Alignment of identified ORFs to UniProt database
@@ -7,21 +8,44 @@ By João Sequeira
 Jun 2017
 """
 
-from diamond import DIAMOND
-from mosca_tools import MoscaTools
-from uniprot_mapping import UniprotMapping
-from progressbar import ProgressBar
-import pandas as pd
+import argparse
+import multiprocessing
 import numpy as np
 import os
+import pandas as pd
+from mosca_tools import run_command, fastq2fasta
+from progressbar import ProgressBar
 
-mtools = MoscaTools()
-upmap = UniprotMapping()
 
 class Annotater:
     
     def __init__ (self, **kwargs):
         self.__dict__ = kwargs
+        
+    def get_arguments(self):    
+        parser = argparse.ArgumentParser(description="MOSCA annotation")
+        parser.add_argument("-i", "--input", type = str, required = True,
+                            help="""Can be filename of single-end reads,
+                            comma separated-list of filenames of paired-end reads
+                            or filename of contigs file (this one requires the 
+                            "--assembled option".""")
+        parser.add_argument("-t", "--threads", type = str, 
+                            default = str(multiprocessing.cpu_count() - 2),
+                            help = "Number of threads to use. Default is number of CPUs available minus 2.")
+        parser.add_argument("-a", "--assembled", action = "store_true", default = False,
+                            help="If input is assembled reads.")
+        parser.add_argument("-o", "--output", type = str, help = "Output directory"),
+        parser.add_argument("-em", "--error-model", type = str, default = 'illumina_5',
+                            help = "Error model for FastQ reads input", 
+                            choices = ['sanger_5', 'sanger_10', '454_10', '454_30',
+                                       'illumina_5', 'illumina_10'])
+        parser.add_argument("-db", "--database", type = str, help = "Database for annotation")
+        parser.add_argument("-mts", "--max-target-seqs", type=str, help="Number of identifications for each protein")
+    
+        args = parser.parse_args()
+        
+        args.output = args.output.rstrip('/')
+        return args
         
     '''
     Input:
@@ -30,70 +54,53 @@ class Annotater:
         assembled: True if input is contigs, False if it are reads
         error_model: quality model to consider when input are reads
     Output:
-        FragGeneScan output files will be produced with basename 'output + /fgs'
+        FragGeneScan output files will be produced with basename 'output'
         If input is FASTQ reads (if assembled == False) a FASTA version will
         be produced in the same folder with the same name as the FASTQ file
         (but with .fasta instead of .fastq)
     '''
-    def gene_calling(self, file, output, assembled = True, error_model = 'illumina_10'):
-        bashCommand = 'run_FragGeneScan.pl -genome='
-        if assembled:
-            bashCommand += file + ' -out=' + output + '/fgs -complete=1 -train=./complete'
-        else:
-            mtools.fastq2fasta(file, file.replace('fastq', 'fasta'))            # fraggenescan only accepts FASTA input
-            bashCommand += (file.replace('fastq', 'fasta') + ' -out=' + output +
-                            '/fgs -complete=0 -train=./' + error_model)
-        bashCommand += ' -thread=' + self.threads
-        mtools.run_command(bashCommand)
-    
-    def annotation(self, max_target_seqs = '50'):
-        diamond = DIAMOND(threads = self.threads,
-                          db = self.db,
-                          out = self.out_dir + '/aligned.blast',
-                          query = self.out_dir + '/fgs.faa',
-                          un = self.out_dir + '/unaligned.fasta',
-                          unal = '1',
-                          max_target_seqs = max_target_seqs)
+    def gene_calling(self, file, output, threads = '12', assembled = True, 
+                     error_model = 'illumina_10'):
+        if not assembled:
+            fastq2fasta(file, file.replace('fastq', 'fasta'))                   # FragGeneScan only accepts as input a FASTA file
         
-        if self.db[-6:] == '.fasta' or self.db[-4:] == '.faa':
+        run_command('run_FragGeneScan.pl -thread={} -genome={}'.format(threads,
+            '{} -out={} -complete=1 -train=./complete'.format(file, output) if assembled
+            else '{} -out={} -complete=0 -train=./'.format(file.replace(
+                'fastq', 'fasta'), error_model)))
+    
+    def generate_diamond_database(self, fasta, dmnd):
+        run_command('diamond makedb --in {} -d {}'.format(fasta, dmnd))
+    
+    def run_diamond(self, query, aligned, unaligned, database, threads = '12', 
+                    max_target_seqs = '50'):
+        if database[-6:] == '.fasta' or database[-4:] == '.faa':
             print('FASTA database was inputed')
-            if not os.path.isfile(self.db.replace('fasta','dmnd')):
+            if not os.path.isfile(database.replace('fasta','dmnd')):
                 print('DMND database not found. Generating a new one')
-                diamond.set_database(self.db, self.db.replace('fasta','dmnd'))
+                self.generate_diamond_database(database, 
+                                               database.replace('fasta','dmnd'))
             else:
                 print('DMND database was found. Using it')
-        elif self.db[-5:] != '.dmnd':
+            database = database.split('.fa')[0]
+        elif database[-5:] != '.dmnd':
             print('Database must either be a FASTA (.fasta) or a DMND (.dmnd) file')
-            exit()
-        diamond.db = self.db.split('.dmnd')[0] if '.dmnd' in self.db else self.db.split('.fasta')[0]
+        else:
+            database = database.split('.dmnd')[0]
         
-        diamond.run()
+        run_command("diamond blastp --query {} --out {} --un {} --db {} --outfmt 6 --unal 1 --threads {} --max-target-seqs {}".format(
+            query, aligned, unaligned, database, threads, max_target_seqs))
     
     def run(self):
-        self.gene_calling(self.file, self.out_dir, self.assembled)
-        #self.annotation()                                                      # annotation has to be refined to retrieved better than hypothetical proteins
-        self.annotation(max_target_seqs = '1')
+        args = self.get_arguments()
+        
+        self.gene_calling(args.input, '{}/fgs'.format(args.output), threads = args.threads,
+                          assembled = args.assembled, error_model = args.error_model)
+        
+        self.run_diamond('{}/fgs.faa'.format(args.output), '{}/aligned.blast'.format(args.output),
+                         '{}/unaligned.fasta'.format(args.output), args.database,
+                         threads=args.threads, max_target_seqs=args.max_target_seqs)                                  # TODO - annotation has to be refined to retrieved better than hypothetical proteins
 
-    '''
-    UniProt regularly updates its databases. As we are working with MG here, many
-    identifications will sometimes pertain to ORFs or pseudogenes that have been 
-    wrongly predicted to code for proteins. It may also happen that the original
-    authors decided to withdraw their published sequences.
-    Input:
-        uniprotinfo: name of UniProt info file
-    Output:
-        Rows in UniProt info file that lack a species identification will be 
-        updated to include that new information
-    '''
-    def info_from_no_species(self, uniprotinfo):
-        uniprotinfo = pd.read_csv(uniprotinfo, sep = '\t')
-        missing_uniprotinfo = uniprotinfo[uniprotinfo['Taxonomic lineage (SPECIES)'].isnull()]
-        ids = list(set([ide for ide in missing_uniprotinfo['Entry']]))
-        new_uniprotinfo = self.get_uniprot_information(ids)
-        for entry in new_uniprotinfo['Entry']:
-            missing_uniprotinfo[missing_uniprotinfo['Entry'] == entry] = new_uniprotinfo[new_uniprotinfo['Entry'] == entry]
-        new_uniprotinfo.to_csv(uniprotinfo, sep = '\t', index = False)
-    
     '''
     Input:
         data: str - result from MOSCA analysis
@@ -171,3 +178,6 @@ class Annotater:
             else:
                 proximity += 1
         return proximity
+    
+if __name__ == '__main__':
+    Annotater().run()
