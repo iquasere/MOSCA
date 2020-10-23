@@ -55,6 +55,7 @@ requirements:
     - quast
     - keggcharter
     - samtools
+    - snakemake
 
 test:
   commands:
