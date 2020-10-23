@@ -1,5 +1,5 @@
 Files	Sample	Data type	Condition
-SimMOSCA2/dna/mg_R1.fastq,SimMOSCA2/dna/mg_R2.fastq	Sample	dna
+SimMOSCA2/dna/mg_R1.fastq,SimMOSCA2/dna/mg_R2.fastq	Sample	dna none
 SimMOSCA2/rna/a/0.01/mt_0.01a_R1.fastq,SimMOSCA2/rna/a/0.01/mt_0.01a_R2.fastq	Sample	mrna	c1
 SimMOSCA2/rna/b/0.01/mt_0.01b_R1.fastq,SimMOSCA2/rna/b/0.01/mt_0.01b_R2.fastq	Sample	mrna	c1
 SimMOSCA2/rna/c/0.01/mt_0.01c_R1.fastq,SimMOSCA2/rna/c/0.01/mt_0.01c_R2.fastq	Sample	mrna	c1
