@@ -1,0 +1,202 @@
+import pandas as pd
+import shutil
+
+configfile: "config.json"
+experiments = pd.read_csv(config["experiments"], sep = '\t')
+experiments['Name'] = [filename.split('/')[-1].split('_R' if ',' in filename else '.fa')[0] for filename in experiments['Files']]
+experiments.to_csv(config["experiments"], sep = '\t', index = False)
+name2sample = {experiments.iloc[i]['Name'] : experiments.iloc[i]['Sample'] for i in range(len(experiments))}
+mg_experiments = experiments[experiments["Data type"] == 'dna']
+mt_experiments = experiments[experiments["Data type"] == 'mrna']
+
+sample2mgname = dict()
+for row in mg_experiments.iterrows():
+    if row[1].loc['Sample'] in sample2mgname.keys():
+        sample2mgname[row[1].loc['Sample']].append(row[1].loc['Name'])
+    else:
+        sample2mgname[row[1].loc['Sample']] = [row[1].loc['Name']]
+
+def preprocess_input(wildcards):
+    # get files with matching names
+    df = experiments.loc[experiments['Name'] == wildcards.name, 'Files']
+    # get first value (in case multiple) and split on commas
+    return df.iloc[0].split(',')
+
+def join_reads_input(wildcards):
+    df = mg_experiments.loc[mg_experiments['Sample'] == wildcards.sample, 'Files']
+    names = [filename.split('/')[-1].split('_R' if ',' in filename else '.fa')[0] for filename in df]
+    return ['{}/Preprocess/Trimmomatic/quality_trimmed_{}{}.fq'.format(config["output"], name, fr) for name in names
+        for files in df for fr in (['_forward_paired', '_reverse_paired'] if ',' in files else [''])]
+
+
+rule all:
+    input:
+        expand("{output}/Binning/{sample}/checkm.tsv", output = config["output"], sample = set(experiments['Sample'])),
+        expand("{output}/MOSCA_Protein_Report.xlsx", output = config["output"]),
+        expand("{output}/MOSCA_Entry_Report.xlsx", output = config["output"]),
+        expand("{output}/KEGGCharter_results.xlsx", output = config["output"]),
+        expand("{output}/technical_report.txt", output = config["output"]),
+        expand("{output}/MOSCA_General_Report.xlsx", output = config["output"]),
+        expand("{output}/Metatranscriptomics/gene_expression.jpeg", output = config["output"]),
+        expand("{output}/Metatranscriptomics/sample_distances.jpeg", output = config["output"])
+
+rule preprocess:
+    input:
+        preprocess_input
+    output:
+        expand("{output}/Preprocess/Trimmomatic/quality_trimmed_{{name}}{fr}.fq", output = config["output"],
+            fr = (['_forward_paired', '_reverse_paired'] if experiments["Files"].str.contains(',').tolist() else ''))
+    threads:
+        config["threads"]
+    run:
+        shell("python preprocess.py -i {reads} -t {threads} -o {output}/Preprocess -adaptdir {adapters_directory} -rrnadbs {rrna_directory} -d {data_type}",
+            output = config["output"], data_type = experiments.loc[experiments['Name'] == wildcards.name]["Data type"].iloc[0], reads = ",".join(input),
+            adapters_directory = config["trimmomatic_adapters_directory"], rrna_directory = config["rrna_databases_directory"])
+
+rule join_reads:
+    input:
+        join_reads_input
+    output:
+        expand("{output}/Assembly/{{sample}}{fr}.fastq", output = config["output"],
+            fr = (['_forward', '_reverse'] if experiments["Files"].str.contains(',').tolist() else ''))
+    run:
+        for file in input:
+            print(file)
+            if 'forward' in file:
+                shell("touch {output}/Assembly/{wildcards.sample}_forward.fastq; cat {file} >> {output}/Assembly/{wildcards.sample}_forward.fastq", output = config["output"])
+            elif 'reverse' in file:
+                shell("touch {output}/Assembly/{wildcards.sample}_reverse.fastq; cat {file} >> {output}/Assembly/{wildcards.sample}_reverse.fastq", output = config["output"])
+            else:
+                shell("touch {output}/Assembly/{wildcards.sample}.fastq; cat {file} >> {output}/Assembly/{wildcards.sample}.fastq", output = config["output"])
+
+rule assembly:
+    input:
+        expand("{output}/Assembly/{sample}{fr}.fastq", output = config["output"], sample = set(experiments['Sample']),
+            fr = (['_forward', '_reverse'] if experiments["Files"].str.contains(',').tolist() else ''))
+    output:
+        expand("{output}/Assembly/{sample}/contigs.fasta", output = config["output"], sample = set(experiments['Sample']))
+    threads:
+        config["threads"]
+    run:
+        reads = ",".join(input)
+        shell("python assembly.py -r {reads} -t {threads} -o {output}/Assembly/{sample} -a {assembler}",
+            output = config["output"], sample = set(experiments['Sample']), assembler = config["assembler"])
+
+rule binning:
+    input:
+        reads = expand("{output}/Assembly/{sample}{fr}.fastq", output = config["output"], sample = set(experiments['Sample']),
+            fr = (['_forward', '_reverse'] if experiments["Files"].str.contains(',').tolist() else '')),
+        contigs = expand("{output}/Assembly/{sample}/contigs.fasta", output = config["output"], sample = set(experiments['Sample']))
+    output:
+        expand("{output}/Binning/{sample}/checkm.tsv", output = config["output"], sample = set(experiments['Sample']))
+    threads:
+        config["threads"]
+    run:
+        reads = ",".join(input.reads)
+        shell("python binning.py -c {input.contigs} -t {threads} -o {output}/Binning/{sample} -r {reads} -mset {markerset}",
+            output = config["output"], markerset = config["markerset"], sample = set(experiments['Sample']))
+
+rule annotation:
+    input:
+        expand("{output}/Assembly/{sample}/contigs.fasta", output = config["output"], sample = set(experiments['Sample']))
+    output:
+        expand("{output}/Annotation/{sample}/fgs.faa", output = config["output"], sample = set(experiments['Sample'])),
+        expand("{output}/Annotation/{sample}/aligned.blast", output = config["output"], sample = set(experiments['Sample']))
+    threads:
+        config["threads"]
+    run:
+        shell("python annotation.py -i {input} -t {threads} -a -o {output}/Annotation/{sample} -em {error_model} -db {diamond_database} -mts {diamond_max_targets_seqs}",
+            output = config["output"], sample = set(experiments['Sample']), error_model = config["error_model"],
+            diamond_database = config["diamond_database"], diamond_max_targets_seqs = config["diamond_max_targets_seqs"])
+
+rule upimapi:
+    input:
+        expand("{output}/Annotation/{sample}/aligned.blast", output = config["output"], sample = set(experiments["Sample"]))                            # TODO - will I have to create a mock file to force this to run for all aligned.blast?
+    output:
+        expand("{output}/Annotation/uniprotinfo.tsv", output = config["output"])
+    run:
+        shell("python UPIMAPI/upimapi.py -i {input} -o {output}/Annotation/uniprotinfo --blast --full-id",
+              output = config["output"])                                                                                # TODO - allow to set these columns and databases - allow them to be set with files
+        shell("echo 'done' > {output}/Annotation/{{sample}}.txt", output = config["output"])
+
+rule recognizer:
+    input:
+        expand("{output}/Annotation/{sample}/fgs.faa", output = config["output"], sample = set(experiments["Sample"]))
+    output:
+        expand("{output}/Annotation/{sample}/protein2cog.tsv", output = config["output"], sample = set(experiments["Sample"]))
+    threads:
+        config["threads"]
+    run:
+        shell("python reCOGnizer-1.3.0/recognizer.py -f {input} -t {threads} -o {output}/Annotation/{sample} -rd {resources_directory} --tsv --remove-spaces",
+            output = config["output"], sample = set(experiments["Sample"]),
+            resources_directory = config["recognizer_databases_directory"])
+
+rule quantification_analysis:
+    input:
+        expand("{output}/Preprocess/Trimmomatic/quality_trimmed_{name}{fr}.fq", output = config["output"],
+            name = experiments["Name"],
+            fr = (['_forward_paired', '_reverse_paired'] if experiments["Files"].str.contains(',').tolist() else ''))
+    output:
+        expand("{output}/Metatranscriptomics/{name}.readcounts", output = config["output"],
+            name = set(mt_experiments['Name'])),
+        expand("{output}/Annotation/{name}.readcounts", output = config["output"],
+            name = set(mg_experiments['Name']))
+    threads:
+        config["threads"]
+    run:
+        shell("python quantification_analyser.py -e {experiments} -t {threads} -o {output}",
+              experiments = config["experiments"], output = config["output"])
+
+rule join_information:
+    input:
+        expand("{output}/Annotation/uniprotinfo.tsv", output = config["output"]),
+        expand("{output}/Annotation/{sample}/aligned.blast", output = config["output"], sample = set(experiments['Sample'])),
+        expand("{output}/Annotation/{sample}/protein2cog.tsv", output = config["output"], sample = set(experiments["Sample"])),
+        expand("{output}/Metatranscriptomics/{name}.readcounts", output = config["output"],
+            name = set(mt_experiments['Name'])),
+        expand("{output}/Annotation/{name}.readcounts", output = config["output"],
+            name = set(mg_experiments['Name'])),
+    output:
+        expand("{output}/MOSCA_Protein_Report.xlsx", output = config["output"]),
+        expand("{output}/MOSCA_Entry_Report.xlsx", output = config["output"]),
+        expand("{output}/Metatranscriptomics/expression_matrix.tsv", output = config["output"])
+    threads:
+        config["threads"]
+    run:
+        shell("python join_information.py -e {experiments} -t {threads} -o {output}",
+              experiments = config["experiments"], output = config["output"])
+
+rule differential_expression:
+    input:
+        expand("{output}/Metatranscriptomics/expression_matrix.tsv", output = config["output"])
+    output:
+        expand("{output}/Metatranscriptomics/gene_expression.jpeg", output = config["output"]),
+        expand("{output}/Metatranscriptomics/sample_distances.jpeg", output = config["output"])
+    run:
+        conditions = ",".join(map(str, mt_experiments['Condition'].tolist()))
+        shell("Rscript de_analysis.R --readcounts {input} --conditions {conditions} --output {output}/Metatranscriptomics",                 # problems with libreadline.so.6 might be solved with cd /lib/x86_64-linux-gnu/; sudo ln -s libreadline.so.7.0 libreadline.so.6
+            conditions = conditions, output = config["output"])
+
+rule kegg_charter:
+    input:
+        expand("{output}/MOSCA_Entry_Report.xlsx", output = config["output"])
+    output:
+        expand("{output}/KEGGCharter_results.xlsx", output = config["output"])
+    run:
+        shell("kegg_charter.py -f {input} -o {output} -mm {metabolic_maps} -mgc {mg_cols} -mtc {exp_cols} -tc 'Taxonomic lineage ({taxa_level})' -not {number_of_taxa} -keggc 'Cross-refernce (KEGG)'",
+              output = config["output"], metabolic_maps = config["keggcharter_maps"], mg_cols = mg_experiments['Name'].tolist(),
+              exp_cols = mt_experiments['Name'].tolist(), taxa_level = config["keggcharter_taxa_level"],
+              number_of_taxa = config["keggcharter_number_of_taxa"])
+
+        shutil.copyfile('{}/KEGGCharter_results.xlsx'.format(config["output"]),
+                        '{}/MOSCA_Entry_Report.xlsx'.format(config["output"]))
+
+rule report:
+    input:
+        expand("{output}/MOSCA_Protein_Report.xlsx", output = config["output"])
+    output:
+        expand("{output}/technical_report.txt", output = config["output"]),
+        expand("{output}/MOSCA_General_Report.xlsx", output = config["output"])
+    run:
+        shell("python report.py -e {experiments} -o {output} -ldir {reporter_lists}", experiments = config["experiments"],
+              output = config["output"], reporter_lists = config["reporter_lists_directory"])
