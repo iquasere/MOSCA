@@ -14,6 +14,7 @@ import shlex
 import shutil
 import subprocess
 import pandas as pd
+import argparse
 from annotation import Annotater
 from lxml import etree
 from mosca_tools import parse_fasta, run_command, sort_alphanumeric, parse_blast
@@ -26,6 +27,25 @@ class MetaproteomicsAnalyser:
         self.__dict__ = kwargs
         self.searchgui_exe = glob.glob('SearchGUI-*.*.*/SearchGUI-*.*.*.jar')[-1]
         self.peptide_shaker_exe = glob.glob('PeptideShaker-*.*.*/PeptideShaker-*.*.*.jar')[-1]
+
+    def get_arguments(self):
+        parser = argparse.ArgumentParser(description="MOSCA's metaproteomics analysis")
+        parser.add_argument("-sf", "--spectra-folder", type=str, required=True,
+                            help="Folder with spectra to be analysed")
+        parser.add_argument("-t", "--threads", type=str,
+                            default=str(multiprocessing.cpu_count() - 2),
+                            help="Number of threads to use. Default is number of CPUs available minus 2.")
+        parser.add_argument("-o", "--output", type=str, help="Output directory")
+        parser.add_argument("-w", "--workflow", type=str, help="Workflow to use", choices=['maxquant','compomics'])
+        parser.add_argument("-o", "--output", type=str, help="Output directory")
+        parser.add_argument("-rdb", "--reference-database", type=str,
+                            help="Database file (FASTA format) with reference sequences for protein identification")
+        parser.add_argument("-cdb", "--contaminants-database", type=str,
+                            help="Database file (FASTA format) with contaminant sequences")
+
+        args = parser.parse_args()
+        args.output = args.output.rstrip('/')
+        return args
         
     '''   
     input: 
@@ -48,40 +68,21 @@ class MetaproteomicsAnalyser:
         a FASTA file named output will be created, containing the sequences from 
         metagenomics, from cRAP database and of the protease
     '''
-    def database_generation(self, output, crap_database, protease = 'trypsin',
-                            how = 'raw', faa = None, blast = None):
+    def database_generation(self, database, output, crap_database, protease='trypsin', how='raw', blast=None):
         temp = '/'.join(output.split('/')[:-1]) + '/temporary.fasta'
-        print('Generating new database to ' + output)
-        if how == 'uniprot_sequences':
-            annotater = Annotater()
-            annotater.recursive_uniprot_fasta(output, blast = blast)
-            
-        elif how == 'raw':
-            database = list()
-            faa = parse_fasta(faa)
-            print('Removing sequences with unknown bases (*).')
-            pbar = ProgressBar()
-            for k,v in pbar(faa.items()):
-                if '*' not in v:
-                    database.append([k,v])
-                    
-        elif how == 'uniprot_ids':
-            faa = parse_fasta(faa)
-            faa = pd.DataFrame.from_dict(faa, orient='index')
-            faa.columns = ['sequence']
-            faa = pd.merge(blast, faa, left_on = 'qseqid', right_index = True)
-            with open(temp, 'w') as file:
-                print('Writing database with UniProt IDs to ' + temp)
-                pbar = ProgressBar()
-                for i in pbar(range(len(faa))):
-                    file.write('>' + faa.iloc[i]['sseqid'] + '\n' + faa.iloc[i]['sequence'] + '\n')
+        print('Generating new database in {}'.format(output))
+
+        print('Removing asterisks (*)')
+        run_command("sed 's/*//g' {} > {}".format(database, output))
+
         if protease == 'trypsin':                                                                   # TODO - pig trypsin is not the only protease used, will have to include more - see from searchgui
-            if not os.path.isfile(output + '/P00761.fasta'):
+            if not os.path.isfile('P00761.fasta'):
                 print('Trypsin file not found. Will be downloaded from UniProt.')
-                run_command('wget https://www.uniprot.org/uniprot/P00761.fasta' +
-                                   ' -P ' + '/'.join(output.split('/')[:-1]))
-            protease = output + '/P00761.fasta'
-        run_command('cat ' + ' '.join([crap_database, protease]), file = output, mode = 'a')
+                run_command('wget https://www.uniprot.org/uniprot/P00761.fasta -P {}'.format(
+                    '/'.join(output.split('/')[:-1])))
+            protease = 'P00761.fasta'
+
+        run_command('cat {}'.format(' '.join([database, crap_database, protease])), file=output, mode = 'a')
 
     '''   
     input: 
@@ -309,44 +310,52 @@ class MetaproteomicsAnalyser:
                 shutil.rmtree(directory, ignore_errors=True)
         run_command('maxquant ' + mqpar)        # TODO - get the shell messages from MaxQuant to appear
         os.rename(spectra_folder + '/combined', output_folder + '/maxquant_results')
+
+    def compomics_workflow(self):
+        self.verify_crap_db(self.crap_database)
+
+        self.create_decoy_database(self.database, self.searchgui_exe)
+        try:  # try/except - https://github.com/compomics/searchgui/issues/217
+            self.generate_parameters_file(self.output + '/params.par',
+                                          self.database.replace('.fasta', '_concatenated_target_decoy.fasta'),
+                                          self.searchgui_exe)
+        except:
+            print('An illegal reflective access operation has occurred. But MOSCA can handle it.')
+        self.peptide_spectrum_matching(self.spectra_folder, self.output,
+                                       self.output + '/params.par',
+                                       self.searchgui_exe, threads=self.threads)
+        self.browse_identification_results(self.spectra_folder, self.output + '/params.par',
+                                           self.output + '/searchgui_out.zip', self.output + '/ps_output.cpsx',
+                                           self.peptide_shaker_exe)
+        try:  # try/except - if no identifications are present, will throw an error
+            self.generate_reports(self.output + '/ps_output.cpsx', self.output + '/reports',
+                                  self.peptide_shaker_exe)
+        except:
+            print('No identifications?')
+
+        self.spectra_counting((self.output + '/reports/' + self.experiment_name +
+                               '_' + self.sample_name + '_' + self.replicate_number +
+                               '_Default_Protein_Report.txt'), self.blast,
+                              self.output + '/Spectra_counting.tsv')
+
+    def maxquant_workflow(self):
+        self.create_mqpar(self.output + '/mqpar.xml')
+        self.edit_maxquant_mqpar(self.output + '/mqpar.xml', self.output + '/database.fasta',
+                                 self.spectra_folder, self.experiment_names,
+                                 threads=self.threads)
+        self.run_maxquant(self.output + '/mqpar.xml', self.spectra_folder, self.output)
         
     def run(self):
-        self.verify_crap_db(self.crap_database)
+
         self.database_generation(self.output + '/database_uniprot_sequences.fasta', 
                                  self.crap_database, self.protease, 
                                  how = 'raw', blast = self.blast, faa = self.faa)
         
         if self.workflow == 'maxquant':
-            self.create_mqpar(self.output + '/mqpar.xml')
-            self.edit_maxquant_mqpar(self.output + '/mqpar.xml', self.output + '/database.fasta',
-                                     self.spectra_folder, self.experiment_names,
-                                     threads = self.threads)
-            self.run_maxquant(self.output + '/mqpar.xml', self.spectra_folder, self.output)
+            self.maxquant_Workflow()
             
         elif self.workflow == 'compomics':
-            self.create_decoy_database(self.database, self.searchgui_exe)
-            try:                                                                # try/except - https://github.com/compomics/searchgui/issues/217
-                self.generate_parameters_file(self.output + '/params.par', 
-                    self.database.replace('.fasta', '_concatenated_target_decoy.fasta'),
-                    self.searchgui_exe)
-            except:
-                print('An illegal reflective access operation has occurred. But MOSCA can handle it.')
-            self.peptide_spectrum_matching(self.spectra_folder, self.output, 
-                                           self.output + '/params.par',
-                                           self.searchgui_exe, threads = self.threads)
-            self.browse_identification_results(self.spectra_folder, self.output + '/params.par', 
-                        self.output + '/searchgui_out.zip', self.output + '/ps_output.cpsx',
-                        self.peptide_shaker_exe)
-            try:                                                                # try/except - if no identifications are present, will throw an error
-                self.generate_reports(self.output + '/ps_output.cpsx', self.output + '/reports',
-                                      self.peptide_shaker_exe)
-            except:
-                print('No identifications?')
-            
-            self.spectra_counting((self.output + '/reports/' + self.experiment_name + 
-                                  '_' + self.sample_name + '_' +  self.replicate_number + 
-                                  '_Default_Protein_Report.txt'), self.blast,
-                                  self.output + '/Spectra_counting.tsv')
+            self.compomics_workflow()
             
     def background_inputation(self, df):
         return df.fillna(value = df.min().min())
@@ -369,3 +378,6 @@ def censored_inputation(df, replicates):
                     
 def background_inputation(df):
     return df.fillna(value = df.min())
+
+if __name__ == '__main__':
+    MetaproteomicsAnalyser().run()

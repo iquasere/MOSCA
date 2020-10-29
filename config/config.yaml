@@ -1,0 +1,18 @@
+---
+output: snakemake_learn
+threads: 14
+experiments: experiments.tsv
+trimmomatic_adapters_directory: resources/illumina_adapters
+rrna_databases_directory: resources/rRNA_databases
+assembler: metaspades
+markerset: '40'
+error_model: illumina_5
+diamond_database: resources/uniprot.dmnd
+download_uniprot: 'TRUE'
+diamond_max_targets_seqs: '1'
+recognizer_databases_directory: resources/reCOGnizer_resources
+normalization_method: TMM
+keggcharter_maps: ''
+keggcharter_taxa_level: GENUS
+keggcharter_number_of_taxa: 10
+reporter_lists_directory: resources

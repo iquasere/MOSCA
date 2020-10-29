@@ -28,7 +28,6 @@ def join_reads_input(wildcards):
     return ['{}/Preprocess/Trimmomatic/quality_trimmed_{}{}.fq'.format(config["output"], name, fr) for name in names
         for files in df for fr in (['_forward_paired', '_reverse_paired'] if ',' in files else [''])]
 
-
 rule all:
     input:
         expand("{output}/Binning/{sample}/checkm.tsv", output = config["output"], sample = set(experiments['Sample'])),
@@ -61,7 +60,6 @@ rule join_reads:
             fr = (['_forward', '_reverse'] if experiments["Files"].str.contains(',').tolist() else ''))
     run:
         for file in input:
-            print(file)
             if 'forward' in file:
                 shell("touch {output}/Assembly/{wildcards.sample}_forward.fastq; cat {file} >> {output}/Assembly/{wildcards.sample}_forward.fastq", output = config["output"])
             elif 'reverse' in file:
@@ -105,15 +103,18 @@ rule annotation:
     threads:
         config["threads"]
     run:
-        shell("python annotation.py -i {input} -t {threads} -a -o {output}/Annotation/{sample} -em {error_model} -db {diamond_database} -mts {diamond_max_targets_seqs}",
+        shell("python annotation.py -i {input} -t {threads} -a -o {output}/Annotation/{sample} -em {error_model} -db {diamond_database} -mts {diamond_max_targets_seqs}{download_uniprot}",
             output = config["output"], sample = set(experiments['Sample']), error_model = config["error_model"],
-            diamond_database = config["diamond_database"], diamond_max_targets_seqs = config["diamond_max_targets_seqs"])
+            diamond_database = config["diamond_database"], diamond_max_targets_seqs = config["diamond_max_targets_seqs"],
+            download_uniprot = ' --download-uniprot' if config["download_uniprot"].upper() == 'TRUE' else '')
 
 rule upimapi:
     input:
         expand("{output}/Annotation/{sample}/aligned.blast", output = config["output"], sample = set(experiments["Sample"]))                            # TODO - will I have to create a mock file to force this to run for all aligned.blast?
     output:
         expand("{output}/Annotation/uniprotinfo.tsv", output = config["output"])
+    threads:
+        1
     run:
         shell("python UPIMAPI/upimapi.py -i {input} -o {output}/Annotation/uniprotinfo --blast --full-id",
               output = config["output"])                                                                                # TODO - allow to set these columns and databases - allow them to be set with files
@@ -161,7 +162,7 @@ rule join_information:
         expand("{output}/MOSCA_Entry_Report.xlsx", output = config["output"]),
         expand("{output}/Metatranscriptomics/expression_matrix.tsv", output = config["output"])
     threads:
-        config["threads"]
+        config["threads"] - 2
     run:
         shell("python join_information.py -e {experiments} -t {threads} -o {output}",
               experiments = config["experiments"], output = config["output"])
@@ -172,6 +173,8 @@ rule differential_expression:
     output:
         expand("{output}/Metatranscriptomics/gene_expression.jpeg", output = config["output"]),
         expand("{output}/Metatranscriptomics/sample_distances.jpeg", output = config["output"])
+    threads:
+        1
     run:
         conditions = ",".join(map(str, mt_experiments['Condition'].tolist()))
         shell("Rscript de_analysis.R --readcounts {input} --conditions {conditions} --output {output}/Metatranscriptomics",                 # problems with libreadline.so.6 might be solved with cd /lib/x86_64-linux-gnu/; sudo ln -s libreadline.so.7.0 libreadline.so.6
@@ -182,11 +185,13 @@ rule kegg_charter:
         expand("{output}/MOSCA_Entry_Report.xlsx", output = config["output"])
     output:
         expand("{output}/KEGGCharter_results.xlsx", output = config["output"])
+    threads:
+        1
     run:
-        shell("kegg_charter.py -f {input} -o {output} -mm {metabolic_maps} -mgc {mg_cols} -mtc {exp_cols} -tc 'Taxonomic lineage ({taxa_level})' -not {number_of_taxa} -keggc 'Cross-refernce (KEGG)'",
-              output = config["output"], metabolic_maps = config["keggcharter_maps"], mg_cols = mg_experiments['Name'].tolist(),
-              exp_cols = mt_experiments['Name'].tolist(), taxa_level = config["keggcharter_taxa_level"],
-              number_of_taxa = config["keggcharter_number_of_taxa"])
+        shell("kegg_charter.py -f {input} -o {output}{metabolic_maps} -mgc {mg_cols} -mtc {exp_cols} -tc 'Taxonomic lineage ({taxa_level})' -not {number_of_taxa} -keggc 'Cross-refernce (KEGG)'",
+              output = config["output"], metabolic_maps = " -mm".format(config["keggcharter_maps"]),
+              mg_cols = mg_experiments['Name'].tolist(), exp_cols = mt_experiments['Name'].tolist(),
+              taxa_level = config["keggcharter_taxa_level"], number_of_taxa = config["keggcharter_number_of_taxa"])
 
         shutil.copyfile('{}/KEGGCharter_results.xlsx'.format(config["output"]),
                         '{}/MOSCA_Entry_Report.xlsx'.format(config["output"]))
@@ -197,6 +202,8 @@ rule report:
     output:
         expand("{output}/technical_report.txt", output = config["output"]),
         expand("{output}/MOSCA_General_Report.xlsx", output = config["output"])
+    threads:
+        1
     run:
         shell("python report.py -e {experiments} -o {output} -ldir {reporter_lists}", experiments = config["experiments"],
               output = config["output"], reporter_lists = config["reporter_lists_directory"])

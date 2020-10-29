@@ -1,7 +1,7 @@
 dir="${PREFIX}/share/MOSCA"
 mkdir -p "${dir}/scripts" "${PREFIX}/bin"
-cp workflow/scripts/* "${dir}/scripts
-cp workflow/Snakefile workflow/mosca.py "${dir}/scripts
+cp workflow/scripts/* "${dir}/scripts"
+cp workflow/Snakefile workflow/mosca.py "${dir}/scripts"
 cp -r resources "${dir}/resources"
 chmod +x "${dir}/scripts/mosca.py"
 ln -s "${dir}/scripts/mosca.py" "${PREFIX}/bin/"
@@ -9,10 +9,6 @@ ln -s "${dir}/scripts/mosca.py" "${PREFIX}/bin/"
 # Databases download
 resources_dir="${PREFIX}/share/MOSCA/resources"
 svn export https://github.com/timflutre/trimmomatic/trunk/adapters "${resources_dir}/illumina_adapters"
-wget ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_trembl.fasta.gz
-wget ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_sprot.fasta.gz
-zcat uniprot_trembl.fasta.gz uniprot_sprot.fasta.gz > "${resources_dir}/uniprot.fasta"
-rm uniprot_trembl.fasta.gz uniprot_sprot.fasta.gz
 svn export https://github.com/biocore/sortmerna/trunk/rRNA_databases "${resources_dir}/rRNA_databases"
 find "${resources_dir}/rRNA_databases/*" | grep -v ".fasta" | xargs rm -fr
 

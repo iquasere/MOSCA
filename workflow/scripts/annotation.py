@@ -41,6 +41,8 @@ class Annotater:
                                        'illumina_5', 'illumina_10'])
         parser.add_argument("-db", "--database", type = str, help = "Database for annotation")
         parser.add_argument("-mts", "--max-target-seqs", type=str, help="Number of identifications for each protein")
+        parser.add_argument("--download-uniprot", action = "store_true", default = False,
+                            help="Download uniprot database if FASTA DB doesn't exist")
     
         args = parser.parse_args()
         
@@ -68,10 +70,16 @@ class Annotater:
             '{} -out={} -complete=1 -train=./complete'.format(file, output) if assembled
             else '{} -out={} -complete=0 -train=./'.format(file.replace(
                 'fastq', 'fasta'), error_model)))
-    
+
+    def download_uniprot(self, out_dir):
+        for db in ['trembl', 'sprot']:
+            run_command('wget ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_{}.fasta.gz'.format(db))
+        run_command('zcat uniprot_trembl.fasta.gz uniprot_sprot.fasta.gz', file='{}/uniprot.fasta'.format(out_dir))
+        run_command('rm uniprot_trembl.fasta.gz uniprot_sprot.fasta.gz')
+
     def generate_diamond_database(self, fasta, dmnd):
         run_command('diamond makedb --in {} -d {}'.format(fasta, dmnd))
-    
+
     def run_diamond(self, query, aligned, unaligned, database, threads = '12', 
                     max_target_seqs = '50'):
         if database[-6:] == '.fasta' or database[-4:] == '.faa':
@@ -93,13 +101,16 @@ class Annotater:
     
     def run(self):
         args = self.get_arguments()
-        
+
         self.gene_calling(args.input, '{}/fgs'.format(args.output), threads = args.threads,
                           assembled = args.assembled, error_model = args.error_model)
+
+        if args.download_uniprot:
+            self.download_uniprot('/'.join(args.database.split('/')[:-1]))
         
         self.run_diamond('{}/fgs.faa'.format(args.output), '{}/aligned.blast'.format(args.output),
                          '{}/unaligned.fasta'.format(args.output), args.database,
-                         threads=args.threads, max_target_seqs=args.max_target_seqs)                                  # TODO - annotation has to be refined to retrieved better than hypothetical proteins
+                         threads=args.threads, max_target_seqs=args.max_target_seqs)                                  # TODO - annotation has to be refined to retrieve better than hypothetical proteins
 
     '''
     Input:
