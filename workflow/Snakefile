@@ -1,10 +1,23 @@
 import pandas as pd
 import shutil
 
-configfile: "config.json"
-experiments = pd.read_csv(config["experiments"], sep = '\t')
-experiments['Name'] = [filename.split('/')[-1].split('_R' if ',' in filename else '.fa')[0] for filename in experiments['Files']]
-experiments.to_csv(config["experiments"], sep = '\t', index = False)
+if config["experiments"].endswith('.xlsx'):
+    experiments = pd.read_excel(config["experiments"])
+    input_format = 'excel'
+else:
+    experiments = pd.read_csv(config["experiments"], sep = '\t')
+    input_format = 'tsv'
+
+for i in range(len(experiments)):
+    if experiments.iloc[i]['Name'].isnull():
+        experiments.iloc[i]['Name'] = experiments.iloc[i]['Files'].split('/')[-1].split('_R' if ',' in
+                                                                        experiments.iloc[i]['Files'] else '.fa')[0]
+
+if input_format == 'excel':
+    experiments.to_excel(config["experiments"], index = False)
+else:
+    experiments.to_csv(config["experiments"], sep = '\t', index = False)
+
 name2sample = {experiments.iloc[i]['Name'] : experiments.iloc[i]['Sample'] for i in range(len(experiments))}
 mg_experiments = experiments[experiments["Data type"] == 'dna']
 mt_experiments = experiments[experiments["Data type"] == 'mrna']
@@ -17,10 +30,8 @@ for row in mg_experiments.iterrows():
         sample2mgname[row[1].loc['Sample']] = [row[1].loc['Name']]
 
 def preprocess_input(wildcards):
-    # get files with matching names
-    df = experiments.loc[experiments['Name'] == wildcards.name, 'Files']
     # get first value (in case multiple) and split on commas
-    return df.iloc[0].split(',')
+    return experiments.loc[experiments['Name'] == wildcards.name, 'Files'].iloc[0].split(',')
 
 def join_reads_input(wildcards):
     df = mg_experiments.loc[mg_experiments['Sample'] == wildcards.sample, 'Files']

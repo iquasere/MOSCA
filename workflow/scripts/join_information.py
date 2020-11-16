@@ -3,7 +3,7 @@ from tqdm import tqdm
 import numpy as np
 import pandas as pd
 import multiprocessing
-from mosca_tools import timed_message, parse_blast, normalize_mg_readcounts_by_size, add_abundance, multi_sheet_excel, \
+from .mosca_tools import timed_message, parse_blast, normalize_mg_readcounts_by_size, add_abundance, multi_sheet_excel, \
     normalize_readcounts, run_command
 
 class Joiner:

@@ -13,7 +13,7 @@ import multiprocessing
 import os
 import pathlib
 import shutil
-from mosca_tools import run_command, perform_alignment
+from .mosca_tools import run_command, perform_alignment
 
 
 class Assembler:

@@ -15,7 +15,7 @@ import multiprocessing
 import os
 import sys
 import pathlib
-from mosca_tools import run_command, run_pipe_command, parse_fastqc
+from .mosca_tools import run_command, run_pipe_command, parse_fastqc
 
 class Preprocesser:
     

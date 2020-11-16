@@ -15,9 +15,8 @@ import shutil
 import subprocess
 import pandas as pd
 import argparse
-from annotation import Annotater
 from lxml import etree
-from mosca_tools import parse_fasta, run_command, sort_alphanumeric, parse_blast
+from .mosca_tools import parse_fasta, run_command, sort_alphanumeric, parse_blast
 from progressbar import ProgressBar
 
 

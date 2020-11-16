@@ -10,7 +10,7 @@ Oct 2019
 import argparse
 import glob
 import pandas as pd
-from mosca_tools import parse_blast, run_pipe_command, parse_fastqc_report, count_on_file
+from .mosca_tools import parse_blast, run_pipe_command, parse_fastqc_report, count_on_file
 
 class Reporter:
 

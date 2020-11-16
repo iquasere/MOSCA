@@ -8,7 +8,7 @@ By João Sequeira
 Sep 2017
 """
 
-from mosca_tools import perform_alignment
+from .mosca_tools import perform_alignment
 import pandas as pd
 import multiprocessing
 import argparse
