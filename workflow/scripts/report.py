@@ -10,7 +10,7 @@ Oct 2019
 import argparse
 import glob
 import pandas as pd
-from .mosca_tools import parse_blast, run_pipe_command, parse_fastqc_report, count_on_file
+from mosca_tools import parse_blast, run_pipe_command, parse_fastqc_report, count_on_file
 
 class Reporter:
 
@@ -23,6 +23,7 @@ class Reporter:
                             help="Experiments file")
         parser.add_argument("-o", "--output", type=str, help="Output directory"),
         parser.add_argument("-ldir", "--lists-directory", type=str, help="Directory with lists for Reporter")
+        parser.add_argument("-if", "--input-format", type=str, default='tsv', choices=['tsv', 'excel'])
         args = parser.parse_args()
         args.output = args.output.rstrip('/')
         return args
@@ -170,7 +171,7 @@ class Reporter:
         sample_report = dict()
         sample_report['# of bins'] = len(glob.glob(
             '{0}/Binning/{1}/{1}.*.fasta'.format(output_dir, sample)))
-        checkm = pd.read_csv('{}/Binning/{}/CheckM_results/output.tab'.format(
+        checkm = pd.read_csv('{}/Binning/{}/checkm.tsv'.format(
             output_dir, sample), sep = '\t')
         sample_report['# of high-quality drafts'] = ((checkm['Completeness'] > 90)
             & (checkm['Contamination'] < 5)).sum()
@@ -209,7 +210,7 @@ class Reporter:
         self.write_technical_report('{}/tools_for_versions.txt'.format(args.lists_directory),
                                     '{}/technical_report.txt'.format(args.output))
 
-        exps = pd.read_csv(args.experiments, sep = '\t')
+        exps = (pd.read_csv(args.experiments, sep='\t') if args.input_format == 'tsv' else pd.read_excel(args.experiments))
 
         self.initialize_report(reporter_columns)
 

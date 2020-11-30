@@ -8,7 +8,7 @@ By João Sequeira
 Nov 2018
 """
 
-from .mosca_tools import run_command
+from mosca_tools import run_command
 import argparse
 import multiprocessing
 

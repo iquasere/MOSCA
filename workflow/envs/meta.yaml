@@ -1,5 +1,5 @@
 {% set name = "mosca" %}
-{% set version = "1.2.0" %}
+{% set version = "1.2.1" %}
 {% set sha256 = "87cbca039ea9b9c85f417543f2426b2b2acffebe58179878ee6872a32ae949ba" %}
 
 package:
@@ -56,6 +56,9 @@ requirements:
     - keggcharter >=0.1.1
     - samtools >=1.11
     - snakemake >=5.27.4
+    - metaphlan =3
+    - searchgui
+    - peptide-shaker
 
 test:
   commands:

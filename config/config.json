@@ -299,5 +299,8 @@
     "04810"
   ],
   "keggcharter_taxa_level": "SPECIES",
-  "keggcharter_number_of_taxa": 10
+  "keggcharter_number_of_taxa": 10,
+  "reference_proteomes_request_size": 5000,
+  "protease": "trypsin",
+  "metaproteomics_quantification": "precursor based"
 }

@@ -13,8 +13,7 @@ import multiprocessing
 import os
 import pathlib
 import shutil
-from .mosca_tools import run_command, perform_alignment
-
+from mosca_tools import run_command, run_pipe_command, perform_alignment
 
 class Assembler:
     
@@ -61,17 +60,18 @@ class Assembler:
      
     def run(self):
         args = self.get_arguments()
-        
+
         # Assembly
         if args.assembler == 'megahit':                                         # snakemake workflow creates output directory, and megahit don't like it
             if os.path.isdir(args.output):
                 shutil.rmtree(args.output)
-                
+
         self.run_assembler(args.reads, args.output, args.assembler, 
                            threads = args.threads, memory = args.memory)
+
         if args.assembler == 'megahit':                                         # all contigs files are outputed the metaspades way
-            os.rename('{}/final.contigs.fa'.format(args.output), 
-                      '{}/contigs.fasta'.format(args.output))
+            run_pipe_command("awk \'{{print $1}}\' {}/final.contigs.fa".format(args.output),   # k141_714 flag=1 multi=1.0000 len=369 -> k141_714
+                        output='{}/contigs.fasta'.format(args.output))
 
         # Quality control
         pathlib.Path('{}/quality_control'.format(args.output)).mkdir(parents=True, exist_ok=True)

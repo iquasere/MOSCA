@@ -13,7 +13,7 @@ import multiprocessing
 import numpy as np
 import os
 import pandas as pd
-from .mosca_tools import run_command, fastq2fasta
+from mosca_tools import run_command, fastq2fasta
 from progressbar import ProgressBar
 
 

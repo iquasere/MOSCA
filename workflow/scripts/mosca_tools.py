@@ -16,14 +16,14 @@ import sys
 import time
 
 
-def run_command(bashCommand, file='', mode='w', sep=' ', print_message=True, verbose=True):
+def run_command(bashCommand, output='', mode='w', sep=' ', print_message=True, verbose=True):
     if print_message:
-        print(bashCommand.replace(sep, ' '))
-    if file == '':
+        print('{}{}'.format(bashCommand.replace(sep, ' '), ' > ' + output if output != '' else ''))
+    if output == '':
         subprocess.run(bashCommand.split(sep), stdout=sys.stdout if verbose else None,
                        check=True)
     else:
-        with open(file, mode) as output_file:
+        with open(output, mode) as output_file:
             subprocess.run(bashCommand.split(sep), stdout=output_file)
 
 
@@ -184,9 +184,11 @@ def perform_alignment(reference, reads, basename, threads=1, blast=None,
         generate_mg_index(reference, reference.replace('.fasta', '_index'))
     else:
         print('INDEX was located at ' + reference.replace('.fasta', '_index'))
+
     align_reads(reads, reference.replace('.fasta', '_index'), basename + '.sam',
                 basename + '_bowtie2_report.txt', log=basename + '.log',
                 threads=threads)
+
 
     if blast is None:
         if not os.path.isfile(reference.replace('.fasta', '.gff')):
@@ -204,12 +206,11 @@ def perform_alignment(reference, reads, basename, threads=1, blast=None,
         else:
             print('GFF file was located at ' + blast.replace('.blast', '.gff'))
 
-    run_command('htseq-count -i {} {}.sam {}{}'.format(attribute, basename,
+    run_command('htseq-count -i {0} -c {1}.readcounts -n {2} {1}.sam {3}{4}'.format(attribute, basename, threads,
                                                        (reference.replace('.fasta',
                                                                           '.gff') if blast is None else blast.replace(
                                                            '.blast', '.gff')),
-                                                       ('' if blast is not None else ' --stranded=no')),
-                file=basename + '.readcounts')
+                                                       ('' if blast is not None else ' --stranded=no')))
 
 
 '''
@@ -329,8 +330,8 @@ def normalize_readcounts(joined, columns, output=None):
     info[columns].to_csv(working_dir + '/to_normalize.tsv', sep='\t', index=False)
     print('Normalizing {} on columns {}'.format(joined, ','.join(columns)))
     run_command(
-        'Rscript MOSCA/scripts/normalization.R --readcounts {0}/to_normalize.tsv --output {0}/normalization_factors.txt'.format(
-            working_dir))
+        'Rscript {1}/normalization.R --readcounts {0}/to_normalize.tsv --output {0}/normalization_factors.txt'.format(
+            working_dir, sys.path[0]))
     factors = open(working_dir + '/normalization_factors.txt').read().split('\n')[
               :-1]  # there is always the \n as last element
 

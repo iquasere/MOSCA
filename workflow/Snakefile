@@ -1,5 +1,8 @@
 import pandas as pd
 import shutil
+import sys
+
+scripts_dir = sys.path[0]
 
 if config["experiments"].endswith('.xlsx'):
     experiments = pd.read_excel(config["experiments"])
@@ -9,7 +12,7 @@ else:
     input_format = 'tsv'
 
 for i in range(len(experiments)):
-    if experiments.iloc[i]['Name'].isnull():
+    if pd.isnull(experiments.iloc[i]['Name']):
         experiments.iloc[i]['Name'] = experiments.iloc[i]['Files'].split('/')[-1].split('_R' if ',' in
                                                                         experiments.iloc[i]['Files'] else '.fa')[0]
 
@@ -41,10 +44,11 @@ def join_reads_input(wildcards):
 
 rule all:
     input:
+        expand("{output}/Assembly/{sample}/contigs.fasta", output = config["output"], sample = set(experiments['Sample'])),
         expand("{output}/Binning/{sample}/checkm.tsv", output = config["output"], sample = set(experiments['Sample'])),
         expand("{output}/MOSCA_Protein_Report.xlsx", output = config["output"]),
         expand("{output}/MOSCA_Entry_Report.xlsx", output = config["output"]),
-        expand("{output}/KEGGCharter_results.xlsx", output = config["output"]),
+        expand("{output}/KEGG_maps/KEGGCharter_results.xlsx", output = config["output"]),
         expand("{output}/technical_report.txt", output = config["output"]),
         expand("{output}/MOSCA_General_Report.xlsx", output = config["output"]),
         expand("{output}/Metatranscriptomics/gene_expression.jpeg", output = config["output"]),
@@ -59,9 +63,9 @@ rule preprocess:
     threads:
         config["threads"]
     run:
-        shell("python preprocess.py -i {reads} -t {threads} -o {output}/Preprocess -adaptdir {adapters_directory} -rrnadbs {rrna_directory} -d {data_type}",
-            output = config["output"], data_type = experiments.loc[experiments['Name'] == wildcards.name]["Data type"].iloc[0], reads = ",".join(input),
-            adapters_directory = config["trimmomatic_adapters_directory"], rrna_directory = config["rrna_databases_directory"])
+        shell("python {scripts_dir}/preprocess.py -i {reads} -t {threads} -o {output}/Preprocess -adaptdir {resources_directory}/adapters -rrnadbs {resources_directory}/rRNA_databases -d {data_type} -rd {resources_directory}",
+            output = config["output"], data_type = experiments.loc[experiments['Name'] == wildcards.name]["Data type"].iloc[0],
+            reads = ",".join(input), resources_directory = config["resources_directory"])
 
 rule join_reads:
     input:
@@ -88,7 +92,7 @@ rule assembly:
         config["threads"]
     run:
         reads = ",".join(input)
-        shell("python assembly.py -r {reads} -t {threads} -o {output}/Assembly/{sample} -a {assembler}",
+        shell("python {scripts_dir}/assembly.py -r {reads} -t {threads} -o {output}/Assembly/{sample} -a {assembler}",
             output = config["output"], sample = set(experiments['Sample']), assembler = config["assembler"])
 
 rule binning:
@@ -102,7 +106,7 @@ rule binning:
         config["threads"]
     run:
         reads = ",".join(input.reads)
-        shell("python binning.py -c {input.contigs} -t {threads} -o {output}/Binning/{sample} -r {reads} -mset {markerset}",
+        shell("python {scripts_dir}/binning.py -c {input.contigs} -t {threads} -o {output}/Binning/{sample} -r {reads} -mset {markerset}",
             output = config["output"], markerset = config["markerset"], sample = set(experiments['Sample']))
 
 rule annotation:
@@ -114,10 +118,10 @@ rule annotation:
     threads:
         config["threads"]
     run:
-        shell("python annotation.py -i {input} -t {threads} -a -o {output}/Annotation/{sample} -em {error_model} -db {diamond_database} -mts {diamond_max_targets_seqs}{download_uniprot}",
+        shell("python {scripts_dir}/annotation.py -i {input} -t {threads} -a -o {output}/Annotation/{sample} -em {error_model} -db {diamond_database} -mts {diamond_max_target_seqs}{download_uniprot}",
             output = config["output"], sample = set(experiments['Sample']), error_model = config["error_model"],
-            diamond_database = config["diamond_database"], diamond_max_targets_seqs = config["diamond_max_targets_seqs"],
-            download_uniprot = ' --download-uniprot' if config["download_uniprot"].upper() == 'TRUE' else '')
+            diamond_database = config["diamond_database"], diamond_max_target_seqs = config["diamond_max_target_seqs"],
+            download_uniprot = ' --download-uniprot' if config["download_uniprot"] else '')
 
 rule upimapi:
     input:
@@ -127,7 +131,7 @@ rule upimapi:
     threads:
         1
     run:
-        shell("python UPIMAPI/upimapi.py -i {input} -o {output}/Annotation/uniprotinfo --blast --full-id",
+        shell("upimapi.py -i {input} -o {output}/Annotation/uniprotinfo --blast --full-id",
               output = config["output"])                                                                                # TODO - allow to set these columns and databases - allow them to be set with files
         shell("echo 'done' > {output}/Annotation/{{sample}}.txt", output = config["output"])
 
@@ -135,13 +139,13 @@ rule recognizer:
     input:
         expand("{output}/Annotation/{sample}/fgs.faa", output = config["output"], sample = set(experiments["Sample"]))
     output:
-        expand("{output}/Annotation/{sample}/protein2cog.tsv", output = config["output"], sample = set(experiments["Sample"]))
+        expand("{output}/Annotation/{sample}/protein2cog.xlsx", output = config["output"], sample = set(experiments["Sample"]))
     threads:
-        config["threads"]
+        config["threads"] - 1
     run:
-        shell("python reCOGnizer-1.3.0/recognizer.py -f {input} -t {threads} -o {output}/Annotation/{sample} -rd {resources_directory} --tsv --remove-spaces",
+        shell("recognizer.py -f {input} -t {threads} -o {output}/Annotation/{sample} -rd {resources_directory} --remove-spaces",
             output = config["output"], sample = set(experiments["Sample"]),
-            resources_directory = config["recognizer_databases_directory"])
+            resources_directory = config["resources_directory"])
 
 rule quantification_analysis:
     input:
@@ -156,14 +160,31 @@ rule quantification_analysis:
     threads:
         config["threads"]
     run:
-        shell("python quantification_analyser.py -e {experiments} -t {threads} -o {output}",
+        shell("python {scripts_dir}/quantification_analyser.py -e {experiments} -t {threads} -o {output} -if {input_format}",
               experiments = config["experiments"], output = config["output"])
+
+rule metaphlan:
+    input:
+        expand("{output}/Preprocess/Trimmomatic/quality_trimmed_{name}{fr}.fq", output = config["output"],
+            name = mg_experiments["Name"],
+            fr = (['_forward_paired', '_reverse_paired'] if experiments["Files"].str.contains(',').tolist() else ''))
+    output:
+        expand("{output}/Taxonomy/{sample}_profiled_metagenome.txt", output = config["output"],
+            sample = set(experiments["Sample"]))
+    threads:
+        config["threads"]
+    run:
+        reads = ",".join(input)
+        shell("metaphlan {reads} --bowtie2out {output}/Taxonomy/{sample}_mg.bowtie2.bz2 --nproc {threads} --input_type fastq",
+              output = config["output"], sample = set(experiments["Sample"]))
+        shell("metaphlan {output}/Taxonomy/{sample}_mg.bowtie2.bz2 --nproc {threads} --input_type bowtie2out -o {output}/Taxonomy/{sample}_profiled_metagenome.txt",
+              output = config["output"], sample = set(experiments["Sample"]))
 
 rule join_information:
     input:
         expand("{output}/Annotation/uniprotinfo.tsv", output = config["output"]),
         expand("{output}/Annotation/{sample}/aligned.blast", output = config["output"], sample = set(experiments['Sample'])),
-        expand("{output}/Annotation/{sample}/protein2cog.tsv", output = config["output"], sample = set(experiments["Sample"])),
+        expand("{output}/Annotation/{sample}/protein2cog.xlsx", output = config["output"], sample = set(experiments["Sample"])),
         expand("{output}/Metatranscriptomics/{name}.readcounts", output = config["output"],
             name = set(mt_experiments['Name'])),
         expand("{output}/Annotation/{name}.readcounts", output = config["output"],
@@ -175,7 +196,7 @@ rule join_information:
     threads:
         config["threads"] - 2
     run:
-        shell("python join_information.py -e {experiments} -t {threads} -o {output}",
+        shell("python {scripts_dir}/join_information.py -e {experiments} -t {threads} -o {output} -if {input_format}",
               experiments = config["experiments"], output = config["output"])
 
 rule differential_expression:
@@ -188,21 +209,22 @@ rule differential_expression:
         1
     run:
         conditions = ",".join(map(str, mt_experiments['Condition'].tolist()))
-        shell("Rscript de_analysis.R --readcounts {input} --conditions {conditions} --output {output}/Metatranscriptomics",                 # problems with libreadline.so.6 might be solved with cd /lib/x86_64-linux-gnu/; sudo ln -s libreadline.so.7.0 libreadline.so.6
+        shell("Rscript {scripts_dir}/de_analysis.R --readcounts {input} --conditions {conditions} --output {output}/Metatranscriptomics",                 # problems with libreadline.so.6 might be solved with cd /lib/x86_64-linux-gnu/; sudo ln -s libreadline.so.7.0 libreadline.so.6
             conditions = conditions, output = config["output"])
 
-rule kegg_charter:
+rule keggcharter:
     input:
         expand("{output}/MOSCA_Entry_Report.xlsx", output = config["output"])
     output:
-        expand("{output}/KEGGCharter_results.xlsx", output = config["output"])
+        expand("{output}/KEGG_maps/KEGGCharter_results.xlsx", output = config["output"])
     threads:
         1
     run:
-        shell("kegg_charter.py -f {input} -o {output}{metabolic_maps} -mgc {mg_cols} -mtc {exp_cols} -tc 'Taxonomic lineage ({taxa_level})' -not {number_of_taxa} -keggc 'Cross-refernce (KEGG)'",
-              output = config["output"], metabolic_maps = " -mm".format(config["keggcharter_maps"]),
-              mg_cols = mg_experiments['Name'].tolist(), exp_cols = mt_experiments['Name'].tolist(),
-              taxa_level = config["keggcharter_taxa_level"], number_of_taxa = config["keggcharter_number_of_taxa"])
+        shell("kegg_charter.py -f {input} -o {output}/KEGG_maps{metabolic_maps} -gcol {mg_cols} -tcol {exp_cols} -tc 'Taxonomic lineage ({taxa_level})' -not {number_of_taxa} -keggc 'Cross-reference (KEGG)'",
+              output = config["output"], mg_cols = ','.join(mg_experiments['Name'].tolist()),
+              metabolic_maps = " -mm {}".format(','.join(config["keggcharter_maps"])) if len(config["keggcharter_maps"]) > 0 else '',
+              exp_cols = ','.join(mt_experiments['Name'].tolist()), taxa_level = config["keggcharter_taxa_level"],
+              number_of_taxa = config["keggcharter_number_of_taxa"])
 
         shutil.copyfile('{}/KEGGCharter_results.xlsx'.format(config["output"]),
                         '{}/MOSCA_Entry_Report.xlsx'.format(config["output"]))
@@ -216,5 +238,6 @@ rule report:
     threads:
         1
     run:
-        shell("python report.py -e {experiments} -o {output} -ldir {reporter_lists}", experiments = config["experiments"],
-              output = config["output"], reporter_lists = config["reporter_lists_directory"])
+        shell("python {scripts_dir}/report.py -e {experiments} -o {output} -ldir {reporter_lists} -if {input_format}",
+              experiments = config["experiments"], output = config["output"],
+              reporter_lists = '{}/../resources'.format(scripts_dir))

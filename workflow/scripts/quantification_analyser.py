@@ -8,7 +8,7 @@ By João Sequeira
 Sep 2017
 """
 
-from .mosca_tools import perform_alignment
+from mosca_tools import perform_alignment
 import pandas as pd
 import multiprocessing
 import argparse
@@ -26,6 +26,7 @@ class QuantificationAnalyser:
         parser.add_argument("-t", "--threads", type=str,
                             default=str(multiprocessing.cpu_count() - 2),
                             help="Number of threads to use. Default is number of CPUs available minus 2.")
+        parser.add_argument("-if", "--input-format", type=str, default='tsv', choices=['tsv', 'excel'])
         parser.add_argument("-o", "--output", type=str, help="Output directory")
 
         args = parser.parse_args()
@@ -58,28 +59,41 @@ class QuantificationAnalyser:
     def run(self):
         args = self.get_arguments()
 
-        experiments = pd.read_csv(args.experiments, sep='\t')
+        experiments = (pd.read_csv(args.experiments, sep='\t') if args.input_format == 'tsv' else
+                       pd.read_excel(args.experiments))
         mt_experiments = experiments[experiments['Data type'] == 'mrna']
 
-        for i in mt_experiments.index:
+        for i in experiments.index:
             if experiments.iloc[i]['Data type'] == 'mrna':
                 attribute = 'Name'
                 folder = 'Metatranscriptomics'
-            else:
+            elif experiments.iloc[i]['Data type'] == 'dna':
                 attribute = 'gene_id'
                 folder = 'Annotation'
+            else:
+                print('A data type MOSCA can yet not handle!')
+                continue
+
+            print('Data type is: {}'.format(experiments.iloc[i]['Data type']))
 
             if not os.path.isfile("{}/{}/{}.readcounts".format(args.output, folder, experiments.iloc[i]['Name'])):
+                print("{}/{}/{}.readcounts not found! Generating it".format(args.output, folder,
+                                                                              experiments.iloc[i]['Name']))
                 perform_alignment('{}/Assembly/{}/contigs.fasta'.format(args.output, experiments.iloc[i]['Sample']),
-                              ['{}/Preprocess/Trimmomatic/quality_trimmed_{}_{}_paired.fq'.format(
-                                args.output, experiments.iloc[i]['Name'], fr) for fr in ['forward', 'reverse']],
-                              '{}/{}/{}'.format(args.output, folder, experiments.iloc[i]['Name']),
-                              blast=('{}/Annotation/{}/aligned.blast'.format(args.output, experiments.iloc[i]['Sample'])
-                                     if attribute == 'Name' else None), threads=args.threads, attribute=attribute)
+                                  ['{}/Preprocess/Trimmomatic/quality_trimmed_{}_{}_paired.fq'.format(
+                                      args.output, experiments.iloc[i]['Name'], fr) for fr in ['forward', 'reverse']],
+                                  '{}/{}/{}'.format(args.output, folder, experiments.iloc[i]['Name']),
+                                  blast=('{}/Annotation/{}/aligned.blast'.format(args.output,
+                                                                                 experiments.iloc[i]['Sample'])
+                                         if attribute == 'Name' else None), threads=args.threads, attribute=attribute)
+            else:
+                print("{}/{}/{}.readcounts exists.".format(args.output, folder, experiments.iloc[i]['Name']))
 
-        self.generate_expression_matrix(["{}/Metatranscriptomics/{}.readcounts".format(args.output, mt_name) for mt_name in
-                                         mt_experiments['Name']], mt_experiments['Name'].tolist(),
-                                        '{}/Metatranscriptomics/expression_matrix.tsv'.format(args.output))
+        self.generate_expression_matrix(
+            ["{}/Metatranscriptomics/{}.readcounts".format(args.output, mt_name) for mt_name in
+             mt_experiments['Name']], mt_experiments['Name'].tolist(),
+            '{}/Metatranscriptomics/expression_matrix.tsv'.format(args.output))
+
 
 if __name__ == '__main__':
     QuantificationAnalyser().run()

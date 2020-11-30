@@ -15,7 +15,8 @@ import multiprocessing
 import os
 import sys
 import pathlib
-from .mosca_tools import run_command, run_pipe_command, parse_fastqc
+import time
+from mosca_tools import run_command, run_pipe_command, parse_fastqc
 
 class Preprocesser:
     
@@ -31,12 +32,15 @@ class Preprocesser:
                             help = "Number of threads to use. Default is number of CPUs available minus 2.")
         parser.add_argument("-d", "--data", type = str, choices = ["dna", "mrna"])
         parser.add_argument("-o", "--output", type = str, help = "Output directory"),
-        parser.add_argument("-adaptdir", "--adapters-directory", type = str, 
+        parser.add_argument("-adaptdir", "--adapters-directory", type = str,
                             help = "Directory with adapter files for Trimmomatic",
                             default = os.path.expanduser('~/illumina_adapters'))
         parser.add_argument("-rrnadbs", "--rrna-databases-directory", type = str,
                             help = "Directory with rRNA databases for SortMeRNA",
                             default = os.path.expanduser('~/rRNA_databases'))
+        parser.add_argument("-rd", "--resources-directory", type=str,
+                            help="Directory with resources for SortMeRNA and Trimmomatic",
+                            default=os.path.expanduser('~/resources'))
     
         args = parser.parse_args()
         
@@ -77,7 +81,19 @@ class Preprocesser:
             return filename.split('.fasta')[0]
         else:
             return filename.split('.fa')[0]
-    
+
+    '''
+    Input:
+    Output:
+    '''
+    def download_resources(self, resources_directory):
+        if not os.path.isfile('{}/downloaded_timestamp.txt'.format(resources_directory)):
+            run_command('bash {}/download_resources.sh {}'.format(sys.path[0], resources_directory))
+            with open('{}/downloaded_timestamp.txt'.format(resources_directory), 'w') as f:
+                f.write(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))
+        else:
+            print('{}/downloaded_timestamp.txt found! Not downloading resources.'.format(resources_directory))
+
     '''
     Input:
     Output:
@@ -273,7 +289,10 @@ class Preprocesser:
         # First quality check
         self.run_fastqc(args.input, '{}/FastQC'.format(args.output), 
                         threads = args.threads)                                 # Only function to require full path of output directory 
-        
+
+        if hasattr(args, 'resources_directory'):
+            self.download_resources(args.resources_directory)
+
         # Adapter removal
         adapters = self.select_adapters(glob.glob('{}/*.fa*'.format(args.adapters_directory)),
                            paired = self.paired)
@@ -311,8 +330,8 @@ class Preprocesser:
 
         self.quality_trimming(args.input, args.output, name, threads=args.threads)
 
-        args.input = ['{}/Trimmomatic/quality_trimmed_{}_{}_{}_paired.fq'.format(
-                    args.output, name, adapter_part, fr) for fr in ['forward', 'reverse']]
+        args.input = ['{}/Trimmomatic/quality_trimmed_{}_{}{}.fq'.format(
+                    args.output, name, fr, '_paired' if self.paired else '') for fr in ['forward', 'reverse']]
         
         self.run_fastqc(args.input, '{}/FastQC'.format(args.output),
                         threads=args.threads)

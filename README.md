@@ -55,8 +55,15 @@ bash MOSCA/install.bash
 ### Installation with Bioconda
 
 To use MOSCA through Bioconda, an environment must be created containing all the dependencies. 
-Create the environment and install MOSCA with ```conda create -n mosca -c bioconda -c conda-forge mosca```.
-Activate the environment with ```conda activate mosca```.
+Create the environment and install MOSCA with 
+```
+conda create -n mosca -c conda-forge -c bioconda -c anaconda mosca=1.2.0
+```
+Activate the environment with 
+```
+conda activate mosca
+```
+If that command is over without error, you have successfully installed MOSCA!
 
 ### MOSCA is also available as a Docker image!
 

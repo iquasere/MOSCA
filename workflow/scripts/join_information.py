@@ -3,7 +3,7 @@ from tqdm import tqdm
 import numpy as np
 import pandas as pd
 import multiprocessing
-from .mosca_tools import timed_message, parse_blast, normalize_mg_readcounts_by_size, add_abundance, multi_sheet_excel, \
+from mosca_tools import timed_message, parse_blast, normalize_mg_readcounts_by_size, add_abundance, multi_sheet_excel, \
     normalize_readcounts, run_command
 
 class Joiner:
@@ -18,7 +18,8 @@ class Joiner:
         parser.add_argument("-t", "--threads", type=str,
                             default=str(multiprocessing.cpu_count() - 2),
                             help="Number of threads for reCOGnizer to use. Default is number of CPUs available minus 2.")
-        parser.add_argument("-o", "--output", type=str, help="Output directory"),
+        parser.add_argument("-if", "--input-format", type=str, default='tsv', choices=['tsv', 'excel'])
+        parser.add_argument("-o", "--output", type=str, help="Output directory")
 
         args = parser.parse_args()
         args.output = args.output.rstrip('/')
@@ -27,7 +28,9 @@ class Joiner:
     def run(self):
         args = self.get_arguments()
 
-        experiments = pd.read_csv(args.experiments, sep = '\t')
+        experiments = (pd.read_csv(args.experiments, sep='\t') if args.input_format == 'tsv' else
+                       pd.read_excel(args.experiments))
+
         uniprotinfo = pd.read_csv('{}/Annotation/uniprotinfo.tsv'.format(args.output), sep='\t')
         taxonomy_columns = [col for col in uniprotinfo.columns if 'Taxonomic lineage' in col]
         functional_columns = ['COG general functional category', 'COG functional category',
@@ -47,7 +50,7 @@ class Joiner:
 
             # Join BLAST and reCOGnizer outputs
             data = pd.merge(parse_blast('{}/Annotation/{}/aligned.blast'.format(args.output, sample)),
-                            pd.read_csv('{}/Annotation/{}/protein2cog.tsv'.format(args.output, sample), sep='\t'),
+                            pd.read_excel('{}/Annotation/{}/protein2cog.xlsx'.format(args.output, sample)),
                             on='qseqid', how='left')
             data['sseqid'] = [ide.split('|')[1] if ide != '*' else ide for ide in data['sseqid']]
             data.columns = [column.replace('_x', ' (DIAMOND)').replace('_y', ' (reCOGnizer)') for column in
@@ -64,13 +67,13 @@ class Joiner:
             # MG quantification for each MG name of each Sample
             for mg_name in sample2mgname[sample]:
                 # Normalization by contig size
-                #normalize_mg_readcounts_by_size(
-                #    '{}/Annotation/{}/{}.readcounts'.format(args.output, sample, mg_name),
-                #    '{}/Assembly/{}/contigs.fasta'.format(args.output, sample))
+                normalize_mg_readcounts_by_size(
+                    '{}/Annotation/{}.readcounts'.format(args.output, mg_name),
+                    '{}/Assembly/{}/contigs.fasta'.format(args.output, sample))
 
-                data = add_abundance(data, '{}/Annotation/{}/{}_normalized.readcounts'.format(
-                                            args.output, sample, mg_name),
-                                    mg_name, origin_of_data='metagenomics', readcounts_has_tail=False)                  # readcounts tail is removed in the normalization function
+                data = add_abundance(data, '{}/Annotation/{}_normalized.readcounts'.format(
+                                            args.output, mg_name), mg_name, origin_of_data='metagenomics',
+                                     readcounts_has_tail=False)          # readcounts tail is removed in the normalization function
 
                 for mt_name in expression_analysed:
                     data = add_abundance(data, '{}/Metatranscriptomics/{}.readcounts'.format(args.output, mt_name),
@@ -118,18 +121,14 @@ class Joiner:
 
             for mg_name in sample2mgname[sample]:
                 # Draw the taxonomy krona plot
-                data.groupby(taxonomy_columns)[mg_name].sum().reset_index()[
-                    [mg_name] + taxonomy_columns].to_csv('{}_{}_tax.tsv'.format(
-                    args.output, mg_name), sep='\t', index=False, header=False)
-                run_command('ktImportText {0}.tsv -o {0}.html'.format(
-                    '{}/{}_tax'.format(args.output, mg_name)))
+                data.groupby(taxonomy_columns)[mg_name].sum().reset_index()[[mg_name] + taxonomy_columns].to_csv(
+                    '{}/{}_tax.tsv'.format(args.output, mg_name), sep='\t', index=False, header=False)
+                run_command('ktImportText {0}/{1}_tax.tsv -o {0}/{1}_tax.html'.format(args.output, mg_name))
 
                 # Draw the functional krona plot
-                data.groupby(functional_columns)[mg_name].sum().reset_index()[
-                    [mg_name] + functional_columns].to_csv('{}_{}_fun.tsv'.format(
-                    args.output, mg_name), sep='\t', index=False, header=False)
-                run_command('ktImportText {0}.tsv -o {0}.html'.format(
-                    '{}/{}_fun'.format(args.output, mg_name)))
+                data.groupby(functional_columns)[mg_name].sum().reset_index()[[mg_name] + functional_columns].to_csv(
+                    '{}/{}_fun.tsv'.format(args.output, mg_name), sep='\t', index=False, header=False)
+                run_command('ktImportText {0}/{1}_fun.tsv -o {0}/{1}_fun.html'.format(args.output, mg_name))
 
 if __name__ == '__main__':
     Joiner().run()
