@@ -57,8 +57,8 @@ requirements:
     - samtools >=1.11
     - snakemake >=5.27.4
     - metaphlan =3
-    - searchgui
-    - peptide-shaker
+    - searchgui =3.3
+    - peptide-shaker =1.16
 
 test:
   commands:

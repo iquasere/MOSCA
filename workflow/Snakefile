@@ -11,10 +11,17 @@ else:
     experiments = pd.read_csv(config["experiments"], sep = '\t')
     input_format = 'tsv'
 
+def get_name(files, data_type):
+    filename = files.split('/')[-1]
+    if data_type == 'protein':
+        return '_'.join(filename.split('_')[:-1])
+    if ',' in files:
+        return filename.split(',')
+    return filename.split('.fa')
+
 for i in range(len(experiments)):
     if pd.isnull(experiments.iloc[i]['Name']):
-        experiments.iloc[i]['Name'] = experiments.iloc[i]['Files'].split('/')[-1].split('_R' if ',' in
-                                                                        experiments.iloc[i]['Files'] else '.fa')[0]
+        experiments.iloc[i]['Name'] = get_name(experiments.iloc[i]['Files'], experiments.iloc[i]['Data type'])
 
 if input_format == 'excel':
     experiments.to_excel(config["experiments"], index = False)
