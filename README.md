@@ -13,6 +13,7 @@ Logo by [Sérgio A. Silva](https://www.ceb.uminho.pt/People/Details/64888072-5cd
   * [with Bioconda](#installation-with-bioconda)
   * [with Docker](#mosca-is-also-available-as-a-docker-image!)
 * [Running MOSCA](#base-arguments-for-running-mosca)
+* [MOSCA's GUI](#mosguito)
 
 ## Features
 
@@ -122,3 +123,7 @@ Following are the options available in the config file, and the accepted values:
 |     keggcharter_taxa_level     |  SPECIES, GENUS, FAMILY, ORDER, CLASS, PHYLUM, SUPERKINGDOM  |    Yes   | The taxonomic level to represent with KEGGCharter. If above SPECIES, KEGGCharter will represent group information and represent is as such for each taxonomic group                                                           |
 |   keggcharter_number_of_taxa   |                     Int, ideally under 11                    |    Yes   | How many of the most abundant taxa should be represented with KEGGCharter                                                                                                                                                     |
 |    reporter_lists_directory    |                            String                            |    Yes   | Name of folder containing lists for reporter module of MOSCA                                                                                                                                                                  |
+
+## MOSGUITO
+
+MOSca's GUI TO generate config files ([MOSGUITO](https://iquasere.github.io/MOSGUITO/)) can be used to produce a configuration file for MOSCA. In it you can also find the [link](https://docs.google.com/spreadsheets/d/12BppOf32QPRl6Ey39ACWoOXPVWtTrGIUN2u-_BpwSvo/edit#gid=0) to an experiment's file, required to input information for each data file to be analysed with MOSCA. 
