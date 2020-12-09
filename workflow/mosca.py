@@ -17,5 +17,5 @@ parser.add_argument('--unlock', action='store_true', default=False,
 parser.add_argument('-v', '--version', action='version', version='MOSCA ' + __version__)
 args = parser.parse_args()
 
-snakemake.main("-s {} --cores {} --configfile {}{}".format(args.snakefile, multiprocessing.cpu_count(), args.configfile,
-                                                           ' --unlock' if args.unlock else ''))
+snakemake.main("-s {} --printshellcmds --cores {} --configfile {}{}".format(
+    args.snakefile, multiprocessing.cpu_count(), args.configfile, ' --unlock' if args.unlock else ''))

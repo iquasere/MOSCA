@@ -59,6 +59,8 @@ requirements:
     - metaphlan =3
     - searchgui =3.3
     - peptide-shaker =1.16
+    - bioconductor-pcamethods =1.82.0
+    - bioconductor-vsn =3.58.0
 
 test:
   commands:

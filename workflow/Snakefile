@@ -49,9 +49,14 @@ def join_reads_input(wildcards):
     return ['{}/Preprocess/Trimmomatic/quality_trimmed_{}{}.fq'.format(config["output"], name, fr) for name in names
         for files in df for fr in (['_forward_paired', '_reverse_paired'] if ',' in files else [''])]
 
+def annotation_input(do_assembly = True):
+    if do_assembly:
+        return expand("{output}/Assembly/{sample}/contigs.fasta", output = config["output"], sample = set(experiments['Sample']))
+    return expand("{output}/Preprocess/Trimmomatic/quality_trimmed_{{name}}{fr}.fq", output = config["output"],
+            fr = (['_forward_paired', '_reverse_paired'] if experiments["Files"].str.contains(',').tolist() else ''))
+
 rule all:
     input:
-        expand("{output}/Assembly/{sample}/contigs.fasta", output = config["output"], sample = set(experiments['Sample'])),
         expand("{output}/Binning/{sample}/checkm.tsv", output = config["output"], sample = set(experiments['Sample'])),
         expand("{output}/MOSCA_Protein_Report.xlsx", output = config["output"]),
         expand("{output}/MOSCA_Entry_Report.xlsx", output = config["output"]),
@@ -118,7 +123,7 @@ rule binning:
 
 rule annotation:
     input:
-        expand("{output}/Assembly/{sample}/contigs.fasta", output = config["output"], sample = set(experiments['Sample']))
+        annotation_input(do_assembly = config['do_assembly'])
     output:
         expand("{output}/Annotation/{sample}/fgs.faa", output = config["output"], sample = set(experiments['Sample'])),
         expand("{output}/Annotation/{sample}/aligned.blast", output = config["output"], sample = set(experiments['Sample']))
@@ -227,7 +232,7 @@ rule keggcharter:
     threads:
         1
     run:
-        shell("kegg_charter.py -f {input} -o {output}/KEGG_maps{metabolic_maps} -gcol {mg_cols} -tcol {exp_cols} -tc 'Taxonomic lineage ({taxa_level})' -not {number_of_taxa} -keggc 'Cross-reference (KEGG)'",
+        shell("kegg_charter.py -f {input} -o {output}/KEGG_maps{metabolic_maps} -gcol {mg_cols} -tcol {exp_cols} -tc 'Taxonomic lineage ({taxa_level})' -not {number_of_taxa} -keggc 'Cross-reference (KEGG)' || true",     # || true -> https://stackoverflow.com/questions/65071531/rule-fails-in-snakemake-but-script-runs-fine-outside-of-snakemake?noredirect=1#comment115068237_65071531
               output = config["output"], mg_cols = ','.join(mg_experiments['Name'].tolist()),
               metabolic_maps = " -mm {}".format(','.join(config["keggcharter_maps"])) if len(config["keggcharter_maps"]) > 0 else '',
               exp_cols = ','.join(mt_experiments['Name'].tolist()), taxa_level = config["keggcharter_taxa_level"],

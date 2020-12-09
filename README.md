@@ -6,7 +6,16 @@ Logo by [Sérgio A. Silva](https://www.ceb.uminho.pt/People/Details/64888072-5cd
 
 **MOSCA** (portuguese for fly) is a pipeline designed for performing metagenomics (MG) and metatranscriptomics (MT) integrated data analyses, in a mostly local and fully automated workflow.
 
+## Table of contents
+
+* [Features](#features)
+* [Installation](#setting-up-mosca)
+  * [with Bioconda](#installation-with-bioconda)
+  * [with Docker](#mosca-is-also-available-as-a-docker-image!)
+* [Running MOSCA](#base-arguments-for-running-mosca)
+
 ## Features
+
 * **Preprocessing** where low quality regions of data are trimmed and reads less interest are removed. FastQC's reports are used to automatically set the parameters for the other tools. It includes:
     * initial quality check with **FastQC**
     * Illumina artificial sequences removal with **Trimmomatic**: based on **FastQC** reports, MOSCA will find the adapters file most approprita to the data
@@ -21,7 +30,7 @@ Logo by [Sérgio A. Silva](https://www.ceb.uminho.pt/People/Details/64888072-5cd
 * **Annotation** where proteins present in the contigs will be identified. It includes:
     * gene calling with **FragGeneScan**
     * annotation of identified ORFs with **DIAMOND**, using the **UniProt database** as reference - MOSCA only reports on the first annotation
-    * retrieval of biological information with **UniProt ID mapping** API
+    * retrieval of diverse biological information with [**UPIMAPI**](https://anaconda.org/bioconda/UPIMAPI)
     * functional annotation with [**reCOGnizer**](https://anaconda.org/bioconda/reCOGnizer), using the **COG database** as reference
         * MOSCA automatically **generates new databases by the number of threads specified**, thus allowing for multithread annotation with **RPSBLAST**
     * the quantification of each protein in MG data, by alignment of MG reads to the contigs using **Bowtie2** and quantification of reads to protein using **HTSeq-count**
@@ -31,7 +40,7 @@ Logo by [Sérgio A. Silva](https://www.ceb.uminho.pt/People/Details/64888072-5cd
 * **Metatranscriptomics analysis** where the expression of each identified gene is quantified. It includes:
     * alignment of MT reads to the MG contigs with **Bowtie2**, and quantification of reads to protein using **HTSeq-count**
     * differential gene expression and multisample comparison using **DESeq2**
-* **Normalization** of protein quantification for the final report using **edgeR**
+* **Normalization** of protein quantification for the final reports using **edgeR**
 * **Pathway representation** with [**KEGGCharter**](https://anaconda.org/bioconda/KEGGCharter), representing both the metabolic networks of most abundant taxa and expression levels of metabolic functions
 
 ## Setting up MOSCA
