@@ -44,25 +44,23 @@ def preprocess_input(wildcards):
     return experiments.loc[experiments['Name'] == wildcards.name, 'Files'].iloc[0].split(',')
 
 def join_reads_input(wildcards):
-    names = mg_experiments.loc[mg_experiments['Sample'] == wildcards.sample]['Name'].tolist()
+    df = mg_experiments.loc[mg_experiments['Sample'] == wildcards.sample]
+    files = df['Files'].tolist()
+    names = df['Name'].tolist()
     return ['{}/Preprocess/Trimmomatic/quality_trimmed_{}{}.fq'.format(config["output"], name, fr) for name in names
-        for files in df for fr in (['_forward_paired', '_reverse_paired'] if ',' in files else [''])]
+        for file_list in files for fr in (['_forward_paired', '_reverse_paired'] if ',' in file_list else [''])]
 
-def annotation_input(do_assembly = True):
-    if do_assembly:
+def annotation_input(wildcards):
+    if config['do_assembly']:
         return expand("{output}/Assembly/{sample}/contigs.fasta", output = config["output"], sample = set(experiments['Sample']))
-    return expand("{output}/Preprocess/Trimmomatic/quality_trimmed_{{name}}{fr}.fq", output = config["output"],
-            fr = (['_forward_paired', '_reverse_paired'] if experiments["Files"].str.contains(',').tolist() else ''))
+    return expand("{output}/Preprocess/{{sample}}.fasta",output=config["output"])
 
 rule all:
     input:
         expand("{output}/Preprocess/Trimmomatic/quality_trimmed_{name}{fr}.fq", output = config["output"],
             fr = (['_forward_paired', '_reverse_paired'] if experiments["Files"].str.contains(',').tolist() else ''),
             name = experiments["Name"].tolist()),
-        expand("{output}/MOSCA_Protein_Report.xlsx", output = config["output"]),
-        expand("{output}/MOSCA_Entry_Report.xlsx", output = config["output"]),
-        expand("{output}/technical_report.txt", output = config["output"]),
-        expand("{output}/MOSCA_General_Report.xlsx", output = config["output"])
+        expand("{output}/Annotation/{sample}/fgs.faa", output = config["output"], sample = set(experiments['Sample']))
 
 rule preprocess:
     input:
@@ -81,20 +79,20 @@ rule join_reads:
     input:
         join_reads_input
     output:
-        expand("{output}/Assembly/{{sample}}{fr}.fastq", output = config["output"],
+        expand("{output}/Preprocess/{{sample}}{fr}.fastq", output = config["output"],
             fr = (['_forward', '_reverse'] if experiments["Files"].str.contains(',').tolist() else ''))
     run:
         for file in input:
             if 'forward' in file:
-                shell("touch {output}/Assembly/{wildcards.sample}_forward.fastq; cat {file} >> {output}/Assembly/{wildcards.sample}_forward.fastq", output = config["output"])
+                shell("touch {output}/Preprocess/{wildcards.sample}_forward.fastq; cat {file} >> {output}/Preprocess/{wildcards.sample}_forward.fastq", output = config["output"])
             elif 'reverse' in file:
-                shell("touch {output}/Assembly/{wildcards.sample}_reverse.fastq; cat {file} >> {output}/Assembly/{wildcards.sample}_reverse.fastq", output = config["output"])
+                shell("touch {output}/Preprocess/{wildcards.sample}_reverse.fastq; cat {file} >> {output}/Preprocess/{wildcards.sample}_reverse.fastq", output = config["output"])
             else:
-                shell("touch {output}/Assembly/{wildcards.sample}.fastq; cat {file} >> {output}/Assembly/{wildcards.sample}.fastq", output = config["output"])
+                shell("touch {output}/Preprocess/{wildcards.sample}.fastq; cat {file} >> {output}/Preprocess/{wildcards.sample}.fastq", output = config["output"])
 
 rule assembly:
     input:
-        expand("{output}/Assembly/{sample}{fr}.fastq", output = config["output"], sample = set(experiments['Sample']),
+        expand("{output}/Preprocess/{sample}{fr}.fastq", output = config["output"], sample = set(experiments['Sample']),
             fr = (['_forward', '_reverse'] if experiments["Files"].str.contains(',').tolist() else ''))
     output:
         expand("{output}/Assembly/{sample}/contigs.fasta", output = config["output"], sample = set(experiments['Sample']))
@@ -119,19 +117,34 @@ rule binning:
         shell("python {scripts_dir}/binning.py -c {input.contigs} -t {threads} -o {output}/Binning/{sample} -r {reads} -mset {markerset}",
             output = config["output"], markerset = config["markerset"], sample = set(experiments['Sample']))
 
+rule fastq2fasta:
+    input:
+        expand("{output}/Preprocess/{sample}{fr}.fastq",output=config["output"],
+            fr=(['_forward', '_reverse'] if experiments["Files"].str.contains(',').tolist() else ''),
+            sample=set(experiments['Sample']))
+    output:
+        expand("{output}/Preprocess/{{sample}}.fasta",output=config["output"])
+    threads:
+        1
+    shell:
+        "cat {input} | paste - - - - | cut -f 1,2 | sed 's/^@/>/' | tr '\\t' '\\n' > {output}"
+
 rule annotation:
     input:
-        annotation_input(do_assembly = config['do_assembly'])
+        annotation_input
     output:
-        expand("{output}/Annotation/{sample}/fgs.faa", output = config["output"], sample = set(experiments['Sample'])),
-        expand("{output}/Annotation/{sample}/aligned.blast", output = config["output"], sample = set(experiments['Sample']))
+        expand("{output}/Annotation/{{sample}}/fgs.faa", output = config["output"]),
+        expand("{output}/Annotation/{{sample}}/aligned.blast", output = config["output"])
     threads:
         config["threads"]
     run:
-        shell("python {scripts_dir}/annotation.py -i {input} -t {threads} -a -o {output}/Annotation/{sample} -em {error_model} -db {diamond_database} -mts {diamond_max_target_seqs}{download_uniprot}",
+        if not config['do_assembly']:
+            input = ",".join(input)
+        shell("python {scripts_dir}/annotation.py -i {input} -t {threads} -o {output}/Annotation/{sample} -em {error_model} -db {diamond_database} -mts {diamond_max_target_seqs}{download_uniprot}{assembled}",
             output = config["output"], sample = set(experiments['Sample']), error_model = config["error_model"],
             diamond_database = config["diamond_database"], diamond_max_target_seqs = config["diamond_max_target_seqs"],
-            download_uniprot = ' --download-uniprot' if config["download_uniprot"] else '')
+            download_uniprot = ' --download-uniprot' if config["download_uniprot"] else '',
+            assembled = ' --assembled' if config['do_assembly'] else '')
 
 rule upimapi:
     input:

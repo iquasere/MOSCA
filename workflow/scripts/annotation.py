@@ -13,7 +13,7 @@ import multiprocessing
 import numpy as np
 import os
 import pandas as pd
-from mosca_tools import run_command, fastq2fasta
+from mosca_tools import run_command
 from progressbar import ProgressBar
 
 
@@ -64,15 +64,9 @@ class Annotater:
 
     def gene_calling(self, file, output, threads='12', assembled=True,
                      error_model='illumina_10'):
-        if not assembled:
-            fastq2fasta(file, file.replace('fastq', 'fasta'))  # FragGeneScan only accepts as input a FASTA file
-
         run_command('run_FragGeneScan.pl -thread={} -genome={}'.format(threads,
-                                                                       '{} -out={} -complete=1 -train=./complete'.format(
-                                                                           file, output) if assembled
-                                                                       else '{} -out={} -complete=0 -train=./'.format(
-                                                                           file.replace(
-                                                                               'fastq', 'fasta'), error_model)))
+                    '{} -out={} -complete=1 -train=./complete'.format(file, output) if assembled else
+                    '{} -out={} -complete=0 -train=./{}'.format(file, output, error_model)))
 
     def download_uniprot(self, out_dir):
         if not os.path.isfile('{}/uniprot.fasta'.format(out_dir)):
@@ -117,7 +111,7 @@ class Annotater:
 
         self.gene_calling(args.input, '{}/fgs'.format(args.output), threads=args.threads,
                           assembled=args.assembled, error_model=args.error_model)
-
+        exit()
         self.download_uniprot('/'.join(args.database.split('/')[:-1]))
         args.database = '{}/uniprot.fasta'.format('/'.join(args.database.split('/')[:-1]))
 

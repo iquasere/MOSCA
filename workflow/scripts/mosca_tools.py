@@ -213,39 +213,13 @@ def perform_alignment(reference, reads, basename, threads=1, blast=None,
                                                        ('' if blast is not None else ' --stranded=no')))
 
 
-'''
-Input:
-    fastq: FASTQ reads filename to convert to FASTA
-    output: name of FASTA file to produce
-Output:
-    A FASTA version of the input will be created named 'output'
-'''
-
-
 def fastq2fasta(fastq, output):
     run_command("paste - - - - < {} | cut -f 1,2 | sed 's/^@/>/' | tr \"\t" "\n\" > {}".format(
         fastq, output))
 
 
-'''
-Input:
-    message: a message to be printed
-Output:
-    will print the message with the time in human readable format
-'''
-
-
 def timed_message(message):
     print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ': ' + message)
-
-
-'''
-Input:
-    readcounts: str - file from htseq-count to normalize by contig size
-    contigs: str - filename of contigs
-Output:
-    The readcounts by contig in the file will be normalized by contig size
-'''
 
 
 def normalize_mg_readcounts_by_size(readcounts, contigs):
