@@ -20,6 +20,8 @@ class Joiner:
                             help="Number of threads for reCOGnizer to use. Default is number of CPUs available minus 2.")
         parser.add_argument("-if", "--input-format", type=str, default='tsv', choices=['tsv', 'excel'])
         parser.add_argument("-o", "--output", type=str, help="Output directory")
+        parser.add_argument("-nm", "--normalization-method", type=str, choices=["TMM", "RLE"],
+                            help="Method for normalizing readcounts")
 
         args = parser.parse_args()
         args.output = args.output.rstrip('/')
