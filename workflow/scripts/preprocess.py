@@ -85,7 +85,6 @@ class Preprocesser:
         else:
             return filename.split('.fa')[0]
 
-
     def download_resources(self, resources_directory):
         if not os.path.isfile('{}/downloaded_timestamp.txt'.format(resources_directory)):
             run_command('bash {}/download_resources.sh {}'.format(sys.path[0], resources_directory))
@@ -119,12 +118,14 @@ class Preprocesser:
                 ' '.join(['{}/Trimmomatic/after_adapter_removal_{}_{}_{}_{}.fq'.format(
                     out_dir, name, adapter_name, fr, pu) for fr in ['forward', 'reverse']
                     for pu in ['paired', 'unpaired']]) if self.paired else
-                '{}/Trimmomatic/after_adapter_removal_{}.fq'.format(
-                    out_dir, name), adapter))
+                '{}/Trimmomatic/after_adapter_removal_{}_{}.fq'.format(
+                    out_dir, name, adapter_name), adapter))
 
-            self.run_fastqc(['{}/Trimmomatic/after_adapter_removal_{}_{}_{}_paired.fq'.format(
-                out_dir, name, adapter_name, fr) for fr in ['forward', 'reverse']],
-                '{}/fastQC'.format(out_dir), threads=threads)
+            self.run_fastqc((['{}/Trimmomatic/after_adapter_removal_{}_{}_{}_paired.fq'.format(
+                out_dir, name, adapter_name, fr) for fr in ['forward', 'reverse']] if self.paired
+                             else ['{}/Trimmomatic/after_adapter_removal_{}_{}.fq'.format(
+                out_dir, name, adapter_name)]),
+                            '{}/FastQC'.format(out_dir), threads=threads)
 
             has_adapters = False
             for file in ['{}/FastQC/{}_{}_{}_paired_fastqc/fastqc_data.txt'.format(
@@ -337,7 +338,7 @@ class Preprocesser:
 
         if self.paired:
             args.input = ['{}/Trimmomatic/quality_trimmed_{}_{}_paired.fq'.format(args.output, name,
-                                                                            fr) for fr in ['forward', 'reverse']]
+                                                                                  fr) for fr in ['forward', 'reverse']]
         else:
             args.input = ['{}/Trimmomatic/quality_trimmed_{}.fq'.format(args.output, name)]
 
