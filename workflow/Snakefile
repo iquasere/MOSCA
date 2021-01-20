@@ -53,14 +53,16 @@ def join_reads_input(wildcards):
 def annotation_input(wildcards):
     if config['do_assembly']:
         return expand("{output}/Assembly/{sample}/contigs.fasta", output = config["output"], sample = set(experiments['Sample']))
-    return expand("{output}/Preprocess/{{sample}}.fasta",output=config["output"])
+    return expand("{output}/Preprocess/{{sample}}.fasta", output=config["output"])
 
 rule all:
     input:
-        expand("{output}/Preprocess/Trimmomatic/quality_trimmed_{name}{fr}.fq", output = config["output"],
-            fr = (['_forward_paired', '_reverse_paired'] if experiments["Files"].str.contains(',').tolist() else ''),
-            name = experiments["Name"].tolist()),
-        expand("{output}/Annotation/{sample}/fgs.faa", output = config["output"], sample = set(experiments['Sample']))
+        expand("{output}/Binning/{sample}/checkm.tsv",output=config["output"],sample=set(experiments['Sample'])),
+        expand("{output}/MOSCA_Protein_Report.xlsx", output = config["output"]),
+        expand("{output}/MOSCA_Entry_Report.xlsx", output = config["output"]),
+        expand("{output}/technical_report.txt", output = config["output"]),
+        expand("{output}/MOSCA_General_Report.xlsx", output = config["output"]),
+        expand("{output}/MOSCA_results.zip", output = config["output"])
 
 rule preprocess:
     input:
@@ -71,9 +73,10 @@ rule preprocess:
     threads:
         config["threads"]
     run:
-        shell("python {scripts_dir}/preprocess.py -i {reads} -t {threads} -o {output}/Preprocess -adaptdir {resources_directory}/adapters -rrnadbs {resources_directory}/rRNA_databases -d {data_type} -rd {resources_directory} -n {wildcards.name}",
+        shell("python {scripts_dir}/preprocess.py -i {reads} -t {threads} -o {output}/Preprocess -adaptdir {resources_directory}/adapters -rrnadbs {resources_directory}/rRNA_databases -d {data_type} -rd {resources_directory} -n {wildcards.name} --minlen {minlen} --avgqual {avgqual}",
             output = config["output"], data_type = experiments.loc[experiments['Name'] == wildcards.name]["Data type"].iloc[0],
-            reads = ",".join(input), resources_directory = config["resources_directory"])
+            reads = ",".join(input), resources_directory = config["resources_directory"],
+            minlen = config["minimum_read_length"], avgqual = config["minimum_read_average_quality"])
 
 rule join_reads:
     input:
@@ -100,8 +103,9 @@ rule assembly:
         config["threads"]
     run:
         reads = ",".join(input)
-        shell("python {scripts_dir}/assembly.py -r {reads} -t {threads} -o {output}/Assembly/{sample} -a {assembler}",
-            output = config["output"], sample = set(experiments['Sample']), assembler = config["assembler"])
+        shell("python {scripts_dir}/assembly.py -r {reads} -t {threads} -o {output}/Assembly/{sample} -a {assembler} -m {max_memory}",
+            output = config["output"], sample = set(experiments['Sample']), assembler = config["assembler"],
+            max_memory = config["max_memory"])
 
 rule binning:
     input:
@@ -174,7 +178,8 @@ rule quantification_analysis:
     input:
         expand("{output}/Preprocess/Trimmomatic/quality_trimmed_{name}{fr}.fq", output = config["output"],
             name = experiments["Name"],
-            fr = (['_forward_paired', '_reverse_paired'] if experiments["Files"].str.contains(',').tolist() else ''))
+            fr = (['_forward_paired', '_reverse_paired'] if experiments["Files"].str.contains(',').tolist() else '')),
+        expand("{output}/Assembly/{sample}/contigs.fasta", output = config["output"], sample = set(experiments["Sample"]))
     output:
         expand("{output}/Metatranscriptomics/{name}.readcounts", output = config["output"],
             name = set(mt_experiments['Name'])),
@@ -258,7 +263,8 @@ rule report:
         expand("{output}/MOSCA_Protein_Report.xlsx", output = config["output"])
     output:
         expand("{output}/technical_report.txt", output = config["output"]),
-        expand("{output}/MOSCA_General_Report.xlsx", output = config["output"])
+        expand("{output}/MOSCA_General_Report.xlsx", output = config["output"]),
+        expand("{output}/MOSCA_results.zip", output = config["output"])
     threads:
         1
     run:

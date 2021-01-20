@@ -94,7 +94,7 @@ def generate_mg_index(reference, index_prefix):
     run_command('bowtie2-build {} {}'.format(reference, index_prefix))
 
 
-def align_reads(reads, index_prefix, sam, report, log=None, threads='6'):
+def align_reads(reads, index_prefix, sam, report, log=None, threads=6):
     run_command('bowtie2 -x {} -1 {} -2 {} -S {} -p {} 1> {} 2> {}'.format(
         index_prefix, reads[0], reads[1], sam, threads, report, log))
 
@@ -184,23 +184,21 @@ def perform_alignment(reference, reads, basename, threads=1, blast=None,
         generate_mg_index(reference, reference.replace('.fasta', '_index'))
     else:
         print('INDEX was located at ' + reference.replace('.fasta', '_index'))
-
-    align_reads(reads, reference.replace('.fasta', '_index'), basename + '.sam',
-                basename + '_bowtie2_report.txt', log=basename + '.log',
-                threads=threads)
-
+    if not os.path.isfile(basename + '.log'):
+        align_reads(reads, reference.replace('.fasta', '_index'), basename + '.sam',
+                    basename + '_bowtie2_report.txt', log=basename + '.log', threads=threads)
+    else:
+        print('{}.log was found!'.format(basename))
 
     if blast is None:
         if not os.path.isfile(reference.replace('.fasta', '.gff')):
-            print('GFF file not found at ' + reference.replace('.fasta', '.gff') +
-                  '. Generating a new one.')
+            print('GFF file not found at {}. Generating a new one.'.format(reference.replace('.fasta', '.gff')))
             build_gff_from_contigs(reference, reference.replace('.fasta', '.gff'))
         else:
-            print('GFF file was located at ' + reference.replace('.fasta', '.gff'))
+            print('GFF file was located at {}'.format(reference.replace('.fasta', '.gff')))
     else:
         if not os.path.isfile(blast.replace('.blast', '.gff')):
-            print('GFF file not found at ' + blast.replace('.blast', '.gff') +
-                  '. Generating a new one.')
+            print('GFF file not found at {}. Generating a new one.'.format(reference.replace('.blast', '.gff')))
             if blast_unique_ids:
                 build_gff(blast, blast.replace('.blast', '.gff'))
         else:

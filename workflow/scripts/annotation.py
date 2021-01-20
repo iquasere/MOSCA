@@ -111,7 +111,7 @@ class Annotater:
 
         self.gene_calling(args.input, '{}/fgs'.format(args.output), threads=args.threads,
                           assembled=args.assembled, error_model=args.error_model)
-        exit()
+
         self.download_uniprot('/'.join(args.database.split('/')[:-1]))
         args.database = '{}/uniprot.fasta'.format('/'.join(args.database.split('/')[:-1]))
 
