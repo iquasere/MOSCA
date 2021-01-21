@@ -109,7 +109,7 @@ rule assembly:
 
 rule binning:
     input:
-        reads = expand("{output}/Assembly/{sample}{fr}.fastq", output = config["output"], sample = set(experiments['Sample']),
+        reads = expand("{output}/Preprocess/{sample}{fr}.fastq", output = config["output"], sample = set(experiments['Sample']),
             fr = (['_forward', '_reverse'] if experiments["Files"].str.contains(',').tolist() else '')),
         contigs = expand("{output}/Assembly/{sample}/contigs.fasta", output = config["output"], sample = set(experiments['Sample']))
     output:
@@ -166,7 +166,7 @@ rule recognizer:
     input:
         expand("{output}/Annotation/{sample}/fgs.faa", output = config["output"], sample = set(experiments["Sample"]))
     output:
-        expand("{output}/Annotation/{sample}/protein2cog.xlsx", output = config["output"], sample = set(experiments["Sample"]))
+        expand("{output}/Annotation/{sample}/reCOGnizer_results.xlsx", output = config["output"], sample = set(experiments["Sample"]))
     threads:
         config["threads"] - 1
     run:
@@ -179,7 +179,9 @@ rule quantification_analysis:
         expand("{output}/Preprocess/Trimmomatic/quality_trimmed_{name}{fr}.fq", output = config["output"],
             name = experiments["Name"],
             fr = (['_forward_paired', '_reverse_paired'] if experiments["Files"].str.contains(',').tolist() else '')),
-        expand("{output}/Assembly/{sample}/contigs.fasta", output = config["output"], sample = set(experiments["Sample"]))
+        expand("{output}/Assembly/{sample}/contigs.fasta", output = config["output"], sample = set(experiments["Sample"])),
+        expand("{output}/Annotation/{sample}/aligned.blast", output = config["output"], sample = set(experiments["Sample"]))
+
     output:
         expand("{output}/Metatranscriptomics/{name}.readcounts", output = config["output"],
             name = set(mt_experiments['Name'])),
@@ -212,7 +214,8 @@ rule join_information:
     input:
         expand("{output}/Annotation/uniprotinfo.tsv", output = config["output"]),
         expand("{output}/Annotation/{sample}/aligned.blast", output = config["output"], sample = set(experiments['Sample'])),
-        expand("{output}/Annotation/{sample}/protein2cog.xlsx", output = config["output"], sample = set(experiments["Sample"])),
+        expand("{output}/Annotation/{sample}/reCOGnizer_results.xlsx", output = config["output"],
+            sample = set(experiments["Sample"])),
         expand("{output}/Metatranscriptomics/{name}.readcounts", output = config["output"],
             name = set(mt_experiments['Name'])),
         expand("{output}/Annotation/{name}.readcounts", output = config["output"],
@@ -224,7 +227,7 @@ rule join_information:
     threads:
         config["threads"] - 2
     run:
-        shell("python {scripts_dir}/join_information.py -e {experiments} -t {threads} -o {output} -if {input_format} -m {normalization_method}",
+        shell("python {scripts_dir}/join_information.py -e {experiments} -t {threads} -o {output} -if {input_format} -nm {normalization_method}",
               experiments = config["experiments"], output = config["output"],
               normalization_method = config["normalization_method"])
 

@@ -30,6 +30,8 @@ class Joiner:
     def run(self):
         args = self.get_arguments()
 
+        rscript_exe = '{}/../../bin/'.format(sys.path[0])
+
         experiments = (pd.read_csv(args.experiments, sep='\t') if args.input_format == 'tsv' else
                        pd.read_excel(args.experiments))
 
@@ -50,10 +52,20 @@ class Joiner:
         for sample in sample2mgname.keys():
             timed_message('Joining data for sample: {}'.format(sample))
 
+            # new reCOGnizer exports results in EXCEL always
+            recognizer_filename = '{}/Annotation/{}/reCOGnizer_results.xlsx'.format(args.output, sample)
+            sheet_names = pd.ExcelFile(recognizer_filename).sheet_names
+            cog_sheets = [sheet for sheet in sheet_names if 'COG' in sheet]
+            cog_df = pd.read_excel(recognizer_filename, sheet_name=cog_sheets[0])
+            for sheet in cog_sheets[1:]:
+                cog_df = pd.concat([cog_df, pd.read_excel(recognizer_filename, sheet_name=sheet)])
+            cog_df['cog'] = cog_df['DB ID']
+            del cog_df['DB ID']
+
             # Join BLAST and reCOGnizer outputs
-            data = pd.merge(parse_blast('{}/Annotation/{}/aligned.blast'.format(args.output, sample)),
-                            pd.read_excel('{}/Annotation/{}/protein2cog.xlsx'.format(args.output, sample)),
+            data = pd.merge(parse_blast('{}/Annotation/{}/aligned.blast'.format(args.output, sample)), cog_df,
                             on='qseqid', how='left')
+            data['sseqid'] = data['sseqid_x']
             data['sseqid'] = [ide.split('|')[1] if ide != '*' else ide for ide in data['sseqid']]
             data.columns = [column.replace('_x', ' (DIAMOND)').replace('_y', ' (reCOGnizer)') for column in
                             data.columns]  # after merging, BLAST columns will be repeated, and this makes explicit their origin
@@ -102,16 +114,16 @@ class Joiner:
             data[abundance_analysed].to_csv(
                 args.output + '/mg_preprocessed_readcounts.table', sep='\t', index=False)
             data = pd.concat([data, normalize_readcounts(args.output + '/mg_preprocessed_readcounts.table',
-                    abundance_analysed, args.output + '/mg_preprocessed_normalization_factors.txt')[[
-                    col + '_normalized' for col in abundance_analysed]]], axis=1)
+                    abundance_analysed, args.output + '/mg_preprocessed_normalization_factors.txt',
+                    rscript_exe=rscript_exe)[[col + '_normalized' for col in abundance_analysed]]], axis=1)
 
             # MT normalization by sample and protein expression - normalization is repeated here because it's not stored from DESeq2 analysis
             data[expression_analysed].to_csv(args.output + '/expression_analysed_readcounts.table',
                                              sep='\t', index=False)
             data = pd.concat([data, normalize_readcounts(
                     args.output + '/expression_analysed_readcounts.table', expression_analysed,
-                    args.output + '/expression_analysed_normalization_factors.txt')[[
-                    col + '_normalized' for col in expression_analysed]]], axis = 1)
+                    args.output + '/expression_analysed_normalization_factors.txt',
+                    rscript_exe=rscript_exe)[[col + '_normalized' for col in expression_analysed]]], axis=1)
 
             # For each sample, write an Entry Report
             multi_sheet_excel('{}/MOSCA_Entry_Report.xlsx'.format(args.output),
