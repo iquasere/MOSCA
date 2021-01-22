@@ -79,7 +79,7 @@ class Assembler:
         # Quality control
         pathlib.Path('{}/quality_control'.format(args.output)).mkdir(parents=True, exist_ok=True)
 
-        self.run_metaquast('{}/contigs.fasta'.format(args.output), args.output)
+        self.run_metaquast('{}/contigs.fasta'.format(args.output), '{}/quality_control'.format(args.output))
         perform_alignment('{}/contigs.fasta'.format(args.output), args.reads,
                           '{}/quality_control/alignment'.format(args.output),
                           threads=args.threads)
@@ -87,8 +87,8 @@ class Assembler:
 
         if os.path.isfile('{}/quality_control/combined_reference/report.tsv'.format(
                 args.output)):  # if metaquast finds references to the contigs, it will output results to different folders
-            os.rename('{}/quality_control/combined_reference/report.tsv'.format(args.output),
-                      '{}/quality_control/report.tsv'.format(args.output))
+            shutil.copyfile('{}/quality_control/combined_reference/report.tsv'.format(args.output),
+                            '{}/quality_control/report.tsv'.format(args.output))
         with open(args.output + '/quality_control/report.tsv', 'a') as f:
             f.write('Reads aligned (%)\t{}\n'.format(percentage_of_reads))
 

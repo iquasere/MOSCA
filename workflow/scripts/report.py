@@ -38,16 +38,12 @@ class Reporter:
         the softwares used by MOSCA and respective versions
     '''
 
-    def write_technical_report(self, tools_list_file,
-                               output):  # TODO - add proteomics software that cannot be installed with conda
+    def write_technical_report(self, output):  # TODO - add proteomics software that cannot be installed with conda
         conda_list = run_pipe_command('conda list', output='PIPE').split('\n')[2:]
         lines = [line.split() for line in conda_list]
         lines[0] = lines[0][1:]
         df = pd.DataFrame(lines, columns=lines.pop(0)).set_index('Name')
-        tools = open(tools_list_file).read().split('\n')
-        present_tools = [tool for tool in tools if tool in df.index]
-        open(output, 'w').write(df.loc[present_tools][['Version']].to_string(
-            justify='left'))
+        df[['Version']].to_csv(output, sep='\t')
 
     def initialize_report(self, reporter_columns):
         print('Initializing Report')
@@ -65,13 +61,19 @@ class Reporter:
         named 'name', and the columns that start with 'prefix'
     '''
 
-    def info_from_fastqc(self, output_dir, name, prefix, prefix2terms, fastq_columns):
-        reports = [parse_fastqc_report('{}/Preprocess/FastQC/{}{}_{}_fastqc/fastqc_data.txt'.format(output_dir,
-                                                                                                    prefix2terms[
-                                                                                                        prefix][0],
-                                                                                                    name, prefix2terms[
-                                                                                                        prefix][i])) for
-                   i in [1, 2]]
+    def info_from_fastqc(self, output_dir, name, prefix, prefix2terms, fastq_columns, initial_file=None):
+        if initial_file is not None:
+            if '_R' in initial_file:
+                original_name = initial_file.split('/')[-1].split('_R')[0]
+            else:
+                original_name = initial_file.split('/')[-1].split('.f')[0]
+        else:
+            original_name = name
+        reports = [parse_fastqc_report('{}/Preprocess/FastQC/{}{}_{}_fastqc/fastqc_data.txt'.format(
+            output_dir, prefix2terms[prefix][0], original_name, prefix2terms[prefix][i])) for i in [1, 2]]
+        self.report.loc[name, '{} # of reads'.format(prefix)] = reports[0]['Basic Statistics'][1].loc[
+            'Total Sequences']['Value']
+
         for column in fastq_columns:
             for i in range(2):
                 if column not in reports[i].keys():
@@ -85,7 +87,7 @@ class Reporter:
                         reports[0][column][0], reports[1][column][0]))
 
     def info_from_preprocessing(self, output_dir, name, input_file, fastq_columns, performed_rrna_removal=False):
-        print('Retrieving preprocessing information for sample: ' + name)
+        print('Retrieving preprocessing information for dataset: ' + name)
         if name not in self.report.index:
             self.report = self.report.append(pd.Series(name=name))
         self.report.loc[name] = self.report.loc[name].fillna(value='')
@@ -94,7 +96,7 @@ class Reporter:
         if len(adapter_files[0]) > 0 and not adapter_files[0] == 'None':
             adapter = adapter_files[0].split('/')[-1].split('.fa')[0]
         else:
-            adapter_files = list();
+            adapter_files = list()
             adapter = None
 
         # For each preprocessing step, a tuple of (prefix, suffix for forward, suffix for reverse)
@@ -106,45 +108,27 @@ class Reporter:
                 'quality_trimmed_', 'forward_paired', 'reverse_paired')}
 
         # Initial assessment
-        self.report.loc[name, '[Initial quality assessment] # of initial reads'] = count_on_file(
-            '@', input_file, compressed=True if input_file.endswith('.gz') else False)
-        self.info_from_fastqc(output_dir, name, '[Initial quality assessment]', prefix2terms, fastq_columns)
+        self.info_from_fastqc(output_dir, name, '[Initial quality assessment]', prefix2terms, fastq_columns,
+                              initial_file=input_file)
 
         # After adapter removal
         try:
             if len(adapter_files) > 0:
                 self.report.loc[name, '[Adapter removal] adapter files'] = ', '.join(set(adapter_files))
-                self.report.loc[name, '[Adapter removal] # of reads remaining'] = (
-                    count_on_file('@', '{}/Preprocess/Trimmomatic/{}_{}_forward_paired.fq'.format(
-                        output_dir, name, adapter)))
             else:
                 self.report.loc[name, '[Adapter removal] adapter files'] = 'None'
-                self.report.loc[name, '[Adapter removal] # of reads remaining'] = (
-                    self.report.loc[name]['[Initial quality assessment] # of initial reads'])
         except:
             print('Failed at adapter removal!')
             self.report.to_csv('{}/report.tsv'.format(output_dir), sep='\t')
 
-        # rRNA removal
-        if performed_rrna_removal:
-            self.report.loc[name, '[rRNA removal] # of reads remaining'] = (
-                count_on_file('@', '{}/Preprocess/SortMeRNA/{}_forward.fastq'.format(output_dir, name)))
-        else:
-            self.report.loc[name, '[rRNA removal] # of reads remaining'] = (
-                self.report.loc[name]['[Adapter removal] # of reads remaining'])
-
         # Quality trimming
-        self.info_from_fastqc(output_dir, name, '[Before quality trimming]', prefix2terms, fastq_columns)
+        self.info_from_fastqc(output_dir, name, '[Before quality trimming]', prefix2terms, fastq_columns,
+                              initial_file=input_file)
 
-        self.report.loc[name, '[Quality trimming] Parameters'] = '; '.join([file for file in
-                                                                            set(open(
-                                                                                '{}/Preprocess/Trimmomatic/{}_quality_params.txt'.format(
-                                                                                    output_dir, name)).read().split(
-                                                                                '\n')) if len(
-                file) > 2])  # TODO - because '' must be interfering, try to cut the problem at the root before troubles
-        self.report.loc[name, '[Quality trimming] # of reads remaining'] = (
-            count_on_file('@', '{}/Preprocess/Trimmomatic/quality_trimmed_{}_forward_paired.fq'.format(
-                output_dir, name)))
+        self.report.loc[name, '[Quality trimming] Parameters'] = '; '.join([
+            file for file in set(open('{}/Preprocess/Trimmomatic/{}_quality_params.txt'.format(output_dir, name)).read(
+                ).split('\n')) if len(file) > 2])  # TODO - because '' must be interfering, try to cut the problem at the root before troubles
+
         self.info_from_fastqc(output_dir, name, '[After quality trimming]', prefix2terms, fastq_columns)
 
     def set_samples(self, experiments):
@@ -156,6 +140,7 @@ class Reporter:
         qc_report = pd.read_csv('{}/Assembly/{}/quality_control/report.tsv'.format(
             output_dir, sample), sep='\t', index_col=0).transpose()
         qc_report.index = [sample]
+
         for col in qc_report.columns.tolist():
             self.report.loc[self.report['Sample'] == sample, '[Assembly] ' + col] = qc_report.loc[sample][col]
 
@@ -172,7 +157,7 @@ class Reporter:
                                                                                                              sample)))
 
         sample_report['# of proteins annotated (reCOGnizer)'] = (
-            len(set(parse_blast('{}/Annotation/{}/cdd_aligned.blast'.format(
+            len(set(parse_blast('{}/Annotation/{}/COG_aligned.blast'.format(
                 output_dir, sample))['qseqid'])))
 
         sample_report = pd.DataFrame.from_dict(sample_report, orient='index').transpose()
@@ -205,7 +190,7 @@ class Reporter:
     def info_from_alignment(self, output_dir, mt_name):
         self.report.set_index('Name', inplace=True)
         self.report.loc[mt_name, '[Metatranscriptomics] # of reads aligned'] = (
-            run_pipe_command("""samtools view {}/Metatranscriptomics/{}.sam | 
+            run_pipe_command("""cat {}/Metatranscriptomics/{}.sam | 
                 cut -f 3 | sort | uniq -c | awk \'{{printf(\"%s\\t%s\\n\", $2, $1)}}\' | 
                 awk '{{sum+=$2}} END {{print sum}}\'""".format(output_dir, mt_name),
                              output='PIPE').rstrip('\n'))
@@ -228,8 +213,7 @@ class Reporter:
         fastq_columns = open('{}/fastqc_columns.txt'.format(args.lists_directory)).read().split('\n')
         reporter_columns = open('{}/reporter_columns.txt'.format(args.lists_directory)).read().split('\n')
 
-        self.write_technical_report('{}/tools_for_versions.txt'.format(args.lists_directory),
-                                    '{}/technical_report.txt'.format(args.output))
+        self.write_technical_report('{}/technical_report.tsv'.format(args.output))
 
         exps = (
             pd.read_csv(args.experiments, sep='\t') if args.input_format == 'tsv' else pd.read_excel(args.experiments))
@@ -243,6 +227,7 @@ class Reporter:
 
         self.set_samples(exps)
 
+        self.report.to_csv('report.tsv', sep='\t')
         for sample in set(exps['Sample']):
             self.info_from_assembly(args.output, sample)
 
@@ -262,7 +247,7 @@ class Reporter:
                 'MOSCA_Protein_Report.xlsx',
                 'MOSCA_Entry_Report.xlsx',
                 'MOSCA_General_Report.xlsx',
-                'technical_report.txt'
+                'technical_report.tsv'
             ]],
             '{}/{}'.format(args.output, 'MOSCA_results.zip'))
 

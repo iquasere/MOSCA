@@ -60,7 +60,7 @@ rule all:
         expand("{output}/Binning/{sample}/checkm.tsv",output=config["output"],sample=set(experiments['Sample'])),
         expand("{output}/MOSCA_Protein_Report.xlsx", output = config["output"]),
         expand("{output}/MOSCA_Entry_Report.xlsx", output = config["output"]),
-        expand("{output}/technical_report.txt", output = config["output"]),
+        expand("{output}/technical_report.tsv", output = config["output"]),
         expand("{output}/MOSCA_General_Report.xlsx", output = config["output"]),
         expand("{output}/MOSCA_results.zip", output = config["output"])
 
@@ -236,12 +236,13 @@ rule differential_expression:
         expand("{output}/Metatranscriptomics/expression_matrix.tsv", output = config["output"])
     output:
         expand("{output}/Metatranscriptomics/gene_expression.jpeg", output = config["output"]),
-        expand("{output}/Metatranscriptomics/sample_distances.jpeg", output = config["output"])
+        expand("{output}/Metatranscriptomics/sample_distances.jpeg", output = config["output"]),
+        expand("{output}/Metatranscriptomics/condition_treated_results.csv", output = config["output"])
     threads:
         1
     run:
         conditions = ",".join(map(str, mt_experiments['Condition'].tolist()))
-        shell("Rscript {scripts_dir}/de_analysis.R --readcounts {input} --conditions {conditions} --output {output}/Metatranscriptomics",                 # problems with libreadline.so.6 might be solved with cd /lib/x86_64-linux-gnu/; sudo ln -s libreadline.so.7.0 libreadline.so.6
+        shell("{scripts_dir}/../../../bin/Rscript {scripts_dir}/de_analysis.R --readcounts {input} --conditions {conditions} --output {output}/Metatranscriptomics",                 # problems with libreadline.so.6 might be solved with cd /lib/x86_64-linux-gnu/; sudo ln -s libreadline.so.7.0 libreadline.so.6
             conditions = conditions, output = config["output"])
 
 rule keggcharter:
@@ -263,9 +264,10 @@ rule keggcharter:
 
 rule report:
     input:
-        expand("{output}/MOSCA_Protein_Report.xlsx", output = config["output"])
+        expand("{output}/MOSCA_Protein_Report.xlsx", output = config["output"]),
+        expand("{output}/Metatranscriptomics/condition_treated_results.csv", output = config["output"])
     output:
-        expand("{output}/technical_report.txt", output = config["output"]),
+        expand("{output}/technical_report.tsv", output = config["output"]),
         expand("{output}/MOSCA_General_Report.xlsx", output = config["output"]),
         expand("{output}/MOSCA_results.zip", output = config["output"])
     threads:
