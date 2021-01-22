@@ -294,18 +294,16 @@ Output:
 '''
 
 
-def normalize_readcounts(joined, columns, output=None, method='TMM', rscript_folder=''):
-    if output is None: output = joined.replace('.tsv', '_normalized.tsv')
+def normalize_readcounts(joined, columns, method='TMM', rscript_folder=''):
     working_dir = '/'.join(joined.split('/')[:-1])
     info = pd.read_csv(joined, sep='\t')
     info[columns] = info[columns].fillna(value=0)
     info[columns].to_csv(working_dir + '/to_normalize.tsv', sep='\t', index=False)
     print('Normalizing {} on columns {}'.format(joined, ','.join(columns)))
     run_command(
-        '{}Rscript {1}/normalization.R --readcounts {0}/to_normalize.tsv --output {0}/normalization_factors.txt -m {2}'.format(
-            rscript_folder, working_dir, sys.path[0], method))
-    factors = open(working_dir + '/normalization_factors.txt').read().split('\n')[
-              :-1]  # there is always the \n as last element
+        '{3}Rscript {1}/normalization.R --readcounts {0}/to_normalize.tsv --output {0}/normalization_factors.txt -m {2}'.format(
+            working_dir, sys.path[0], method, rscript_folder))
+    factors = open(working_dir + '/normalization_factors.txt').read().split('\n')[:-1]  # \n always last element
 
     for i in range(len(columns)):
         info[columns[i] + '_normalized'] = info[columns[i]] * float(factors[i])

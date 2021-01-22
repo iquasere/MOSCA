@@ -195,7 +195,7 @@ class Preprocesser:
 
     # SortMeRNA - rRNA removal
     def rrna_removal(self, files, out_dir, name, databases, threads='12', original_files=True):
-        files_to_delete = files if original_files else []
+        files_to_delete = [] if original_files else files
         for database in databases:
             self.index_rrna_database(database)
 
@@ -289,8 +289,8 @@ class Preprocesser:
                 out_dir, name), 'a') as f:
             if headcrop > 0: f.write('HEADCROP:{}\n'.format(headcrop))
             if crop < float('inf'): f.write('CROP:{}\n'.format(crop))
-            f.write('AVGQUAL{}\n'.format(20))
-            f.write('MINLEN:{}\n'.format(100))
+            f.write('AVGQUAL{}\n'.format(avgqual))
+            f.write('MINLEN:{}\n'.format(minlen))
 
         if not original_files:
             for file in files:

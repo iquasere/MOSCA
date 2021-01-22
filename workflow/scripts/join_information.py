@@ -5,6 +5,7 @@ import pandas as pd
 import multiprocessing
 from mosca_tools import timed_message, parse_blast, normalize_mg_readcounts_by_size, add_abundance, multi_sheet_excel, \
     normalize_readcounts, run_command
+import sys
 
 class Joiner:
 
@@ -30,7 +31,7 @@ class Joiner:
     def run(self):
         args = self.get_arguments()
 
-        rscript_exe = '{}/../../bin/'.format(sys.path[0])
+        rscript_folder = '{}/../../../bin/'.format(sys.path[0])
 
         experiments = (pd.read_csv(args.experiments, sep='\t') if args.input_format == 'tsv' else
                        pd.read_excel(args.experiments))
@@ -114,20 +115,18 @@ class Joiner:
             data[abundance_analysed].to_csv(
                 args.output + '/mg_preprocessed_readcounts.table', sep='\t', index=False)
             data = pd.concat([data, normalize_readcounts(args.output + '/mg_preprocessed_readcounts.table',
-                    abundance_analysed, args.output + '/mg_preprocessed_normalization_factors.txt',
-                    rscript_exe=rscript_exe)[[col + '_normalized' for col in abundance_analysed]]], axis=1)
+                    abundance_analysed, rscript_folder=rscript_folder)[
+                [col + '_normalized' for col in abundance_analysed]]], axis=1)
 
             # MT normalization by sample and protein expression - normalization is repeated here because it's not stored from DESeq2 analysis
             data[expression_analysed].to_csv(args.output + '/expression_analysed_readcounts.table',
                                              sep='\t', index=False)
             data = pd.concat([data, normalize_readcounts(
                     args.output + '/expression_analysed_readcounts.table', expression_analysed,
-                    args.output + '/expression_analysed_normalization_factors.txt',
-                    rscript_exe=rscript_exe)[[col + '_normalized' for col in expression_analysed]]], axis=1)
+                    rscript_folder=rscript_folder)[[col + '_normalized' for col in expression_analysed]]], axis=1)
 
             # For each sample, write an Entry Report
-            multi_sheet_excel('{}/MOSCA_Entry_Report.xlsx'.format(args.output),
-                                     data, sheet_name=sample)
+            multi_sheet_excel('{}/MOSCA_Entry_Report.xlsx'.format(args.output), data, sheet_name=sample)
 
             data = pd.read_excel('{}/MOSCA_Entry_Report.xlsx'.format(args.output), sheet_name = sample + ' (1)')
             data[['Entry'] + expression_analysed].to_csv('{}/Metatranscriptomics/expression_matrix.tsv'.format(
