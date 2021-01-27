@@ -1,10 +1,14 @@
 {
   "output": "output",
   "resources_directory": "resources_directory",
-  "threads": 1,
+  "minimum_read_length":100,
+  "minimum_read_average_quality":20,
+  "threads": 14,
+  "experiments": "output/experiments.tsv",
   "do_assembly": true,
+  "max_memory": 40960,
   "assembler": "metaspades",
-  "error_model": "sanger_5",
+  "error_model": "illumina_5",
   "markerset": "40",
   "diamond_database": "resources_directory/uniprot.dmnd",
   "diamond_max_target_seqs": 1,
@@ -298,9 +302,7 @@
     "02040",
     "04810"
   ],
-  "keggcharter_taxa_level": "SPECIES",
+  "keggcharter_taxa_level": "GENUS",
   "keggcharter_number_of_taxa": 10,
-  "reference_proteomes_request_size": 5000,
-  "protease": "trypsin",
-  "metaproteomics_quantification": "precursor based"
+  "proteomics_workflow": "compomics"
 }

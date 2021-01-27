@@ -259,7 +259,8 @@ class Preprocesser:
         return int(headcrop) + 1
 
     # Trimmomatic - removal of low quality regions and short reads
-    def quality_trimming(self, files, out_dir, name, threads='12', minlen='100', avgqual='20', original_files=True):
+    def quality_trimming(self, files, out_dir, name, threads='12', minlen='100', avgqual='20', original_files=True,
+                         type_of_data='dna'):
         fastqc_reports = ['{}/FastQC/{}_fastqc/fastqc_data.txt'.format(
             out_dir, self.remove_fq_end(file.split('/')[-1])) for file in files]
 
@@ -271,10 +272,11 @@ class Preprocesser:
                 parameter = self.get_crop(data)
                 if parameter < crop:
                     crop = parameter
-            if data['Per base sequence content'][0] in ['warn', 'fail']:
-                parameter = self.get_headcrop(data)
-                if parameter > headcrop:
-                    headcrop = parameter
+            if type_of_data == 'dna':
+                if data['Per base sequence content'][0] in ['warn', 'fail']:
+                    parameter = self.get_headcrop(data)
+                    if parameter > headcrop:
+                        headcrop = parameter
 
         run_command('trimmomatic {} -threads {} {} {}{}{} AVGQUAL:{} MINLEN:{}'.format(
             'PE' if self.paired else 'SE', threads, ' '.join(files),
@@ -361,7 +363,8 @@ class Preprocesser:
         self.run_fastqc(args.input, '{}/FastQC'.format(args.output), threads=args.threads)
 
         self.quality_trimming(args.input, args.output, name, threads=args.threads, avgqual=args.avgqual,
-                              minlen=args.minlen, original_files=True if args.input == original_input else False)
+                              minlen=args.minlen, original_files=True if args.input == original_input else False,
+                              type_of_data=args.data)
 
         if self.paired:
             args.input = ['{}/Trimmomatic/quality_trimmed_{}_{}_paired.fq'.format(args.output, name,
