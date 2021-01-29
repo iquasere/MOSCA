@@ -62,8 +62,7 @@ class Annotater:
         (but with .fasta instead of .fastq)
     '''
 
-    def gene_calling(self, file, output, threads='12', assembled=True,
-                     error_model='illumina_10'):
+    def gene_calling(self, file, output, threads='12', assembled=True, error_model='illumina_10'):
         run_command('run_FragGeneScan.pl -thread={} -genome={}'.format(threads,
                     '{} -out={} -complete=1 -train=./complete'.format(file, output) if assembled else
                     '{} -out={} -complete=0 -train=./{}'.format(file, output, error_model)))
@@ -112,22 +111,15 @@ class Annotater:
         self.gene_calling(args.input, '{}/fgs'.format(args.output), threads=args.threads,
                           assembled=args.assembled, error_model=args.error_model)
 
-        self.download_uniprot('/'.join(args.database.split('/')[:-1]))
-        args.database = '{}/uniprot.fasta'.format('/'.join(args.database.split('/')[:-1]))
+        if args.download_uniprot:
+            self.download_uniprot('/'.join(args.database.split('/')[:-1]))
+            args.database = '{}/uniprot.fasta'.format('/'.join(args.database.split('/')[:-1]))
 
         self.run_diamond('{}/fgs.faa'.format(args.output), '{}/aligned.blast'.format(args.output),
                          '{}/unaligned.fasta'.format(args.output), args.database,
                          threads=args.threads,
                          max_target_seqs=args.max_target_seqs)  # TODO - annotation has to be refined to retrieve better than hypothetical proteins
 
-    '''
-    Input:
-        data: str - result from MOSCA analysis
-        seqs_file: str - file to store FASTA sequences
-        blast_file: str - file to store extra annotation
-    Output:
-        returns data with new protein names
-    '''
 
     def further_annotation(self, data, temp_folder='temp',
                            dmnd_db='MOSCA/Databases/annotation_databases/uniprot.dmnd',

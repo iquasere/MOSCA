@@ -14,10 +14,6 @@ RUN buildDeps='build-essential zlib1g-dev' \
 && conda install -c bioconda -c conda-forge recognizer maxquant keggcharter quast \
 && conda clean --all \
 && perl /opt/conda/opt/krona/install.pl \
-&& wget http://genesis.ugent.be/maven2/eu/isas/searchgui/SearchGUI/3.3.16/SearchGUI-3.3.16-mac_and_linux.tar.gz \
-&& tar -xzf SearchGUI-3.3.16-mac_and_linux.tar.gz \
-&& wget http://genesis.ugent.be/maven2/eu/isas/peptideshaker/PeptideShaker/1.16.41/PeptideShaker-1.16.41.zip \
-&& unzip PeptideShaker-1.16.41.zip \
 && svn export https://github.com/timflutre/trimmomatic/trunk/adapters MOSCA/Databases/illumina_adapters \
 && apt-get purge -y --auto-remove $buildDeps
 
