@@ -229,7 +229,6 @@ class Preprocesser:
             self.remove_orphans(basename + '_forward.fastq', 
                                basename + '_reverse.fastq')
         '''
-
         for file in files_to_delete:
             os.remove(file)
             print('Removed: {}'.format(file))
@@ -356,9 +355,14 @@ class Preprocesser:
             if self.paired:
                 args.input = ['{}/SortMeRNA/{}_{}.fastq'.format(
                     args.output, name, fr) for fr in ['forward', 'reverse']]
+                files_to_delete = ['{}/SortMeRNA/{}_{}.fastq'.format(
+                    args.output, name, rejection) for rejection in ['accepted', 'rejected']]
             else:
                 args.input = ['{}/SortMeRNA/{}_rejected.fq'.format(
                     args.output, name)]
+                files_to_delete = ['{}/SortMeRNA/{}_{}.fastq'.format(args.output, name, 'accepted')]
+            for file in files_to_delete:
+                os.remove(file)
 
         self.run_fastqc(args.input, '{}/FastQC'.format(args.output), threads=args.threads)
 

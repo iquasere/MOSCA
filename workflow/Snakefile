@@ -1,6 +1,7 @@
 import pandas as pd
 import shutil
 import sys
+from mosca_tools import parse_blast, multi_sheet_excel
 
 scripts_dir = sys.path[0]
 
@@ -56,8 +57,7 @@ def all_input(wildcards):
         )
     else:
         return (
-            expand("{output}/Annotation/{sample}/aligned.blast", output=config["output"],
-                sample=set(experiments['Sample']))
+            "{}/MOSCA_Entry_Counts_Report.xlsx".format(config["output"])
         )
 
 def preprocess_input(wildcards):
@@ -82,6 +82,13 @@ def annotation_input(wildcards):
             sample = set(experiments['Sample']))
     return expand("{output}/Preprocess/piled_{name}.fasta", output = config["output"],
         name = wildcards.sample)
+
+def upimapi_input(wildcards):
+    if config['do_assembly']:
+        return expand("{output}/Annotation/{sample}/aligned.blast",output=config["output"],
+            sample = set(experiments['Sample']))
+    return expand("{output}/Annotation/{name}/aligned.blast",output=config["output"],
+        name = set(experiments['Name']))
 
 rule all:
     input:
@@ -184,16 +191,18 @@ rule annotation:
 
 rule upimapi:
     input:
-        expand("{output}/Annotation/{sample}/aligned.blast", output = config["output"],
-            sample = set(experiments["Sample"]))
+        upimapi_input
     output:
-        expand("{output}/Annotation/uniprotinfo.tsv", output = config["output"])
+        expand("{output}/Annotation/uniprotinfo.tsv", output = config["output"]),
     threads:
         1
     run:
-        shell("upimapi.py -i {input} -o {output}/Annotation/uniprotinfo --blast --full-id",
-              output = config["output"])
-        shell("echo 'done' > {output}/Annotation/{{sample}}.txt", output = config["output"])
+        if config["do_assembly"]:
+            shell("upimapi.py -i {input} -o {output}/Annotation/uniprotinfo --blast --full-id", output = config["output"])
+        else:
+            for blast in input:
+                shell("upimapi.py -i {blast} -o {output}/Annotation/uniprotinfo --blast --full-id",
+                    output=config["output"])
 
 rule recognizer:
     input:
@@ -259,7 +268,7 @@ rule join_information:
         expand("{output}/Metatranscriptomics/{name}.readcounts", output = config["output"],
             name = set(mt_experiments['Name'])),
         expand("{output}/Annotation/{name}.readcounts", output = config["output"],
-            name = set(mg_experiments['Name'])),
+            name = set(mg_experiments['Name']))
     output:
         expand("{output}/MOSCA_Protein_Report.xlsx", output = config["output"]),
         expand("{output}/MOSCA_Entry_Report.xlsx", output = config["output"]),
@@ -271,6 +280,30 @@ rule join_information:
               "-nm {normalization_method}",
               experiments = config["experiments"], output = config["output"],
               normalization_method = config["normalization_method"])
+
+rule entry_count:
+    input:
+        uniprotinfo=expand("{output}/Annotation/uniprotinfo.tsv",output=config["output"]),
+        blasts=expand("{output}/Annotation/{name}/aligned.blast",output=config["output"], name=set(experiments['Name']))
+    output:
+        "{}/MOSCA_Entry_Counts_Report.xlsx".format(config["output"])
+    threads:
+        1
+    run:
+        uniprotinfo=pd.read_csv(input.uniprotinfo[0], sep='\t')
+        result = pd.DataFrame(columns=['sseqid'])
+        i = 1
+        for blast in input.blasts:
+            print('[{}/{}] Quantifying entries for: {}'.format(i, len(input.blasts), blast))
+            data = parse_blast(blast).groupby('sseqid').size().reset_index(name=blast.split('/')[-2])
+            data['sseqid'] = [ide.split('|')[1] if ide != '*' else ide for ide in data['sseqid']]
+            result = pd.merge(result, data, on='sseqid', how='outer')
+            i += 1
+        result.columns = ['Entry'] + result.columns.to_list()[1:]
+        print('Merging entry counts with info at {}'.format(input.uniprotinfo[0]))
+        result = pd.merge(result, uniprotinfo, on='Entry', how='left')
+        multi_sheet_excel("{}/MOSCA_Entry_Counts_Report.xlsx".format(config["output"]), result, sheet_name='Sheet')
+        result.to_csv("{}/MOSCA_Entry_Counts_Report.tsv".format(config["output"]), index=False, sep='\t')
 
 rule differential_expression:
     input:
