@@ -58,8 +58,10 @@ class Preprocesser:
 
     def has_adapters(self, fastqc_report):
         data = parse_fastqc(fastqc_report)
-        terms_list = ['Adapter', 'Illumina',
-                      'Primer']  # Terms that appear in FastQC chapter "overrepresented sequences"
+        if not data['Adapter Content'][0] == 'pass':
+            return True
+        terms_list = [
+            'Adapter', 'Illumina', 'Primer']  # Terms that appear in FastQC chapter "overrepresented sequences"
         if not data['Overrepresented sequences'][0] == 'pass':
             i = 0
             while i < len(data['Overrepresented sequences'][1]['Possible Source']):

@@ -6,7 +6,7 @@ import argparse
 import multiprocessing
 import sys
 
-__version__ = '1.3.0'
+__version__ = '1.3.1'
 
 parser = argparse.ArgumentParser(description="MOSCA's main script")
 parser.add_argument("-s", "--snakefile", type=str, default="{}/Snakefile".format(sys.path[0]), help="Snakefile file")
