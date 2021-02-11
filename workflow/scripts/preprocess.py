@@ -171,27 +171,23 @@ class Preprocesser:
     '''
 
     def remove_messed_reads(self, filename):
-        run_pipe_command("""awk 'BEGIN {{RS=\"@\"; FS=\"\\n\"}}{{if (NF == 5)
-        "print \"@\" substr($0,1,length-1)}}' {0} > {0}.temp""".format(filename))
+        run_pipe_command("awk 'BEGIN {{RS=\"@\"; FS=\"\\n\"}}{{if (NF == 5) print \"@\" substr($0,1,length-1)}}' {0} "
+                         "> {0}.temp".format(filename))
         os.rename("{}.temp".format(filename), filename)
 
     # correct number of reads per file - if unequal number of reads from forward to reverse file, it will be corrected by separation name/1,2
     # from www.biostars.org/p/6925/#6928
     def remove_orphans(self, forward, reverse, out_dir):
-        run_pipe_command("""awk '{{printf substr($0,1,length-2);getline;
-            printf \"\\t\"$0;getline;getline;print \"\\t\"$0}}' {} | sort -T. > 
-            {}/SortMeRNA/read1.txt""".format(forward, out_dir))
+        run_pipe_command(
+            """awk '{{printf substr($0,1,length-2);getline; printf \"\\t\"$0;getline;getline;print \"\\t\"$0}}' {} | sort -T.""".format(forward), output="{}/read1.txt".format(out_dir))
 
-        run_pipe_command("""awk '{{printf substr($0,1,length-2);getline;
-            printf \"\\t\"$0;getline;getline;print \"\\t\"$0}}' {} | sort -T. > 
-            {}/SortMeRNA/read2.txt""".format(forward, out_dir))
+        run_pipe_command(
+            """awk '{{printf substr($0,1,length-2);getline; printf \"\\t\"$0;getline;getline;print \"\\t\"$0}}' {} | sort -T.""".format(forward), output="{}/read2.txt".format(out_dir))
 
-        run_pipe_command("""join {} | awk '{{print $1\" \"$2\"\\n\"$3\"\\n+\\n\"$4 > 
-            \"{}\";print $1\" \"$5\"\\n\"$6\"\\n+\\n\"$7 > \"{}\"}}'""".format(
-            ' '.join(["{}/SortMeRNA/{}".format(out_dir, fr)
-                      for fr in ['read1.txt', 'read2.txt']]), forward, reverse))
+        run_pipe_command("""join {} | awk '{{print $1\" \"$2\"\\n\"$3\"\\n+\\n\"$4 > \"{}\";print $1\" \"$5\"\\n\"$6\"\\n+\\n\"$7 > \"{}\"}}'""".format(
+            ' '.join(["{}/{}".format(out_dir, fr) for fr in ['read1.txt', 'read2.txt']]), forward, reverse))
 
-        for file in ["{}/SortMeRNA/read{}.txt".format(out_dir, number)
+        for file in ["{}/read{}.txt".format(out_dir, number)
                      for number in ['1', '2']]:
             os.remove(file)
 
@@ -220,17 +216,16 @@ class Preprocesser:
                 tool_input, out_dir, name, threads, ' --paired_out' if len(files) > 1 else ''))
 
         if self.paired:
+
             self.unmerge_pe(tool_input, '{}/{}_forward.fastq'.format(out_dir, name),
                             '{}/{}_reverse.fastq'.format(out_dir, name))
-
-        # TODO - check if this is still needed, using awk
-        '''
-        for fr in ['forward', 'reverse']:
-                self.remove_messed_reads('{}_{}.fastq'.format(basename, fr))
             
-            self.remove_orphans(basename + '_forward.fastq', 
-                               basename + '_reverse.fastq')
-        '''
+            for fr in ['forward', 'reverse']:
+                self.remove_messed_reads('{}/{}_{}.fastq'.format(out_dir, name, fr))
+
+            self.remove_orphans('{}/{}_forward.fastq'.format(out_dir, name),
+                                '{}/{}_reverse.fastq'.format(out_dir, name), out_dir)
+
         for file in files_to_delete:
             os.remove(file)
             print('Removed: {}'.format(file))
