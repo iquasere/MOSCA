@@ -118,7 +118,7 @@ class Preprocesser:
         for adapter in adapters:  # trim according to each adapter file
             adapter_name = self.remove_fa_end(adapter.split('/')[-1])
 
-            run_command('trimmomatic {} -threads {} {} {} ILLUMINACLIP:{}:2:30:10'.format(
+            run_command('trimmomatic {} -threads {} {} {} ILLUMINACLIP:{}:2:30:10 MINLEN:20'.format(
                 'PE' if self.paired else 'SE', threads, ' '.join(files),
                 ' '.join(['{}/Trimmomatic/after_adapter_removal_{}_{}_{}_{}.fq'.format(
                     out_dir, name, adapter_name, fr, pu) for fr in ['forward', 'reverse']
@@ -179,16 +179,15 @@ class Preprocesser:
     # from www.biostars.org/p/6925/#6928
     def remove_orphans(self, forward, reverse, out_dir):
         run_pipe_command(
-            """awk '{{printf substr($0,1,length-2);getline; printf \"\\t\"$0;getline;getline;print \"\\t\"$0}}' {} | sort -T.""".format(forward), output="{}/read1.txt".format(out_dir))
+            """awk '{{printf $0;getline; printf \"\\t\"$0;getline;getline;print \"\\t\"$0}}' {} | sort -T.""".format(forward), output="{}/read1.txt".format(out_dir))
 
         run_pipe_command(
-            """awk '{{printf substr($0,1,length-2);getline; printf \"\\t\"$0;getline;getline;print \"\\t\"$0}}' {} | sort -T.""".format(forward), output="{}/read2.txt".format(out_dir))
+            """awk '{{printf $0;getline; printf \"\\t\"$0;getline;getline;print \"\\t\"$0}}' {} | sort -T.""".format(forward), output="{}/read2.txt".format(out_dir))
 
         run_pipe_command("""join {} | awk '{{print $1\" \"$2\"\\n\"$3\"\\n+\\n\"$4 > \"{}\";print $1\" \"$5\"\\n\"$6\"\\n+\\n\"$7 > \"{}\"}}'""".format(
             ' '.join(["{}/{}".format(out_dir, fr) for fr in ['read1.txt', 'read2.txt']]), forward, reverse))
 
-        for file in ["{}/read{}.txt".format(out_dir, number)
-                     for number in ['1', '2']]:
+        for file in ["{}/read{}.txt".format(out_dir, number) for number in ['1', '2']]:
             os.remove(file)
 
     # SortMeRNA - rRNA removal
