@@ -214,9 +214,10 @@ rule recognizer:
         config["threads"] - 1
     run:
         shell("recognizer.py -f {input} -t {threads} -o {output}/Annotation/{sample} -rd {resources_directory} "
-              "--remove-spaces --download-resources",
+              "--remove-spaces{download_resources}",
             output = config["output"], sample = set(experiments["Sample"]),
-            resources_directory = config["resources_directory"])
+            resources_directory = config["resources_directory"],
+            download_resources = '' if not config['download_cdd'] else ' --download-resources')
 
 rule quantification_analysis:
     input:

@@ -40,41 +40,6 @@ def run_pipe_command(bashCommand, output='', mode='w', sep=' ', print_message=Tr
             subprocess.Popen(bashCommand, stdin=subprocess.PIPE, shell=True, stdout=output_file).communicate()
 
 
-'''
-Input:
-    filename: str - filename of FastQC report
-Output:
-    returns dict{module:(value, pd.DataFrame)} with data from FastQC report
-'''
-
-
-def parse_fastqc(filename):
-    data = dict()
-    file = open(filename).read().split('\n')
-    i = 1
-    while i < len(file):
-        if file[i].startswith('>>') and file[i] != '>>END_MODULE':
-            name, flag = file[i][2:].split('\t')[0], file[i][2:].split('\t')[1]
-            if name == 'Sequence Duplication Levels':
-                i += 1
-            i += 1
-            if file[i] == '>>END_MODULE':
-                data[name] = (flag, pd.DataFrame())
-            else:
-                labels = file[i][1:].split('\t')
-                i += 1
-                partial_data = np.array(labels)
-                while i < len(file) and not file[i].startswith('>>'):
-                    partial_data = np.append(partial_data, file[i].split('\t'))
-                    i += 1
-                partial_data = np.reshape(partial_data, (int(partial_data.size / len(labels)), len(labels)))
-                data[name] = (flag, pd.DataFrame(data=partial_data[1:, 1:],
-                                                 index=partial_data[1:, 0],
-                                                 columns=partial_data[0, 1:]))
-        i += 1
-    return data
-
-
 def parse_blast(blast):
     result = pd.read_csv(blast, sep='\t', header=None)
     result.columns = ['qseqid', 'sseqid', 'pident', 'length', 'mismatch',
@@ -204,11 +169,10 @@ def perform_alignment(reference, reads, basename, threads=1, blast=None,
         else:
             print('GFF file was located at ' + blast.replace('.blast', '.gff'))
 
-    run_command('htseq-count -i {0} -c {1}.readcounts -n {2} {1}.sam {3}{4}'.format(attribute, basename, threads,
-                                                       (reference.replace('.fasta',
-                                                                          '.gff') if blast is None else blast.replace(
-                                                           '.blast', '.gff')),
-                                                       ('' if blast is not None else ' --stranded=no')))
+    run_command('htseq-count -i {0} -c {1}.readcounts -n {2} {1}.sam {3}{4}'.format(
+        attribute, basename, threads, (reference.replace('.fasta', '.gff') if blast is None else
+                                       blast.replace('.blast', '.gff')),
+        ('' if blast is not None else ' --stranded=no')))
 
 
 def fastq2fasta(fastq, output):
@@ -259,25 +223,14 @@ def add_abundance(data, readcounts, name, origin_of_data='metagenomics', readcou
         pass
 
 
-'''
-Input:
-    output: str - filename of output
-    data: pd.DataFrame - data to write on several sheets
-    lines: int - number of lines per sheet (Excel's maximum is 1048575)
-    index: bool - write index or not
-Output:
-    data will be outputed through several sheets
-'''
-
-
 def multi_sheet_excel(output, data, sheet_name='Sheet', lines=1000000, index=False):
     writer = pd.ExcelWriter(output, engine='xlsxwriter')
-    i = 0;
-    j = 1
-    while i + lines < len(data):
-        data.iloc[i:(i + lines)].to_excel(writer, sheet_name='{} ({})'.format(sheet_name, str(j)), index=index)
-        j += 1
-    data.iloc[i:len(data)].to_excel(writer, sheet_name='{} ({})'.format(sheet_name, str(j)), index=index)
+    if len(data) < lines:
+        data.to_excel(writer, sheet_name='{}'.format(sheet_name), index=index)
+    else:
+        for i in range(0, len(data), lines):
+            j = min(i + lines, len(data))
+            data.iloc[i:(i + lines)].to_excel(writer, sheet_name='{} ({})'.format(sheet_name, j), index=index)
     writer.save()
 
 
@@ -310,27 +263,8 @@ def normalize_readcounts(joined, columns, method='TMM', rscript_folder=''):
     return info
 
 
-'''
-Input:
-    message: a message to be printed
-Output:
-    will print the message with the time in human readable format
-'''
-
-
 def timed_message(message=None):
     print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ': ' + message)
-
-
-'''
-Input:
-    df: pandas.DataFrame to manipulate
-    column: column composed of lists from where to expand the dataframe
-Output:
-    Returns the DataFrame expanded through one column by repeating all the
-    values of the row where in 'column' there is a list with more than one 
-    element
-'''
 
 
 def expand_by_list_column(self, df, column='Pathway'):
@@ -341,12 +275,7 @@ def expand_by_list_column(self, df, column='Pathway'):
     dictionary[column] = np.concatenate(df[column].values)
     return pd.DataFrame(dictionary)
 
-'''
-Input:
-    filename: str - filename of FastQC report
-Output:
-    returns dict{module:(value, pd.DataFrame)} with data from FastQC report
-'''
+
 def parse_fastqc_report(filename):
     data = dict()
     file = open(filename).read().split('\n')
@@ -366,12 +295,12 @@ def parse_fastqc_report(filename):
                 while i < len(file) and not file[i].startswith('>>'):
                     partial_data = np.append(partial_data, file[i].split('\t'))
                     i += 1
-                partial_data = np.reshape(partial_data,(int(partial_data.size/len(labels)),len(labels)))
-                data[name] = (flag, pd.DataFrame(data = partial_data[1:,1:],
-                                                index = partial_data[1:,0],
-                                                columns = partial_data[0,1:]))
+                partial_data = np.reshape(partial_data, (int(partial_data.size / len(labels)), len(labels)))
+                data[name] = (flag, pd.DataFrame(data=partial_data[1:, 1:], index=partial_data[1:, 0],
+                                                 columns=partial_data[0, 1:]))
         i += 1
     return data
+
 
 '''
 Input:
@@ -380,10 +309,13 @@ Input:
 Output:
     Number of occurrences of character on file
 '''
-def count_on_file(expression, file, compressed = False):
+
+
+def count_on_file(expression, file, compressed=False):
     return int(subprocess.check_output("{} -c '{}' {}".format(
-            'zgrep' if compressed else 'grep', expression, file), shell = True))
+        'zgrep' if compressed else 'grep', expression, file), shell=True))
+
 
 def sort_alphanumeric(alphanumeric_list):
     return sorted(alphanumeric_list, key=lambda item: (int(item.partition(' ')[0])
-            if item[0].isdigit() else float('inf'), item))
+                                                       if item[0].isdigit() else float('inf'), item))

@@ -13,6 +13,7 @@
   "diamond_database": "resources_directory/uniprot.dmnd",
   "diamond_max_target_seqs": 1,
   "download_uniprot": true,
+  "download_cdd": false,
   "uniprot_columns": [
     "id",
     "entry name",
