@@ -67,11 +67,11 @@ class QuantificationAnalyser:
             if experiments.iloc[i]['Data type'] == 'mrna':
                 attribute = 'Name'
                 folder = 'Metatranscriptomics'
-                reference = '{}/Assembly/{}/contigs.fasta'.format(args.output, experiments.iloc[i]['Sample'])
+                reference = '{}/Annotation/{}/fgs.ffn'.format(args.output, experiments.iloc[i]['Sample'])
             elif experiments.iloc[i]['Data type'] == 'dna':
                 attribute = 'gene_id'
                 folder = 'Annotation'
-                reference = '{}/Annotation/{}/fgs.faa'.format(args.output, experiments.iloc[i]['Sample'])
+                reference = '{}/Assembly/{}/contigs.fasta'.format(args.output, experiments.iloc[i]['Sample'])
             else:
                 print('A data type MOSCA can yet not handle!')
                 continue
@@ -81,8 +81,7 @@ class QuantificationAnalyser:
             if not os.path.isfile("{}/{}/{}.readcounts".format(args.output, folder, experiments.iloc[i]['Name'])):
                 print("{}/{}/{}.readcounts not found! Generating it".format(args.output, folder,
                                                                             experiments.iloc[i]['Name']))
-                perform_alignment(
-                    '{}/Assembly/{}/contigs.fasta'.format(args.output, experiments.iloc[i]['Sample']),
+                perform_alignment(reference,
                     ['{}/Preprocess/Trimmomatic/quality_trimmed_{}_{}_paired.fq'.format(
                         args.output, experiments.iloc[i]['Name'], fr) for fr in ['forward', 'reverse']],
                     '{}/{}/{}'.format(args.output, folder, experiments.iloc[i]['Name']),

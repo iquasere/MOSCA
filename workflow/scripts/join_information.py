@@ -31,7 +31,7 @@ class Joiner:
     def run(self):
         args = self.get_arguments()
 
-        rscript_folder = '{}/../../../bin/'.format(sys.path[0])
+        rscript_folder = '{}/../../../bin/'.format(sys.path[0])  # TODO - this should have better fix than this hack
 
         experiments = (pd.read_csv(args.experiments, sep='\t') if args.input_format == 'tsv' else
                        pd.read_excel(args.experiments))
@@ -128,9 +128,8 @@ class Joiner:
             # For each sample, write an Entry Report
             multi_sheet_excel('{}/MOSCA_Entry_Report.xlsx'.format(args.output), data, sheet_name=sample)
 
-            data = pd.read_excel('{}/MOSCA_Entry_Report.xlsx'.format(args.output), sheet_name = sample + ' (1)')
-            data[['Entry'] + expression_analysed].to_csv('{}/Metatranscriptomics/expression_matrix.tsv'.format(
-                args.output), sep='\t', index=False)
+            data[['Entry'] + expression_analysed].groupy('Entry')[expression_analysed].sum().reset_index().to_csv(
+                '{}/Metatranscriptomics/expression_matrix.tsv'.format(args.output), sep='\t', index=False)
 
             for mg_name in sample2mgname[sample]:
                 # Draw the taxonomy krona plot

@@ -291,7 +291,7 @@ rule entry_count:
     threads:
         1
     run:
-        uniprotinfo=pd.read_csv(input.uniprotinfo[0], sep='\t')
+        uniprotinfo = pd.read_csv(input.uniprotinfo[0], sep='\t')
         result = pd.DataFrame(columns=['sseqid'])
         i = 1
         for blast in input.blasts:
