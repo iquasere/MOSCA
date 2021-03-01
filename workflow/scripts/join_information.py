@@ -128,7 +128,7 @@ class Joiner:
             # For each sample, write an Entry Report
             multi_sheet_excel('{}/MOSCA_Entry_Report.xlsx'.format(args.output), data, sheet_name=sample)
 
-            data[['Entry'] + expression_analysed].groupy('Entry')[expression_analysed].sum().reset_index().to_csv(
+            data[['Entry'] + expression_analysed].groupby('Entry')[expression_analysed].sum().reset_index().to_csv(
                 '{}/Metatranscriptomics/expression_matrix.tsv'.format(args.output), sep='\t', index=False)
 
             for mg_name in sample2mgname[sample]:

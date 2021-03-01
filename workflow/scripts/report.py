@@ -21,11 +21,11 @@ class Reporter:
 
     def get_arguments(self):
         parser = argparse.ArgumentParser(description="MOSCA's technical and quality control reports")
-        parser.add_argument("-e", "--experiments", type=str, required=True,
-                            help="Experiments file")
-        parser.add_argument("-o", "--output", type=str, help="Output directory"),
-        parser.add_argument("-ldir", "--lists-directory", type=str, help="Directory with lists for Reporter")
-        parser.add_argument("-if", "--input-format", type=str, default='tsv', choices=['tsv', 'excel'])
+        parser.add_argument("-e", "--experiments", required=True, help="Experiments file")
+        parser.add_argument("-o", "--output", help="Output directory"),
+        parser.add_argument("-ldir", "--lists-directory", help="Directory with lists for Reporter")
+        parser.add_argument("-if", "--input-format", default='tsv', choices=['tsv', 'excel'])
+        parser.add_argument("--no-differential-expression", action='store_true', default=False)
         args = parser.parse_args()
         args.output = args.output.rstrip('/')
         return args
@@ -61,16 +61,11 @@ class Reporter:
         named 'name', and the columns that start with 'prefix'
     '''
 
-    def info_from_fastqc(self, output_dir, name, prefix, prefix2terms, fastq_columns, initial_file=None):
-        if initial_file is not None:
-            if '_R' in initial_file:
-                original_name = initial_file.split('/')[-1].split('_R')[0]
-            else:
-                original_name = initial_file.split('/')[-1].split('.f')[0]
-        else:
-            original_name = name
+    def info_from_fastqc(self, output_dir, name, prefix, prefix2terms, fastq_columns):
+        print(prefix)
+
         reports = [parse_fastqc_report('{}/Preprocess/FastQC/{}{}_{}_fastqc/fastqc_data.txt'.format(
-            output_dir, prefix2terms[prefix][0], original_name, prefix2terms[prefix][i])) for i in [1, 2]]
+            output_dir, prefix2terms[prefix][0], name, prefix2terms[prefix][i])) for i in [1, 2]]
         self.report.loc[name, '{} # of reads'.format(prefix)] = reports[0]['Basic Statistics'][1].loc[
             'Total Sequences']['Value']
 
@@ -89,11 +84,11 @@ class Reporter:
     def info_from_preprocessing(self, output_dir, name, input_file, fastq_columns, performed_rrna_removal=False):
         print('Retrieving preprocessing information for dataset: ' + name)
         if name not in self.report.index:
-            self.report = self.report.append(pd.Series(name=name))
+            self.report = self.report.append(pd.Series(name=name, dtype='object'))
         self.report.loc[name] = self.report.loc[name].fillna(value='')
 
         adapter_files = open('{}/Preprocess/Trimmomatic/{}_adapters.txt'.format(output_dir, name)).read().split('\n')
-        if len(adapter_files[0]) > 0 and not adapter_files[0] == 'None':
+        if len(adapter_files[0]) > 0 and not adapter_files[0] in ['None', 'Fail']:
             adapter = adapter_files[0].split('/')[-1].split('.fa')[0]
         else:
             adapter_files = list()
@@ -101,15 +96,18 @@ class Reporter:
 
         # For each preprocessing step, a tuple of (prefix, suffix for forward, suffix for reverse)
         prefix2terms = {'[Initial quality assessment]': ('', 'R1', 'R2'),
-                        '[Before quality trimming]': (('', 'forward', 'reverse')
-                                                      if performed_rrna_removal else ('', adapter + '_forward_paired',
-                                                                                      adapter + '_reverse_paired')
-                        if adapter is not None else ('', 'R1', 'R2')), '[After quality trimming]': (
-                'quality_trimmed_', 'forward_paired', 'reverse_paired')}
+                        '[Before quality trimming]': (('', 'forward', 'reverse') if performed_rrna_removal else (
+                            'after_adapter_removal_', adapter + '_forward_paired', adapter + '_reverse_paired')
+                        if adapter is not None else ('', 'R1', 'R2')),
+                        '[After quality trimming]': ('quality_trimmed_', 'forward_paired', 'reverse_paired')}
 
         # Initial assessment
-        self.info_from_fastqc(output_dir, name, '[Initial quality assessment]', prefix2terms, fastq_columns,
-                              initial_file=input_file)
+        if '_R' in input_file:  # is paired-end
+            ends_name = input_file.split('/')[-1].split('_R')[0]
+        else:  # is single-end
+            ends_name = input_file.split('/')[-1].split('.f')[0]
+
+        self.info_from_fastqc(output_dir, ends_name, '[Initial quality assessment]', prefix2terms, fastq_columns)
 
         # After adapter removal
         try:
@@ -122,8 +120,12 @@ class Reporter:
             self.report.to_csv('{}/report.tsv'.format(output_dir), sep='\t')
 
         # Quality trimming
-        self.info_from_fastqc(output_dir, name, '[Before quality trimming]', prefix2terms, fastq_columns,
-                              initial_file=input_file)
+        if adapter is not None or performed_rrna_removal:
+            right_name = name
+        else:   # still using original files, no rRNA or adapter removal happened
+            right_name = ends_name
+
+        self.info_from_fastqc(output_dir, right_name, '[Before quality trimming]', prefix2terms, fastq_columns)
 
         self.report.loc[name, '[Quality trimming] Parameters'] = '; '.join([
             file for file in set(open('{}/Preprocess/Trimmomatic/{}_quality_params.txt'.format(output_dir, name)).read(
@@ -173,13 +175,12 @@ class Reporter:
             '{0}/Binning/{1}/{1}.*.fasta'.format(output_dir, sample)))
         checkm = pd.read_csv('{}/Binning/{}/checkm.tsv'.format(
             output_dir, sample), sep='\t')
-        sample_report['# of high-quality drafts'] = ((checkm['Completeness'] > 90)
-                                                     & (checkm['Contamination'] < 5)).sum()
-        sample_report['# of medium-quality drafts'] = ((checkm['Completeness'] < 90)
-                                                       & (checkm['Completeness'] > 50) & (
-                                                                   checkm['Contamination'] < 10)).sum()
-        sample_report['# of low-quality drafts'] = ((checkm['Completeness'] < 50)
-                                                    & (checkm['Contamination'] < 10)).sum()
+        sample_report['# of high-quality drafts'] = (
+                (checkm['Completeness'] > 90) & (checkm['Contamination'] < 5)).sum()
+        sample_report['# of medium-quality drafts'] = (
+                (checkm['Completeness'] < 90) & (checkm['Completeness'] > 50) & (checkm['Contamination'] < 10)).sum()
+        sample_report['# of low-quality drafts'] = (
+                (checkm['Completeness'] < 50) & (checkm['Contamination'] < 10)).sum()
         sample_report = pd.DataFrame.from_dict(sample_report, orient='index').transpose()
         sample_report.index = [sample]
 
@@ -227,15 +228,16 @@ class Reporter:
 
         self.set_samples(exps)
 
-        self.report.to_csv('report.tsv', sep='\t')
         for sample in set(exps['Sample']):
+
             self.info_from_assembly(args.output, sample)
 
             self.info_from_annotation(args.output, sample)
 
             self.info_from_binning(args.output, sample)
 
-            self.info_from_differential_expression(args.output, sample)
+            if not args.no_differential_expression:
+                self.info_from_differential_expression(args.output, sample)
 
         for mt_name in exps[exps["Data type"] == 'mrna']['Name']:
             self.info_from_alignment(args.output, mt_name)
