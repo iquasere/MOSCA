@@ -15,6 +15,7 @@ import os
 import pandas as pd
 from mosca_tools import run_command
 from progressbar import ProgressBar
+import psutil
 
 
 class Annotater:
@@ -43,6 +44,10 @@ class Annotater:
         parser.add_argument("-mts", "--max-target-seqs", type=str, help="Number of identifications for each protein")
         parser.add_argument("--download-uniprot", action="store_true", default=False,
                             help="Download uniprot database if FASTA DB doesn't exist")
+        parser.add_argument("-b", "--block-size", default=None,
+                            help="Number of annotations to output per sequence inputed")
+        parser.add_argument("-c", "--index-chunks", default=None,
+                            help="Number of annotations to output per sequence inputed")
 
         args = parser.parse_args()
 
@@ -81,8 +86,22 @@ class Annotater:
     def generate_diamond_database(self, fasta, dmnd):
         run_command('diamond makedb --in {} -d {}'.format(fasta, dmnd))
 
-    def run_diamond(self, query, aligned, unaligned, database, threads='12',
-                    max_target_seqs='50'):
+    def b_n_c(self, argsb, argsc):
+        if argsb is not None:
+            b = argsb
+        else:
+            b = psutil.virtual_memory().available / (1024.0 ** 3) / 20      # b = memory in Gb / 20
+        if argsc is not None:
+            return b, argsc
+        if b > 3:
+            return b, 1
+        if b > 2:
+            return b, 2
+        if b > 1:
+            return b, 3
+        return b, 4
+
+    def run_diamond(self, query, aligned, unaligned, database, threads='12', max_target_seqs='50', b=None, c=None):
         if database[-6:] == '.fasta' or database[-4:] == '.faa':
             print('FASTA database was inputed')
             if not os.path.isfile(database.replace('fasta', 'dmnd')):
@@ -102,8 +121,8 @@ class Annotater:
             database = database.split('.dmnd')[0]
 
         run_command(
-            "diamond blastp --query {} --out {} --un {} --db {} --outfmt 6 --unal 1 --threads {} --max-target-seqs {}".format(
-                query, aligned, unaligned, database, threads, max_target_seqs))
+            "diamond blastp --query {} --out {} --un {} --db {} --outfmt 6 --unal 1 --threads {} --max-target-seqs {} "
+            "-b {} -c {}".format(query, aligned, unaligned, database, threads, max_target_seqs, b, c))
 
     def run(self):
         args = self.get_arguments()
@@ -115,11 +134,11 @@ class Annotater:
             self.download_uniprot('/'.join(args.database.split('/')[:-1]))
             args.database = '{}/uniprot.fasta'.format('/'.join(args.database.split('/')[:-1]))
 
+        # TODO - annotation has to be refined to retrieve better than hypothetical proteins
+        (b, c) = self.b_n_c(argsb=args.block_size, argsc=args.index_chunks)
         self.run_diamond('{}/fgs.faa'.format(args.output), '{}/aligned.blast'.format(args.output),
-                         '{}/unaligned.fasta'.format(args.output), args.database,
-                         threads=args.threads,
-                         max_target_seqs=args.max_target_seqs)  # TODO - annotation has to be refined to retrieve better than hypothetical proteins
-
+                         '{}/unaligned.fasta'.format(args.output), args.database, threads=args.threads,
+                         max_target_seqs=args.max_target_seqs, b=b, c=c)
 
     def further_annotation(self, data, temp_folder='temp',
                            dmnd_db='MOSCA/Databases/annotation_databases/uniprot.dmnd',
@@ -171,8 +190,8 @@ class Annotater:
             else:
                 if len(partial) > 0:
                     original_taxonomy = data.loc[data['Entry'] == query].iloc[0][tax_columns]
-                    max_proximity = 0;
-                    entry = np.nan;
+                    max_proximity = 0
+                    entry = np.nan
                     protein_name = np.nan
                     for i in range(len(partial)):
                         tax_score = self.score_taxonomic_proximity(original_taxonomy,

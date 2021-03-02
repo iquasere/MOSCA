@@ -13,6 +13,7 @@ import os
 import pathlib
 import shutil
 from mosca_tools import run_command, run_pipe_command, perform_alignment
+import psutil
 
 
 class Assembler:
@@ -31,18 +32,16 @@ class Assembler:
                             help="Number of threads to use. Default is number of CPUs available minus 2.")
         parser.add_argument("-a", "--assembler", type=str, choices=["metaspades", "megahit"],
                             help="Tool for assembling the reads", default="metaspades")
-        parser.add_argument("-m", "--memory", default=None, type=float,
-                            help="Maximum memory (Mb) available for assembly tools.")
+        # default memory is a third of total available memory
+        parser.add_argument("-m", "--memory", default=psutil.virtual_memory().available / (1024.0 ** 3) / 3, type=float,
+                            help="Maximum memory (Gb) available for assembly tools.")
         args = parser.parse_args()
 
         args.output = args.output.rstrip('/')
         args.reads = args.reads.split(',')
-        print(type(args.memory))
-        if hasattr(args, 'memory'):
-            if args.assembler == 'megahit':     # Megahit reads max memory in byte
-                args.memory *= 1048576
-            else:                               # metaspades reads max memory in Gb
-                args.memory *= 0.0009765625
+
+        if args.assembler == 'megahit':     # Megahit reads max memory in byte
+            args.memory *= 10e9
 
         return args
 

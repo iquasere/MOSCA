@@ -61,12 +61,12 @@ class Reporter:
         named 'name', and the columns that start with 'prefix'
     '''
 
-    def info_from_fastqc(self, output_dir, name, prefix, prefix2terms, fastq_columns):
+    def info_from_fastqc(self, output_dir, name, col_name, prefix, prefix2terms, fastq_columns):
         print(prefix)
 
         reports = [parse_fastqc_report('{}/Preprocess/FastQC/{}{}_{}_fastqc/fastqc_data.txt'.format(
             output_dir, prefix2terms[prefix][0], name, prefix2terms[prefix][i])) for i in [1, 2]]
-        self.report.loc[name, '{} # of reads'.format(prefix)] = reports[0]['Basic Statistics'][1].loc[
+        self.report.loc[col_name, '{} # of reads'.format(prefix)] = reports[0]['Basic Statistics'][1].loc[
             'Total Sequences']['Value']
 
         for column in fastq_columns:
@@ -75,9 +75,9 @@ class Reporter:
                     reports[i][column] = (
                     'Not available', None)  # only the not available matters. And nothing else matters!...
             if reports[0][column][0] == reports[1][column][0]:
-                self.report.loc[name, '{} {}'.format(prefix, column)] = reports[0][column][0]
+                self.report.loc[col_name, '{} {}'.format(prefix, column)] = reports[0][column][0]
             else:
-                self.report.loc[name, '{} {}'.format(prefix, column)] = (
+                self.report.loc[col_name, '{} {}'.format(prefix, column)] = (
                     '{} (forward) {} (reverse)'.format(
                         reports[0][column][0], reports[1][column][0]))
 
@@ -107,7 +107,7 @@ class Reporter:
         else:  # is single-end
             ends_name = input_file.split('/')[-1].split('.f')[0]
 
-        self.info_from_fastqc(output_dir, ends_name, '[Initial quality assessment]', prefix2terms, fastq_columns)
+        self.info_from_fastqc(output_dir, ends_name, name, '[Initial quality assessment]', prefix2terms, fastq_columns)
 
         # After adapter removal
         try:
@@ -125,20 +125,20 @@ class Reporter:
         else:   # still using original files, no rRNA or adapter removal happened
             right_name = ends_name
 
-        self.info_from_fastqc(output_dir, right_name, '[Before quality trimming]', prefix2terms, fastq_columns)
+        self.info_from_fastqc(output_dir, right_name, name, '[Before quality trimming]', prefix2terms, fastq_columns)
 
         self.report.loc[name, '[Quality trimming] Parameters'] = '; '.join([
             file for file in set(open('{}/Preprocess/Trimmomatic/{}_quality_params.txt'.format(output_dir, name)).read(
                 ).split('\n')) if len(file) > 2])  # TODO - because '' must be interfering, try to cut the problem at the root before troubles
 
-        self.info_from_fastqc(output_dir, name, '[After quality trimming]', prefix2terms, fastq_columns)
+        self.info_from_fastqc(output_dir, name, name, '[After quality trimming]', prefix2terms, fastq_columns)
 
     def set_samples(self, experiments):
-        experiments = experiments[['Name', 'Sample']]
-        self.report = pd.merge(experiments, self.report, left_on='Name', right_index=True, how='outer')
+        self.report = pd.merge(experiments[['Name', 'Sample']], self.report, left_on='Name', right_index=True,
+                               how='outer')
 
     def info_from_assembly(self, output_dir, sample):
-        print('Retrieving assembly information for sample ' + sample)
+        print('Retrieving assembly information for sample: ' + sample)
         qc_report = pd.read_csv('{}/Assembly/{}/quality_control/report.tsv'.format(
             output_dir, sample), sep='\t', index_col=0).transpose()
         qc_report.index = [sample]
@@ -147,7 +147,7 @@ class Reporter:
             self.report.loc[self.report['Sample'] == sample, '[Assembly] ' + col] = qc_report.loc[sample][col]
 
     def info_from_annotation(self, output_dir, sample):
-        print('Retrieving annotation information for sample ' + sample)
+        print('Retrieving annotation information for sample: ' + sample)
         sample_report = dict()
         sample_report['# of proteins detected'] = (
             count_on_file('>', '{}/Annotation/{}/fgs.faa'.format(output_dir, sample)))
@@ -170,6 +170,7 @@ class Reporter:
                 sample_report.loc[sample][col])
 
     def info_from_binning(self, output_dir, sample):
+        print('Retrieving binning information for sample: ' + sample)
         sample_report = dict()
         sample_report['# of bins'] = len(glob.glob(
             '{0}/Binning/{1}/{1}.*.fasta'.format(output_dir, sample)))
@@ -242,7 +243,7 @@ class Reporter:
         for mt_name in exps[exps["Data type"] == 'mrna']['Name']:
             self.info_from_alignment(args.output, mt_name)
 
-        self.report.to_excel('{}/MOSCA_General_Report.xlsx'.format(args.output))
+        self.report.to_excel('{}/MOSCA_General_Report.xlsx'.format(args.output), index=False)
 
         self.zip_files([
             '{}/{}'.format(args.output, filename) for filename in [

@@ -11,7 +11,7 @@
 [Initial quality assessment] Overrepresented sequences
 [Initial quality assessment] Adapter Content
 [Adapter removal] adapter files
-[Adapter removal] # of reads
+[Before quality trimming] # of reads
 [Before quality trimming] Per base sequence quality
 [Before quality trimming] Per base sequence quality
 [Before quality trimming] Per tile sequence quality
@@ -23,8 +23,8 @@
 [Before quality trimming] Sequence Duplication Levels 
 [Before quality trimming] Overrepresented sequences
 [Before quality trimming] Adapter Content
-[Quality trimming] # of reads
 [Quality trimming] Parameters
+[After quality trimming] # of reads
 [After quality trimming] Per base sequence quality
 [After quality trimming] Per base sequence quality
 [After quality trimming] Per tile sequence quality

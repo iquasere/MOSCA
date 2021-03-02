@@ -16,7 +16,7 @@ import os
 import sys
 import pathlib
 import time
-from mosca_tools import run_command, run_pipe_command, parse_fastqc
+from mosca_tools import run_command, run_pipe_command, parse_fastqc_report
 
 
 class Preprocesser:
@@ -57,7 +57,7 @@ class Preprocesser:
                                                                  ' --extract ' if extract else ' ', ' '.join(files)))
 
     def has_adapters(self, fastqc_report):
-        data = parse_fastqc(fastqc_report)
+        data = parse_fastqc_report(fastqc_report)
         if not data['Adapter Content'][0] == 'pass':
             return True
         terms_list = [
@@ -262,7 +262,7 @@ class Preprocesser:
         crop = float('inf')
         headcrop = 0
         for report in fastqc_reports:
-            data = parse_fastqc(report)
+            data = parse_fastqc_report(report)
             if data['Per base sequence quality'][0] in ['warn', 'fail']:
                 parameter = self.get_crop(data)
                 if parameter < crop:
