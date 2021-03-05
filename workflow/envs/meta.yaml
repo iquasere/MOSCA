@@ -86,7 +86,7 @@ about:
     Peptide-to-Spectrum matching, with the annotated ORFs as reference database.
     Final steps include differential expression analysis for both MT and MP, and
     metabolic pathways analysis through KEGG Pathways.
-  doc_url: https://github.com/iquasere/MOSCA/blob/master/README.md
+  doc_url: https://github.com/iquasere/MOSCA/wiki
   dev_url: https://github.com/iquasere/MOSCA
 
 extra:
