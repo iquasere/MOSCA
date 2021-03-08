@@ -18,8 +18,8 @@ while [ $# -gt 0 ]; do
 done
 
 mkdir -p "${mosca_path}/scripts" "${conda_path}/bin"
-cp workflow/scripts/* "${conda_path}/scripts"
-cp workflow/Snakefile workflow/mosca.py "${mosca_path}/scripts"
-cp -r resources "${mosca_path}/resources"
+cp MOSCA/workflow/scripts/* "${mosca_path}/scripts"
+cp MOSCA/workflow/Snakefile MOSCA/workflow/mosca.py "${mosca_path}/scripts"
+cp -r MOSCA/resources "${mosca_path}/resources"
 chmod +x "${mosca_path}/scripts/mosca.py"
 ln -s "${mosca_path}/scripts/mosca.py" "${conda_path}/bin/"
