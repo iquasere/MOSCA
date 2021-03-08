@@ -15,4 +15,4 @@ RUN buildDeps='build-essential zlib1g-dev' \
 && conda clean --all \
 && apt-get purge -y --auto-remove $buildDeps
 
-ENTRYPOINT [ "python", "/share/MOSCA/scripts/mosca.py" ]
+ENTRYPOINT [ "python", "bin/mosca.py" ]
