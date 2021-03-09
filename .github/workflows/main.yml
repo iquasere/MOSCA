@@ -11,6 +11,25 @@ on:
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
+  download_test_files:
+    - name: Preprocessing download
+      uses: satackey/action-google-drive@v1.2.1
+      with:
+        skicka-tokencache-json: ${{ secrets.SKICKA_TOKENCACHE_JSON }}
+        download-from: /MOSCA_CI
+        download-to: ./
+        google-client-id: ${{ secrets.GOOGLE_CLIENT_ID }}
+        google-client-secret: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+
+    - name: see those files
+      run: ls
+
+    - name: unzip the files
+      run: unzip ci_preprocessing.zip
+
+    - name: see head
+      run: head mt_R1.fastq
+
   # This workflow contains a single job called "build"
   build:
     # The type of runner that the job will run on
@@ -56,3 +75,9 @@ jobs:
         run: |
           docker load --input /tmp/mosca.tar
           docker image ls -a
+
+      - name: Check for MOSCA
+        run: docker run mosca --version
+
+      - name: Preprocess
+        run: docker run -it --rm --entrypoint /bin/bash mosca -c "python share/MOSCA/scripts/preprocess.py --help"
