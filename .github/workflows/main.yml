@@ -12,23 +12,24 @@ on:
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   download_test_files:
-    - name: Preprocessing download
-      uses: satackey/action-google-drive@v1.2.1
-      with:
-        skicka-tokencache-json: ${{ secrets.SKICKA_TOKENCACHE_JSON }}
-        download-from: /MOSCA_CI
-        download-to: ./
-        google-client-id: ${{ secrets.GOOGLE_CLIENT_ID }}
-        google-client-secret: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+    steps:
+      - name: Preprocessing download
+        uses: satackey/action-google-drive@v1.2.1
+        with:
+          skicka-tokencache-json: ${{ secrets.SKICKA_TOKENCACHE_JSON }}
+          download-from: /MOSCA_CI
+          download-to: ./
+          google-client-id: ${{ secrets.GOOGLE_CLIENT_ID }}
+          google-client-secret: ${{ secrets.GOOGLE_CLIENT_SECRET }}
 
-    - name: see those files
-      run: ls
+      - name: see those files
+        run: ls
 
-    - name: unzip the files
-      run: unzip ci_preprocessing.zip
+      - name: unzip the files
+        run: unzip ci_preprocessing.zip
 
-    - name: see head
-      run: head mt_R1.fastq
+      - name: see head
+        run: head mt_R1.fastq
 
   # This workflow contains a single job called "build"
   build:
