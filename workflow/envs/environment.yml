@@ -1,56 +1,50 @@
 name: mosca
 channels:
-  - r
   - conda-forge
   - bioconda
   - anaconda
   - defaults
   - conda-canary
 dependencies:
-  - bioconda::bioconductor-deseq2 >=1.10.1
-  - bioconda::bioconductor-edger >=3.14.0
-  - bioconductor-pcamethods =1.82.0
-  - bioconductor-rots =1.18.0
-  - bioconductor-vsn =3.58.0
-  - bioconda::blast >=2.5.0
-  - bioconda::bowtie2 2.3
-  - bioconda::checkm-genome >=1.1.0
-  - bioconda::diamond >=2.0.2
-  - bioconda::fastqc >=0.11.9
-  - bioconda::fraggenescan >=1.31
-  - bioconda::htseq =0.12.*
-  - bioconda::krona >=2.7.1
-  - bioconda::maxbin2 >=2.2.7
-  - bioconda::megahit >=1.2.9
-  - openpyxl >=3.0.3
+  - bioconductor-deseq2 >=1.10.1
+  - bioconductor-edger >=3.14.0
+  - blast >=2.5.0
+  - bowtie2 >=2.3
+  - checkm-genome >=1.1.0
+  - diamond >=2.0.2
+  - fastqc >=0.11.9
+  - fraggenescan >=1.31
+  - htseq >=0.13.5
+  - krona >=2.7.1
+  - maxbin2 >=2.2.7
+  - megahit >=1.2.9
   - python >=3.6
-  - bioconda::r-optparse
-  - bioconda::r-pheatmap
+  - r-pheatmap
   - reportlab >=3.5.45
-  - bioconda::seqkit >=0.13.2
-  - bioconda::seqtk
-  - bioconda::sortmerna 2.1b
-  - bioconda::spades >=3.14.1
+  - seqkit >=0.13.2
+  - seqtk
+  - sortmerna 2.1b
+  - spades >=3.14.1
   - svn >=1.9.7
-  - bioconda::trimmomatic >=0.39
-  - bioconda::upimapi >=1.0.4
-  - xlrd =1.2
+  - trimmomatic >=0.39
+  - upimapi >=1.1
+  - xlrd >=1.2
   - r-rcolorbrewer >=1.1.2
   - pandas >=1.1.4
   - scikit-learn >=0.23.1
   - lxml >=4.6.1
   - biopython >=1.78
-  - perl
-  - conda-forge::progressbar33 >=2.4
-  - conda-forge::tqdm >=4.33.0
-  - conda-forge::xlsxwriter >=1.3.7
+  - perl >=5.26.2
+  - progressbar33 >=2.4
+  - tqdm >=4.33.0
+  - xlsxwriter >=1.3.7
   - recognizer >=1.4.0
   - maxquant >=1.6.10
   - quast >=5.0.2
   - keggcharter >=0.1.1
-  - bioconda::samtools >=1.11
-  - snakemake >=5.27.4
+  - samtools >=1.11
+  - snakemake >=5.5.4
   - metaphlan =3
   - searchgui =3.3
   - peptide-shaker =1.16
-  - conda-forge::unzip
+  - unzip

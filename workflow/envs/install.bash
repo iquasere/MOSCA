@@ -1,4 +1,4 @@
-conda install -y svn reportlab>=3.5.45 openpyxl xlrd=1.2 r-rcolorbrewer>=1.1.2 pandas>=1.1.4 scikit-learn>=0.23.1 lxml>=4.6.1 biopython>=1.78 perl
-conda install -y -c bioconda fastqc>=0.11.9 sortmerna=2.1 seqtk trimmomatic>=0.39 megahit>=1.2.9 spades>=3.14.1 fraggenescan>=1.31 diamond>=2.0.2 upimapi>=1.0.4 htseq=0.12.* bowtie2=2.3 maxbin2>=2.2.7 checkm-genome >=1.1.0 bioconductor-deseq2=1.22.1 bioconductor-edger=3.24.3 r-pheatmap r-optparse blast>=2.5.0 krona>=2.7.1 seqkit>=2.7.1 samtools>=1.11 searchgui=3.3 peptide-shaker=1.16 bioconductor-pcamethods=1.82.0 bioconductor-vsn=3.58.0 bioconductor-rots=1.18.0
-conda install -y -c conda-forge progressbar33>=2.4 tqdm>=4.33.0 xlsxwriter>=1.3.7 unzip openpyxl>=3.0.3
+conda install -y svn lxml>=4.6.1 perl
+conda install -y -c bioconda fastqc>=0.11.9 sortmerna=2.1 seqtk trimmomatic>=0.39 megahit>=1.2.9 spades>=3.14.1 fraggenescan>=1.31 diamond>=2.0.2 upimapi>=1.0.4 htseq=0.12.* bowtie2=2.3 maxbin2>=2.2.7 checkm-genome >=1.1.0 bioconductor-deseq2=1.22.1 bioconductor-edger=3.24.3 biopython>=1.78 r-pheatmap r-optparse blast>=2.5.0 krona>=2.7.1 seqkit>=2.7.1 samtools>=1.11 searchgui=3.3 peptide-shaker=1.16 bioconductor-pcamethods=1.82.0 bioconductor-vsn=3.58.0 bioconductor-rots=1.18.0
+conda install -y -c conda-forge progressbar33>=2.4 tqdm>=4.33.0 xlsxwriter>=1.3.7 unzip openpyxl>=3.0.3 reportlab>=3.5.45 openpyxl xlrd=1.2 r-rcolorbrewer>=1.1.2 pandas>=1.1.4 scikit-learn>=0.23.1
 conda install -y -c bioconda -c conda-forge recognizer>=1.4.0 maxquant>=1.6.10 keggcharter>=0.1.1 quast>=5.0.2 snakemake>=5.27.4 metaphlan=3

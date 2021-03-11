@@ -1,4 +1,4 @@
-FROM continuumio/miniconda3:4.7.12
+FROM continuumio/miniconda3:4.9.2
 # should also run with the next version of miniconda image, try that next
 
 RUN buildDeps='build-essential zlib1g-dev' \
@@ -10,9 +10,9 @@ RUN buildDeps='build-essential zlib1g-dev' \
 && conda config --add channels bioconda \
 && conda config --add channels conda-forge \
 && git clone https://github.com/iquasere/MOSCA.git \
-&& bash MOSCA/workflow/envs/install.bash \
+&& conda env create -f MOSCA/workflow/envs/environment.yaml \
 && bash MOSCA/workflow/envs/ci_build.sh --conda_path=. --mosca_path=/share/MOSCA \
 && conda clean --all \
 && apt-get purge -y --auto-remove $buildDeps
 
-ENTRYPOINT [ "python", "bin/mosca.py" ]
+CMD [ "python", "bin/mosca.py" ]

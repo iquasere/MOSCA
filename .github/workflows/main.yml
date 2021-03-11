@@ -11,28 +11,6 @@ on:
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  download_test_files:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Preprocessing download
-        uses: satackey/action-google-drive@v1.2.1
-        with:
-          skicka-tokencache-json: ${{ secrets.SKICKA_TOKENCACHE_JSON }}
-          download-from: /MOSCA_CI
-          download-to: ./
-          google-client-id: ${{ secrets.GOOGLE_CLIENT_ID }}
-          google-client-secret: ${{ secrets.GOOGLE_CLIENT_SECRET }}
-
-      - name: see those files
-        run: ls
-
-      - name: unzip the files
-        run: unzip ci_preprocessing.zip
-
-      - name: see head
-        run: head mt_R1.fastq
-
   # This workflow contains a single job called "build"
   build:
     # The type of runner that the job will run on
@@ -83,4 +61,10 @@ jobs:
         run: docker run mosca --version
 
       - name: Preprocess
-        run: docker run -it --rm --entrypoint /bin/bash mosca -c "python share/MOSCA/scripts/preprocess.py --help"
+        run: docker run mosca /bin/bash -c "python share/MOSCA/scripts/preprocess.py -i /github/workspace/ci/mt4_R1.fastq,/github/workspace/ci/mt4_R2.fastq -t 14 -d mrna -rd resources_directory -n mt_name1 -o output_pp"
+
+      - name: Assembly
+        run: docker run mosca /bin/bash -c "python share/MOSCA/scripts/assembly.py -i /github/workspace/ci/mg_R1.fastq,/github/workspace/ci/mg_R2.fastq -t 14 -o output_ass"
+
+      - name: Annotation
+        run: docker run mosca /bin/bash -c "python share/MOSCA/scripts/annotation.py -i /github/workspace/ci/contigs.fasta -t 14 -o output_ann"
