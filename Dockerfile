@@ -10,7 +10,7 @@ RUN buildDeps='build-essential zlib1g-dev' \
 && conda config --add channels bioconda \
 && conda config --add channels conda-forge \
 && git clone https://github.com/iquasere/MOSCA.git \
-&& conda env create -f MOSCA/workflow/envs/environment.yaml \
+&& conda env create -f MOSCA/workflow/envs/environment.yml \
 && bash MOSCA/workflow/envs/ci_build.sh --conda_path=. --mosca_path=/share/MOSCA \
 && conda clean --all \
 && apt-get purge -y --auto-remove $buildDeps
