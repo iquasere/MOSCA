@@ -2,9 +2,7 @@ name: mosca
 channels:
   - conda-forge
   - bioconda
-  - anaconda
   - defaults
-  - conda-canary
 dependencies:
   - bioconductor-deseq2 >=1.10.1
   - bioconductor-edger >=3.14.0
