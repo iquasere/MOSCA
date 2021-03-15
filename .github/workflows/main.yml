@@ -57,6 +57,12 @@ jobs:
           docker load --input /tmp/mosca.tar
           docker image ls -a
 
+      - name: Check for github/workspace
+        run: docker run mosca /bin/bash -c "ls /github"
+
+      - name: Check base entrypoint
+        run: docker run mosca /bin/bash -c "ls"
+
       - name: Preprocess
         run: docker run mosca /bin/bash -c "python share/MOSCA/scripts/preprocess.py -i /github/workspace/ci/mt4_R1.fastq,/github/workspace/ci/mt4_R2.fastq -t 14 -d mrna -rd resources_directory -n mt_name1 -o output_pp"
 
