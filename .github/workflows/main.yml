@@ -57,9 +57,6 @@ jobs:
           docker load --input /tmp/mosca.tar
           docker image ls -a
 
-      - name: Check for github/workspace
-        run: docker run mosca /bin/bash -c "ls /github"
-
       - name: Check base entrypoint
         run: docker run mosca /bin/bash -c "ls"
 
