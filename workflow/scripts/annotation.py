@@ -41,7 +41,8 @@ class Annotater:
                             choices=['sanger_5', 'sanger_10', '454_10', '454_30',
                                      'illumina_5', 'illumina_10'])
         parser.add_argument("-db", "--database", type=str, help="Database for annotation")
-        parser.add_argument("-mts", "--max-target-seqs", type=str, help="Number of identifications for each protein")
+        parser.add_argument("-mts", "--max-target-seqs", type=str, default=1,
+                            help="Number of identifications for each protein")
         parser.add_argument("--download-uniprot", action="store_true", default=False,
                             help="Download uniprot database if FASTA DB doesn't exist")
         parser.add_argument("-b", "--block-size", default=None,
@@ -101,7 +102,7 @@ class Annotater:
             return b, 3
         return b, 4
 
-    def run_diamond(self, query, aligned, unaligned, database, threads='12', max_target_seqs='50', b=None, c=None):
+    def run_diamond(self, query, aligned, unaligned, database, threads=12, max_target_seqs=50, b=None, c=None):
         if database[-6:] == '.fasta' or database[-4:] == '.faa':
             print('FASTA database was inputed')
             if not os.path.isfile(database.replace('fasta', 'dmnd')):
