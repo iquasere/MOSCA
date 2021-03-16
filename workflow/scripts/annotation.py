@@ -16,6 +16,7 @@ import pandas as pd
 from mosca_tools import run_command
 from progressbar import ProgressBar
 import psutil
+import pathlib
 
 
 class Annotater:
@@ -127,6 +128,8 @@ class Annotater:
 
     def run(self):
         args = self.get_arguments()
+
+        pathlib.Path(args.output).mkdir(parents=True, exist_ok=True)
 
         self.gene_calling(args.input, '{}/fgs'.format(args.output), threads=args.threads,
                           assembled=args.assembled, error_model=args.error_model)
