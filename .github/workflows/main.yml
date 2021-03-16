@@ -70,10 +70,10 @@ jobs:
         run: docker run mosca /bin/bash -c "python share/MOSCA/scripts/annotation.py -i MOSCA/ci/contigs.fasta -t 16 -o output_ann -db MOSCA/ci/ad_uniprot.fasta"
 
       - name: UPIMAPI
-        run: docker run mosca /bin/bash -c "upimapi.py -i MOSCA/ci/aligned.blast -o output_ann/uniprotinfo --blast --full-id"
+        run: docker run mosca /bin/bash -c "upimapi.py -i MOSCA/ci/aligned.blast -o uniprotinfo --blast --full-id"
 
       - name: reCOGnizer
-        run: docker run mosca /bin/bash -c "recognizer.py -f MOSCA/ci/fgs.faa -t 16 -o output_ann -rd resources_directoyry --remove-spaces --download-resources"
+        run: docker run mosca /bin/bash -c "recognizer.py -f MOSCA/ci/fgs.faa -t 16 -o output_recognizer -rd resources_directoyry --remove-spaces --download-resources"
 
       - name: Whole workflow
         run: docker run mosca /bin/bash -c "mosca.py -c MOSCA/ci/config.json"
