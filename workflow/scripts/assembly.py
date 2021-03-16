@@ -57,7 +57,7 @@ class Assembler:
         return lines[-1].split('%')[0]
 
     def run_metaquast(self, contigs, out_dir, threads='12'):
-        run_command('metaquast.py --threads {} --output-dir {} {}'.format(threads, out_dir, contigs))
+        run_command('metaquast.py --threads {} --output-dir {} --max-ref-number 0 {}'.format(threads, out_dir, contigs))
 
     def run(self):
         args = self.get_arguments()

@@ -67,7 +67,7 @@ jobs:
         run: docker run mosca /bin/bash -c "python share/MOSCA/scripts/assembly.py -r MOSCA/ci/mg_R1.fastq,MOSCA/ci/mg_R2.fastq -t 16 -o output_ass"
 
       - name: Annotation
-        run: docker run mosca /bin/bash -c "python share/MOSCA/scripts/annotation.py -i MOSCA/ci/contigs.fasta -t 16 -o output_ann"
+        run: docker run mosca /bin/bash -c "python share/MOSCA/scripts/annotation.py -i MOSCA/ci/contigs.fasta -t 16 -o output_ann -db MOSCA/ci/ad_uniprot.fasta"
 
       - name: UPIMAPI
         run: docker run mosca /bin/bash -c "upimapi.py -i output_ann/aligned.blast -o output_ann/uniprotinfo --blast --full-id"
