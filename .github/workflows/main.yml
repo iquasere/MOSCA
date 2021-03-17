@@ -71,9 +71,3 @@ jobs:
 
       - name: UPIMAPI
         run: docker run mosca /bin/bash -c "upimapi.py -i MOSCA/ci/aligned.blast -o uniprotinfo --blast --full-id"
-
-      - name: reCOGnizer
-        run: docker run mosca /bin/bash -c "recognizer.py -f MOSCA/ci/fgs.faa -t 16 -o output_recognizer -rd resources_directoyry --remove-spaces --download-resources"
-
-      - name: Whole workflow
-        run: docker run mosca /bin/bash -c "mosca.py -c MOSCA/ci/config.json"
