@@ -1,25 +1,10 @@
 #!/usr/bin/env bash
 
-while [ $# -gt 0 ]; do
-  case "$1" in
-    --conda_path=*)
-      conda_path="${1#*=}"
-      ;;
-    --mosca_path=*)
-      mosca_path="${1#*=}"
-      ;;
-    *)
-      printf "***************************\n"
-      printf "* Error: Invalid argument.*\n"
-      printf "***************************\n"
-      exit 1
-  esac
-  shift
-done
+read -r ENV_DIR
 
-mkdir -p "${mosca_path}/scripts" "${conda_path}/bin"
-cp MOSCA/workflow/scripts/* "${mosca_path}/scripts"
-cp MOSCA/workflow/Snakefile MOSCA/workflow/mosca.py "${mosca_path}/scripts"
-cp -r MOSCA/resources "${mosca_path}/resources"
-chmod +x "${mosca_path}/scripts/mosca.py"
-ln -s "${mosca_path}/scripts/mosca.py" "${conda_path}/bin/"
+echo "Storing MOSCA's files in the Conda environment at: ${ENV_DIR}"
+mkdir -p "${ENV_DIR}/scripts" "${ENV_DIR}/bin"
+cp MOSCA/workflow/scripts/* MOSCA/workflow/Snakefile MOSCA/workflow/mosca.py "${ENV_DIR}/scripts"
+cp -r MOSCA/resources "${ENV_DIR}/resources"
+chmod +x "${ENV_DIR}/scripts/mosca.py"
+ln -s "${ENV_DIR}/scripts/mosca.py" "${ENV_DIR}/bin/"
