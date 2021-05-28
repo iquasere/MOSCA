@@ -80,7 +80,7 @@ class Annotater:
                 run_command(
                     'wget ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_{}.fasta.gz'.format(
                         db))
-            run_command('zcat uniprot_trembl.fasta.gz uniprot_sprot.fasta.gz', file='{}/uniprot.fasta'.format(out_dir))
+            run_command('zcat uniprot_trembl.fasta.gz uniprot_sprot.fasta.gz', output='{}/uniprot.fasta'.format(out_dir))
             run_command('rm uniprot_trembl.fasta.gz uniprot_sprot.fasta.gz')
         else:
             print('UniProt database found at: {}/uniprot.fasta'.format(out_dir))

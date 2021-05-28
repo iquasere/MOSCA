@@ -53,8 +53,8 @@ class Preprocesser:
         return args
 
     def run_fastqc(self, files, out_dir, extract=True, threads='12'):
-        run_command('fastqc --outdir {} --threads {}{}{}'.format(out_dir, threads,
-                                                                 ' --extract ' if extract else ' ', ' '.join(files)))
+        run_command('fastqc --outdir {} --threads {}{}{}'.format(
+            out_dir, threads, ' --extract ' if extract else ' ', ' '.join(files)))
 
     def has_adapters(self, fastqc_report):
         data = parse_fastqc_report(fastqc_report)
@@ -90,12 +90,12 @@ class Preprocesser:
             return filename.split('.fa')[0]
 
     def download_resources(self, resources_directory):
-        if not os.path.isfile('{}/downloaded_timestamp.txt'.format(resources_directory)):
-            run_command('bash {}/download_resources.sh {}'.format(sys.path[0], resources_directory))
-            with open('{}/downloaded_timestamp.txt'.format(resources_directory), 'w') as f:
+        if not os.path.isfile(f'{resources_directory}/downloaded_timestamp.txt'):
+            run_command(f'bash {sys.path[0]}/download_resources.sh {resources_directory}')
+            with open(f'{resources_directory}/downloaded_timestamp.txt', 'w') as f:
                 f.write(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))
         else:
-            print('{}/downloaded_timestamp.txt found! Not downloading resources.'.format(resources_directory))
+            print(f'{resources_directory}/downloaded_timestamp.txt found! Not downloading resources.')
 
     '''
     Input:
@@ -109,8 +109,7 @@ class Preprocesser:
         adapter_contaminated = False
         for file in files:
             folder = self.remove_fq_end(file.split('/')[-1])  # This is how FastQC produces folder names
-            if self.has_adapters('{}/FastQC/{}_fastqc/fastqc_data.txt'.format(
-                    out_dir, folder)):
+            if self.has_adapters(f'{out_dir}/FastQC/{folder}_fastqc/fastqc_data.txt'):
                 adapter_contaminated = True
         if not adapter_contaminated:  # No files had adapters
             print('No adapter contamination detected.')
@@ -126,27 +125,28 @@ class Preprocesser:
                 '{}/Trimmomatic/after_adapter_removal_{}_{}.fq'.format(
                     out_dir, name, adapter_name), adapter))
             
-            self.run_fastqc((['{}/Trimmomatic/after_adapter_removal_{}_{}_{}_paired.fq'.format(
-                out_dir, name, adapter_name, fr) for fr in ['forward', 'reverse']] if self.paired
-                             else ['{}/Trimmomatic/after_adapter_removal_{}_{}.fq'.format(
-                out_dir, name, adapter_name)]),
-                            '{}/FastQC'.format(out_dir), threads=threads)
+            self.run_fastqc(
+                ([f'{out_dir}/Trimmomatic/after_adapter_removal_{name}_{adapter_name}_{fr}_paired.fq'
+                  for fr in ['forward', 'reverse']] if self.paired
+                 else [f'{out_dir}/Trimmomatic/after_adapter_removal_{name}_{adapter_name}.fq']),
+                f'{out_dir}/FastQC', threads=threads)
 
             has_adapters = False
-            for file in (['{}/FastQC/after_adapter_removal_{}_{}_{}_paired_fastqc/fastqc_data.txt'.format(
-                    out_dir, name, adapter_name, fr) for fr in ['forward', 'reverse']] if self.paired
-                    else ['{}/FastQC/after_adapter_removal_{}_{}_fastqc/fastqc_data.txt'.format(out_dir, name, adapter_name)]):
+            for file in ([
+                f'{out_dir}/FastQC/after_adapter_removal_{name}_{adapter_name}_{fr}_paired_fastqc/fastqc_data.txt'
+                for fr in ['forward', 'reverse']] if self.paired
+                    else [f'{out_dir}/FastQC/after_adapter_removal_{name}_{adapter_name}_fastqc/fastqc_data.txt']):
                 if self.has_adapters(file):
                     has_adapters = True
             if not has_adapters:
                 return adapter  # It's solved, adapters have been removed
             else:
-                for file in (['{}/Trimmomatic/after_adapter_removal_{}_{}_{}_{}.fq'.format(
-                out_dir, name, adapter_name, fr, pu) for fr in ['forward', 'reverse']
-                for pu in ['paired', 'unpaired']] if self.paired
-                else ['{}/Trimmomatic/after_adapter_removal_{}_{}.fq'.format(out_dir, name, adapter_name)]):
+                for file in ([
+                    f'{out_dir}/Trimmomatic/after_adapter_removal_{name}_{adapter_name}_{fr}_{pu}.fq'
+                    for fr in ['forward', 'reverse'] for pu in ['paired', 'unpaired']] if self.paired
+                        else [f'{out_dir}/Trimmomatic/after_adapter_removal_{name}_{adapter_name}.fq']):
                     os.remove(file)
-                    print('Removed: {}'.format(file))
+                    print(f'Removed: {file}')
         return 'Failed'
 
     def index_rrna_database(self, database):
@@ -155,12 +155,10 @@ class Preprocesser:
                 run_command('indexdb_rna --ref {},{}'.format(database, database.replace('fasta', 'idx')))
 
     def merge_pe(self, forward, reverse, interleaved):
-        run_command('bash {}/merge-paired-reads.sh {} {} {}'.format(
-            sys.path[0], forward, reverse, interleaved))
+        run_command(f'bash {sys.path[0]}/merge-paired-reads.sh {forward} {reverse} {interleaved}')
 
     def unmerge_pe(self, interleaved, forward, reverse):
-        run_command('bash {}/unmerge-paired-reads.sh {} {} {}'.format(
-            sys.path[0], interleaved, forward, reverse))
+        run_command(f'bash {sys.path[0]}/unmerge-paired-reads.sh {interleaved} {forward} {reverse}')
 
     '''
     Input:
@@ -173,21 +171,23 @@ class Preprocesser:
     def remove_messed_reads(self, filename):
         run_pipe_command("awk 'BEGIN {{RS=\"@\"; FS=\"\\n\"}}{{if (NF == 5) print \"@\" substr($0,1,length-1)}}' {0} "
                          "> {0}.temp".format(filename))
-        os.rename("{}.temp".format(filename), filename)
+        os.rename(f"{filename}.temp", filename)
 
     # correct number of reads per file - if unequal number of reads from forward to reverse file, it will be corrected by separation name/1,2
     # from www.biostars.org/p/6925/#6928
     def remove_orphans(self, forward, reverse, out_dir):
         run_pipe_command(
-            """awk '{{printf $0;getline; printf \"\\t\"$0;getline;getline;print \"\\t\"$0}}' {} | sort -T.""".format(forward), output="{}/read1.txt".format(out_dir))
+            """awk '{{printf $0;getline; printf \"\\t\"$0;getline;getline;print \"\\t\"$0}}' {} | sort -T.""".format(
+                forward), output="{}/read1.txt".format(out_dir))
 
         run_pipe_command(
-            """awk '{{printf $0;getline; printf \"\\t\"$0;getline;getline;print \"\\t\"$0}}' {} | sort -T.""".format(forward), output="{}/read2.txt".format(out_dir))
+            """awk '{{printf $0;getline; printf \"\\t\"$0;getline;getline;print \"\\t\"$0}}' {} | sort -T.""".format(
+                forward), output="{}/read2.txt".format(out_dir))
 
         run_pipe_command("""join {} | awk '{{print $1\" \"$2\"\\n\"$3\"\\n+\\n\"$4 > \"{}\";print $1\" \"$5\"\\n\"$6\"\\n+\\n\"$7 > \"{}\"}}'""".format(
             ' '.join(["{}/{}".format(out_dir, fr) for fr in ['read1.txt', 'read2.txt']]), forward, reverse))
 
-        for file in ["{}/read{}.txt".format(out_dir, number) for number in ['1', '2']]:
+        for file in [f"{out_dir}/read{number}.txt" for number in ['1', '2']]:
             os.remove(file)
 
     # SortMeRNA - rRNA removal
@@ -198,36 +198,39 @@ class Preprocesser:
 
         for i in range(len(files)):
             if '.gz' in files[i]:
-                run_command('gunzip {}'.format(files[i]))
+                run_command(f'gunzip {files[i]}')
                 files[i] = files[i].rstrip('.gz')
 
         if self.paired:
-            tool_input = '{}/{}_interleaved.fastq'.format(out_dir, name)
+            tool_input = f'{out_dir}/{name}_interleaved.fastq'
             self.merge_pe(files[0], files[1], tool_input)
-            files_to_delete.append('{}/{}_interleaved.fastq'.format(out_dir, name))
-
+            files_to_delete += [f'{out_dir}/{name}_interleaved.fastq'] + [
+                f'{args.output}/SortMeRNA/{name}_{rejection}.fastq' for rejection in ['accepted', 'rejected']]
         else:
             tool_input = files[0]
+            files_to_delete += [f'{args.output}/SortMeRNA/{name}_accepted.fastq']
 
         run_command(
-            'sortmerna --ref {0} --reads {1} --aligned {2}/{3}_accepted --fastx --other {2}/{3}_rejected -a {4}{5}'.format(
+            'sortmerna --ref {0} --reads {1} --aligned {2}/after_rrna_removal_{3}_accepted --fastx '
+            '--other {2}/after_rrna_removal_{3}_rejected -a {4}{5}'.format(
                 ':'.join(['{0}.fasta,{0}.idx'.format(self.remove_fa_end(database)) for database in databases]),
                 tool_input, out_dir, name, threads, ' --paired_out' if len(files) > 1 else ''))
 
         if self.paired:
-
-            self.unmerge_pe(tool_input, '{}/{}_forward.fastq'.format(out_dir, name),
-                            '{}/{}_reverse.fastq'.format(out_dir, name))
+            self.unmerge_pe(tool_input,
+                            f'{out_dir}/{name}_forward.fastq',
+                            f'{out_dir}/{name}_reverse.fastq')
             
             for fr in ['forward', 'reverse']:
-                self.remove_messed_reads('{}/{}_{}.fastq'.format(out_dir, name, fr))
+                self.remove_messed_reads(f'{out_dir}/{name}_{fr}.fastq')
 
-            self.remove_orphans('{}/{}_forward.fastq'.format(out_dir, name),
-                                '{}/{}_reverse.fastq'.format(out_dir, name), out_dir)
+            self.remove_orphans(f'{out_dir}/{name}_forward.fastq',
+                                f'{out_dir}/{name}_reverse.fastq',
+                                out_dir)
 
         for file in files_to_delete:
             os.remove(file)
-            print('Removed: {}'.format(file))
+            print(f'Removed: {file}')
 
     def get_crop(self, data):
         i = 0
@@ -256,8 +259,8 @@ class Preprocesser:
     # Trimmomatic - removal of low quality regions and short reads
     def quality_trimming(self, files, out_dir, name, threads='12', minlen='100', avgqual='20', original_files=True,
                          type_of_data='dna'):
-        fastqc_reports = ['{}/FastQC/{}_fastqc/fastqc_data.txt'.format(
-            out_dir, self.remove_fq_end(file.split('/')[-1])) for file in files]
+        fastqc_reports = [f"{out_dir}/FastQC/{self.remove_fq_end(file.split('/')[-1])}_fastqc/fastqc_data.txt"
+                          for file in files]
 
         crop = float('inf')
         headcrop = 0
@@ -284,10 +287,10 @@ class Preprocesser:
 
         with open('{}/Trimmomatic/{}_quality_params.txt'.format(
                 out_dir, name), 'a') as f:
-            if headcrop > 0: f.write('HEADCROP:{}\n'.format(headcrop))
-            if crop < float('inf'): f.write('CROP:{}\n'.format(crop))
-            f.write('AVGQUAL{}\n'.format(avgqual))
-            f.write('MINLEN:{}\n'.format(minlen))
+            if headcrop > 0: f.write(f'HEADCROP:{headcrop}\n')
+            if crop < float('inf'): f.write(f'CROP:{crop}\n')
+            f.write(f'AVGQUAL{avgqual}\n')
+            f.write(f'MINLEN:{minlen}\n')
 
         if not original_files:
             for file in files:
@@ -303,7 +306,7 @@ class Preprocesser:
         original_input = args.input
 
         for directory in ['FastQC', 'Trimmomatic', 'SortMeRNA']:
-            pathlib.Path('{}/{}'.format(args.output, directory)).mkdir(parents=True, exist_ok=True)
+            pathlib.Path(f'{args.output}/{directory}').mkdir(parents=True, exist_ok=True)
 
         name = args.name
         if args.name is None:
@@ -313,66 +316,58 @@ class Preprocesser:
         self.paired = True if len(args.input) > 1 else False
 
         # First quality check
-        self.run_fastqc(args.input, '{}/FastQC'.format(args.output), threads=args.threads)
+        self.run_fastqc(args.input, f'{args.output}/FastQC', threads=args.threads)
 
         if args.resources_directory is not None:
             self.download_resources(args.resources_directory)
-            args.adapters_directory = '{}/adapters'.format(args.resources_directory)
-            args.rrna_databases_directory = '{}/rRNA_databases'.format(args.resources_directory)
+            args.adapters_directory = f'{args.resources_directory}/adapters'
+            args.rrna_databases_directory = f'{args.resources_directory}/rRNA_databases'
 
         # Adapter removal
-        adapters = self.select_adapters(glob.glob('{}/*.fa*'.format(args.adapters_directory)), paired=self.paired)
+        adapters = self.select_adapters(glob.glob(f'{args.adapters_directory}/*.fa*'), paired=self.paired)
         print('Available adapter files:\n{}'.format('\n'.join(adapters)))
 
         adapter_result = self.remove_adapters(args.input, args.output, name, adapters, threads=args.threads)
 
         print('adapter result:{}'.format(adapter_result))
-        with open('{}/Trimmomatic/{}_adapters.txt'.format(
-                args.output, name), 'w') as f:
+        with open(f'{args.output}/Trimmomatic/{name}_adapters.txt', 'w') as f:
             f.write(adapter_result)
 
         if adapter_result not in ['None', 'Failed']:
             adapter_part = self.remove_fa_end(adapter_result.split('/')[-1])
             if self.paired:
-                args.input = ['{}/Trimmomatic/after_adapter_removal_{}_{}_{}_paired.fq'.format(
-                    args.output, name, adapter_part, fr) for fr in ['forward', 'reverse']]
+                args.input = [f'{args.output}/Trimmomatic/after_adapter_removal_{name}_{adapter_part}_{fr}_paired.fq'
+                              for fr in ['forward', 'reverse']]
             else:
-                args.input = ['{}/Trimmomatic/after_adapter_removal_{}_{}.fq'.format(
-                    args.output, name, adapter_part)]
+                args.input = [f'{args.output}/Trimmomatic/after_adapter_removal_{name}_{adapter_part}.fq']
 
         # self.host_sequences_removal()
 
         # rRNA removal
         if args.data == 'mrna':
             rrna_databases = glob.glob('{}/*.fa*'.format(args.rrna_databases_directory))
-            self.rrna_removal(args.input, args.output + '/SortMeRNA', name, rrna_databases, threads=args.threads,
+            self.rrna_removal(args.input, f'{args.output}/SortMeRNA', name, rrna_databases, threads=args.threads,
                               original_files=True if args.input == original_input else False)
 
             if self.paired:
-                args.input = ['{}/SortMeRNA/{}_{}.fastq'.format(
-                    args.output, name, fr) for fr in ['forward', 'reverse']]
-                files_to_delete = ['{}/SortMeRNA/{}_{}.fastq'.format(
-                    args.output, name, rejection) for rejection in ['accepted', 'rejected']]
+                args.input = [
+                    f'{args.output}/SortMeRNA/after_rrna_removal_{name}_{fr}.fastq' for fr in ['forward', 'reverse']]
             else:
-                args.input = ['{}/SortMeRNA/{}_rejected.fq'.format(
-                    args.output, name)]
-                files_to_delete = ['{}/SortMeRNA/{}_{}.fastq'.format(args.output, name, 'accepted')]
-            for file in files_to_delete:
-                os.remove(file)
+                args.input = [f'{args.output}/SortMeRNA/after_rrna_removal_{name}_rejected.fastq']
 
-        self.run_fastqc(args.input, '{}/FastQC'.format(args.output), threads=args.threads)
+        self.run_fastqc(args.input, f'{args.output}/FastQC', threads=args.threads)
 
         self.quality_trimming(args.input, args.output, name, threads=args.threads, avgqual=args.avgqual,
                               minlen=args.minlen, original_files=True if args.input == original_input else False,
                               type_of_data=args.data)
 
         if self.paired:
-            args.input = ['{}/Trimmomatic/quality_trimmed_{}_{}_paired.fq'.format(args.output, name,
-                                                                                  fr) for fr in ['forward', 'reverse']]
+            args.input = [
+                f'{args.output}/Trimmomatic/quality_trimmed_{name}_{fr}_paired.fq' for fr in ['forward', 'reverse']]
         else:
-            args.input = ['{}/Trimmomatic/quality_trimmed_{}.fq'.format(args.output, name)]
+            args.input = [f'{args.output}/Trimmomatic/quality_trimmed_{name}.fq']
 
-        self.run_fastqc(args.input, '{}/FastQC'.format(args.output), threads=args.threads)
+        self.run_fastqc(args.input, f'{args.output}/FastQC', threads=args.threads)
 
 
 if __name__ == '__main__':

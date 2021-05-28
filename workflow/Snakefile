@@ -259,60 +259,67 @@ rule metaphlan:
               "{output}/Taxonomy/{sample}_profiled_metagenome.txt",
               output = config["output"], sample = set(experiments["Sample"]))
 
-rule join_information:
-    input:
-        expand("{output}/Annotation/uniprotinfo.tsv", output = config["output"]),
-        expand("{output}/Annotation/{sample}/aligned.blast", output = config["output"],
-            sample = set(experiments['Sample'])),
-        expand("{output}/Annotation/{sample}/reCOGnizer_results.xlsx", output = config["output"],
-            sample = set(experiments["Sample"])),
-        expand("{output}/Metatranscriptomics/{name}.readcounts", output = config["output"],
-            name = set(mt_experiments['Name'])),
-        expand("{output}/Annotation/{name}.readcounts", output = config["output"],
-            name = set(mg_experiments['Name']))
-    output:
-        expand("{output}/MOSCA_Protein_Report.xlsx", output = config["output"]),
-        expand("{output}/MOSCA_Entry_Report.xlsx", output = config["output"]),
-        expand("{output}/Metatranscriptomics/expression_matrix.tsv", output = config["output"])
-    threads:
-        config["threads"] - 2
-    run:
-        shell("python {scripts_dir}/join_information.py -e {experiments} -t {threads} -o {output} -if {input_format} "
-              "-nm {normalization_method}",
-              experiments = config["experiments"], output = config["output"],
-              normalization_method = config["normalization_method"])
-
-rule entry_count:
-    input:
-        uniprotinfo=expand("{output}/Annotation/uniprotinfo.tsv",output=config["output"]),
-        blasts=expand("{output}/Annotation/{name}/aligned.blast",output=config["output"], name=set(experiments['Name']))
-    output:
-        "{}/MOSCA_Entry_Counts_Report.xlsx".format(config["output"])
-    threads:
-        1
-    run:
-        uniprotinfo = pd.read_csv(input.uniprotinfo[0], sep='\t')
-        result = pd.DataFrame(columns=['sseqid'])
-        i = 1
-        for blast in input.blasts:
-            print('[{}/{}] Quantifying entries for: {}'.format(i, len(input.blasts), blast))
-            data = parse_blast(blast).groupby('sseqid').size().reset_index(name=blast.split('/')[-2])
-            data['sseqid'] = [ide.split('|')[1] if ide != '*' else ide for ide in data['sseqid']]
-            result = pd.merge(result, data, on='sseqid', how='outer')
-            i += 1
-        result.columns = ['Entry'] + result.columns.to_list()[1:]
-        print('Merging entry counts with info at {}'.format(input.uniprotinfo[0]))
-        result = pd.merge(result, uniprotinfo, on='Entry', how='left')
-        multi_sheet_excel("{}/MOSCA_Entry_Counts_Report.xlsx".format(config["output"]), result, sheet_name='Sheet')
-        result.to_csv("{}/MOSCA_Entry_Counts_Report.tsv".format(config["output"]), index=False, sep='\t')
+if config["do_assembly"]:
+    rule join_information:
+        input:
+            expand("{output}/Annotation/uniprotinfo.tsv", output = config["output"]),
+            expand("{output}/Annotation/{sample}/aligned.blast", output = config["output"],
+                sample = set(experiments['Sample'])),
+            expand("{output}/Annotation/{sample}/reCOGnizer_results.xlsx", output = config["output"],
+                sample = set(experiments["Sample"])),
+            expand("{output}/Metatranscriptomics/{name}.readcounts", output = config["output"],
+                name = set(mt_experiments['Name'])),
+            expand("{output}/Annotation/{name}.readcounts", output = config["output"],
+                name = set(mg_experiments['Name']))
+        output:
+            expand("{output}/MOSCA_Protein_Report.xlsx", output = config["output"]),
+            expand("{output}/MOSCA_Entry_Report.xlsx", output = config["output"]),
+            expand("{output}/Metatranscriptomics/expression_matrix.tsv", output = config["output"])
+        threads:
+            config["threads"] - 2
+        run:
+            shell("python {scripts_dir}/join_information.py -e {experiments} -t {threads} -o {output} -if {input_format} "
+                  "-nm {normalization_method}",
+                  experiments = config["experiments"], output = config["output"],
+                  normalization_method = config["normalization_method"])
+else:
+    rule entry_count:
+        input:
+            uniprotinfo="{}/Annotation/uniprotinfo.tsv".format(config["output"]),
+            blasts=expand("{output}/Annotation/{name}/aligned.blast",output=config["output"], name=set(experiments['Name']))
+        output:
+            "{}/MOSCA_Entry_Counts_Report.xlsx".format(config["output"]),
+            "{}/Metatranscriptomics/expression_matrix.tsv".format(config["output"])
+        threads:
+            1
+        run:
+            uniprotinfo = pd.read_csv(input.uniprotinfo[0], sep='\t')
+            result = pd.DataFrame(columns=['sseqid'])
+            i = 1
+            names = list()
+            for blast in input.blasts:
+                name = blast.split('/')[-2]
+                print('[{}/{}] Quantifying entries for: {}'.format(i, len(input.blasts), blast))
+                data = parse_blast(blast).groupby('sseqid').size().reset_index(name=name)
+                data['sseqid'] = [ide.split('|')[1] if ide != '*' else ide for ide in data['sseqid']]
+                result = pd.merge(result, data, on='sseqid', how='outer')
+                i += 1
+                names.append(name)
+            result.columns = ['Entry'] + result.columns.to_list()[1:]
+            print('Merging entry counts with info at {}'.format(input.uniprotinfo[0]))
+            result = pd.merge(result, uniprotinfo, on='Entry', how='left')
+            multi_sheet_excel("{}/MOSCA_Entry_Counts_Report.xlsx".format(config["output"]), result, sheet_name='Sheet')
+            result.to_csv("{}/MOSCA_Entry_Counts_Report.tsv".format(config["output"]), index=False, sep='\t')
+            result[['Entry'] + names].to_csv("{}/Metatranscriptomics/expression_matrix.tsv".format(config["output"]),
+                                             sep='\t', index=False)
 
 rule differential_expression:
     input:
-        expand("{output}/Metatranscriptomics/expression_matrix.tsv", output = config["output"])
+        "{}/Metatranscriptomics/expression_matrix.tsv".format(config["output"])
     output:
-        expand("{output}/Metatranscriptomics/gene_expression.jpeg", output = config["output"]),
-        expand("{output}/Metatranscriptomics/sample_distances.jpeg", output = config["output"]),
-        expand("{output}/Metatranscriptomics/condition_treated_results.csv", output = config["output"])
+        "{}/Metatranscriptomics/gene_expression.jpeg".format(config["output"]),
+        "{}/Metatranscriptomics/sample_distances.jpeg".format(config["output"]),
+        "{}/Metatranscriptomics/condition_treated_results.csv".format(config["output"])
     threads:
         1
     run:
