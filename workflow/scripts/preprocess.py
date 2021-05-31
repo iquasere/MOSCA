@@ -77,11 +77,9 @@ class Preprocesser:
         else:
             return [adapter for adapter in adapters if 'SE' in adapter]
 
-    def remove_fq_end(self, filename):
-        if 'fastq' in filename:
-            return filename.split('.fastq')[0]
-        else:
-            return filename.split('.fq')[0]
+    def fastqc_name(self, filename):
+        return filename.replace("stdin:", "").replace(".gz", "").replace(".bz2", "").replace(".txt", "").replace(
+            ".fastq", "").replace(".fq", "").replace(".csfastq", "").replace(".sam", "").replace(".bam", "")
 
     def remove_fa_end(self, filename):
         if 'fasta' in filename:
@@ -108,7 +106,7 @@ class Preprocesser:
     def remove_adapters(self, files, out_dir, name, adapters, threads='12'):
         adapter_contaminated = False
         for file in files:
-            folder = self.remove_fq_end(file.split('/')[-1])  # This is how FastQC produces folder names
+            folder = self.fastqc_name(file.split('/')[-1])
             if self.has_adapters(f'{out_dir}/FastQC/{folder}_fastqc/fastqc_data.txt'):
                 adapter_contaminated = True
         if not adapter_contaminated:  # No files had adapters
@@ -259,7 +257,7 @@ class Preprocesser:
     # Trimmomatic - removal of low quality regions and short reads
     def quality_trimming(self, files, out_dir, name, threads='12', minlen='100', avgqual='20', original_files=True,
                          type_of_data='dna'):
-        fastqc_reports = [f"{out_dir}/FastQC/{self.remove_fq_end(file.split('/')[-1])}_fastqc/fastqc_data.txt"
+        fastqc_reports = [f"{out_dir}/FastQC/{self.fastqc_name(file.split('/')[-1])}_fastqc/fastqc_data.txt"
                           for file in files]
 
         crop = float('inf')
@@ -310,8 +308,9 @@ class Preprocesser:
 
         name = args.name
         if args.name is None:
-            name = self.remove_fq_end(args.input[0].split('/')[-1])
-            if '_R' in name: name = name.split('_R')[0]
+            name = self.fastqc_name(args.input[0].split('/')[-1])
+            if '_R' in name:
+                name = name.split('_R')[0]
 
         self.paired = True if len(args.input) > 1 else False
 

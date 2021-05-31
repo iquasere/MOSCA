@@ -360,4 +360,4 @@ rule report:
     run:
         shell("python {scripts_dir}/report.py -e {experiments} -o {output} -ldir {reporter_lists} -if {input_format}",
               experiments = config["experiments"], output = config["output"],
-              reporter_lists = '{}/../resources'.format(scripts_dir))
+              reporter_lists = f'{scripts_dir}/../resources')
