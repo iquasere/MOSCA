@@ -18,10 +18,9 @@ import time
 
 def run_command(bashCommand, output='', mode='w', sep=' ', print_message=True, verbose=True):
     if print_message:
-        print('{}{}'.format(bashCommand.replace(sep, ' '), ' > ' + output if output != '' else ''))
+        print(f"{bashCommand.replace(sep, ' ')}{' > ' + output if output != '' else ''}")
     if output == '':
-        subprocess.run(bashCommand.split(sep), stdout=sys.stdout if verbose else None,
-                       check=True)
+        subprocess.run(bashCommand.split(sep), stdout=sys.stdout if verbose else None, check=True)
     else:
         with open(output, mode) as output_file:
             subprocess.run(bashCommand.split(sep), stdout=output_file)
@@ -56,16 +55,15 @@ def check_bowtie2_index(index_prefix):
 
 
 def generate_mg_index(reference, index_prefix):
-    run_command('bowtie2-build {} {}'.format(reference, index_prefix))
+    run_command(f'bowtie2-build {reference} {index_prefix}')
 
 
 def align_reads(reads, index_prefix, sam, report, log=None, threads=6):
-    run_command('bowtie2 -x {} -1 {} -2 {} -S {} -p {} 1> {} 2> {}'.format(
-        index_prefix, reads[0], reads[1], sam, threads, report, log))
+    run_command(f'bowtie2 -x {index_prefix} -1 {reads[0]} -2 {reads[1]} -S {sam} -p {threads} 1> {report} 2> {log}')
 
 
 def parse_fasta(file):
-    print('Parsing', file)
+    print(f'Parsing {file}')
     lines = [line.rstrip('\n') for line in open(file)]
     i = 0
     sequences = dict()
@@ -97,34 +95,20 @@ def build_gff_from_contigs(contigs, output, assembler=None):
     gff.to_csv(output, sep='\t', index=False, header=False)
 
 
-def build_gff(blast, output, assembler='metaspades'):
+def build_gff_from_orfs(orfs, output):
     gff = pd.DataFrame()
-    diamond = parse_blast(blast)
-    parts = [qid.split('_') for qid in diamond.qseqid]
-    preid = [part[1] for part in parts]
-    node = 1
-    j = 1
-    ids = list()
-    for i in preid:
-        if i == node:
-            ids.append('seq' + str(i) + '_' + str(j))
-            j += 1
-        else:
-            node = i
-            j = 1
-    gff["seqid"] = ['_'.join(part[:-3]) for part in parts]
+    qseqids = parse_fasta(orfs).keys()
+    parts = [qid.split('_') for qid in qseqids]
+    gff["seqid"] = qseqids
     size = gff.size
-    gff["source"] = ['UniProtKB' for i in range(size)]
-    gff["type"] = ['exon' for i in range(size)]
-    gff["start"] = [part[-3] for part in parts]
-    gff["end"] = [part[-2] for part in parts]
-    gff["score"] = diamond.evalue
+    gff["source"] = ['UniProtKB'] * size
+    gff["type"] = ['exon'] * size
+    gff["start"] = [1] * size
+    gff["end"] = [int(part[-2]) - int(part[-3]) + 1 for part in parts]
+    gff["score"] = ['.'] * size
     gff["strand"] = [part[-1] for part in parts]
-    gff["phase"] = ['.' for i in range(size)]
-    ids = [ide.split('|')[1] if ide != '*' else ide for ide in diamond.sseqid]
-    gff["Name"] = diamond.qseqid
-    gff["attributes"] = ['gene_id=' + ids[i] + ';Name=' + diamond.iloc[i]['qseqid'] for i in range(size)]
-    del gff["Name"]
+    gff["phase"] = ['.'] * size
+    gff["Name"] = [f"Name={'_'.join(part)}" for part in parts]
     gff.to_csv(output, sep='\t', index=False, header=False)
 
 
@@ -134,7 +118,8 @@ Input:
     reads: list, [forward reads, reverse reads]
     basename: basename of outputs
     threads: number of threads to use
-    blast: name of BLAST file
+    attribute: str - identifier to group quantification for
+    type_of_reference: str - 'contigs' or 'orfs'
 Output:
     Will generate a bowtie2 index named contigs.replace(.fasta,_index), 
     GFF annotation file named blast.replace(.blast,.gff)
@@ -142,42 +127,28 @@ Output:
 '''
 
 
-def perform_alignment(reference, reads, basename, threads=1, blast=None,
-                      blast_unique_ids=True, attribute='gene_id'):
-    if not check_bowtie2_index(reference.replace('.fasta', '_index')):
+def perform_alignment(reference, reads, basename, threads=1):
+    ext = f".{reference.split('.')[-1]}"
+
+    if not check_bowtie2_index(reference.replace(ext, '_index')):
         print('INDEX files not found. Generating new ones')
-        generate_mg_index(reference, reference.replace('.fasta', '_index'))
+        generate_mg_index(reference, reference.replace(ext, '_index'))
     else:
-        print('INDEX was located at ' + reference.replace('.fasta', '_index'))
-    if not os.path.isfile(basename + '.log'):
-        align_reads(reads, reference.replace('.fasta', '_index'), basename + '.sam',
-                    basename + '_bowtie2_report.txt', log=basename + '.log', threads=threads)
-    else:
-        print('{}.log was found!'.format(basename))
+        print(f"INDEX was located at {reference.replace(ext, '_index')}")
 
-    if blast is None:
-        if not os.path.isfile(reference.replace('.fasta', '.gff')):
-            print('GFF file not found at {}. Generating a new one.'.format(reference.replace('.fasta', '.gff')))
-            build_gff_from_contigs(reference, reference.replace('.fasta', '.gff'))
-        else:
-            print('GFF file was located at {}'.format(reference.replace('.fasta', '.gff')))
+    if not os.path.isfile(f'{basename}.log'):
+        align_reads(reads, reference.replace(ext, '_index'), f'{basename}.sam',
+                    f'{basename}_bowtie2_report.txt', log=f'{basename}.log', threads=threads)
     else:
-        if not os.path.isfile(blast.replace('.blast', '.gff')):
-            print('GFF file not found at {}. Generating a new one.'.format(reference.replace('.blast', '.gff')))
-            if blast_unique_ids:
-                build_gff(blast, blast.replace('.blast', '.gff'))
-        else:
-            print('GFF file was located at ' + blast.replace('.blast', '.gff'))
+        print(f'{basename}.log was found!')
 
-    run_command('htseq-count -i {0} -c {1}.readcounts -n {2} {1}.sam {3}{4}'.format(
-        attribute, basename, threads, (reference.replace('.fasta', '.gff') if blast is None else
-                                       blast.replace('.blast', '.gff')),
-        ('' if blast is not None else ' --stranded=no')))
+    run_pipe_command(
+        f"""samtools view -F 260 {basename}.sam | cut -f 3 | sort | uniq -c | """
+        f"""awk '{{printf("%s\t%s\n", $2, $1)}}'""", output=f'{basename}.readcounts')
 
 
 def fastq2fasta(fastq, output):
-    run_command("paste - - - - < {} | cut -f 1,2 | sed 's/^@/>/' | tr \"\t" "\n\" > {}".format(
-        fastq, output))
+    run_command(f"""paste - - - - < {fastq} | cut -f 1,2 | sed 's/^@/>/' | tr \"\t\" \"\n\" > {output}""")
 
 
 def timed_message(message):
@@ -185,12 +156,12 @@ def timed_message(message):
 
 
 def normalize_mg_readcounts_by_size(readcounts, contigs):
-    run_pipe_command('head -n -5 {}'.format(readcounts),
+    run_pipe_command(f'head -n -5 {readcounts}',
                      # I still don't know how to pipe two things together for the join command, when I do I'll be able to merge this two commands
                      output=readcounts.replace('.readcounts', '_no_tail.readcounts'))
     run_pipe_command(
-        "seqkit fx2tab {} | sort | awk '{{print $1\"\\t\"length($2)}}' | join - {} | awk '{{print $1\"\\t\"$3/$2}}'".format(
-            contigs, readcounts.replace('.readcounts', '_no_tail.readcounts')),
+        f"seqkit fx2tab {contigs} | sort | awk '{{print $1\"\\t\"length($2)}}' | "
+        f"join - {readcounts.replace('.readcounts', '_no_tail.readcounts')} | awk '{{print $1\"\\t\"$3/$2}}'",
         output=readcounts.replace('.readcounts', '_normalized.readcounts'))
 
 
@@ -226,11 +197,11 @@ def add_abundance(data, readcounts, name, origin_of_data='metagenomics', readcou
 def multi_sheet_excel(output, data, sheet_name='Sheet', lines=1000000, index=False):
     writer = pd.ExcelWriter(output, engine='xlsxwriter')
     if len(data) < lines:
-        data.to_excel(writer, sheet_name='{}'.format(sheet_name), index=index)
+        data.to_excel(writer, sheet_name=f'{sheet_name}', index=index)
     else:
         for i in range(0, len(data), lines):
             j = min(i + lines, len(data))
-            data.iloc[i:(i + lines)].to_excel(writer, sheet_name='{} ({})'.format(sheet_name, j), index=index)
+            data.iloc[i:(i + lines)].to_excel(writer, sheet_name=f'{sheet_name} ({j})', index=index)
     writer.save()
 
 
@@ -252,14 +223,14 @@ def normalize_readcounts(joined, columns, method='TMM', rscript_folder=''):
     info = pd.read_csv(joined, sep='\t')
     info[columns] = info[columns].fillna(value=0)
     info[columns].to_csv(working_dir + '/to_normalize.tsv', sep='\t', index=False)
-    print('Normalizing {} on columns {}'.format(joined, ','.join(columns)))
+    print(f"Normalizing {joined} on columns {','.join(columns)}")
     run_command(
-        '{3}Rscript {1}/normalization.R --readcounts {0}/to_normalize.tsv --output {0}/normalization_factors.txt -m {2}'.format(
-            working_dir, sys.path[0], method, rscript_folder))
-    factors = open(working_dir + '/normalization_factors.txt').read().split('\n')[:-1]  # \n always last element
+        f'{rscript_folder}Rscript {sys.path[0]}/normalization.R --readcounts {working_dir}/to_normalize.tsv '
+        f'--output {working_dir}/normalization_factors.txt -m {method}')
+    factors = open(f'{working_dir}/normalization_factors.txt').read().split('\n')[:-1]  # \n always last element
 
     for i in range(len(columns)):
-        info[columns[i] + '_normalized'] = info[columns[i]] * float(factors[i])
+        info[f'{columns[i]}_normalized'] = info[columns[i]] * float(factors[i])
     return info
 
 
@@ -312,8 +283,7 @@ Output:
 
 
 def count_on_file(expression, file, compressed=False):
-    return int(subprocess.check_output("{} -c '{}' {}".format(
-        'zgrep' if compressed else 'grep', expression, file), shell=True))
+    return int(subprocess.check_output(f"{'zgrep' if compressed else 'grep'} -c '{expression}' {file}", shell=True))
 
 
 def sort_alphanumeric(alphanumeric_list):

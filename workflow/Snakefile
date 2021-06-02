@@ -174,6 +174,7 @@ rule annotation:
         annotation_input
     output:
         expand("{output}/Annotation/{{sample}}/fgs.faa", output = config["output"]),
+        expand("{output}/Annotation/{{sample}}/fgs.ffn", output = config["output"]),
         expand("{output}/Annotation/{{sample}}/aligned.blast", output = config["output"])
     threads:
         config["threads"]
@@ -220,13 +221,11 @@ rule quantification_analysis:
             fr = (['_forward_paired', '_reverse_paired'] if experiments["Files"].str.contains(',').tolist() else '')),
         expand("{output}/Assembly/{sample}/contigs.fasta", output = config["output"],
             sample = set(experiments["Sample"])),
-        expand("{output}/Annotation/{sample}/aligned.blast", output = config["output"],
+        expand("{output}/Annotation/{sample}/fgs.ffn", output = config["output"],
             sample = set(experiments["Sample"]))
     output:
-        expand("{output}/Metatranscriptomics/{name}.readcounts", output = config["output"],
-            name = set(mt_experiments['Name'])),
-        expand("{output}/Annotation/{name}.readcounts", output = config["output"],
-            name = set(mg_experiments['Name']))
+        expand("{output}/Quantification/{name}.readcounts", output = config["output"],
+            name = set(experiments['Name'])),
     threads:
         config["threads"]
     run:
@@ -261,7 +260,7 @@ if config["do_assembly"]:
                 sample = set(experiments['Sample'])),
             expand("{output}/Annotation/{sample}/reCOGnizer_results.xlsx", output = config["output"],
                 sample = set(experiments["Sample"])),
-            expand("{output}/Metatranscriptomics/{name}.readcounts", output = config["output"],
+            expand("{output}/Quantification/{name}.readcounts", output = config["output"],
                 name = set(mt_experiments['Name'])),
             expand("{output}/Annotation/{name}.readcounts", output = config["output"],
                 name = set(mg_experiments['Name']))
@@ -283,7 +282,7 @@ else:
             blasts=expand("{output}/Annotation/{name}/aligned.blast",output=config["output"], name=set(experiments['Name']))
         output:
             f"{config['output']}/MOSCA_Entry_Counts_Report.xlsx",
-            f"{config['output']}/Metatranscriptomics/expression_matrix.tsv"
+            f"{config['output']}/Quantification/expression_matrix.tsv"
         threads:
             1
         run:
@@ -309,11 +308,11 @@ else:
 
 rule differential_expression:
     input:
-        f"{config['output']}/Metatranscriptomics/expression_matrix.tsv"
+        f"{config['output']}/Quantification/expression_matrix.tsv"
     output:
-        f"{config['output']}/Metatranscriptomics/gene_expression.jpeg",
-        f"{config['output']}/Metatranscriptomics/sample_distances.jpeg",
-        f"{config['output']}/Metatranscriptomics/condition_treated_results.csv"
+        f"{config['output']}/Quantification/gene_expression.jpeg",
+        f"{config['output']}/Quantification/sample_distances.jpeg",
+        f"{config['output']}/Quantification/condition_treated_results.csv"
     threads:
         1
     run:

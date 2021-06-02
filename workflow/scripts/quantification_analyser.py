@@ -65,12 +65,8 @@ class QuantificationAnalyser:
 
         for i in experiments.index:
             if experiments.iloc[i]['Data type'] == 'mrna':
-                attribute = 'Name'
-                folder = 'Metatranscriptomics'
                 reference = f"{args.output}/Annotation/{experiments.iloc[i]['Sample']}/fgs.ffn"
             elif experiments.iloc[i]['Data type'] == 'dna':
-                attribute = 'gene_id'
-                folder = 'Annotation'
                 reference = f"{args.output}/Assembly/{experiments.iloc[i]['Sample']}/contigs.fasta"
             else:
                 print('A data type MOSCA can yet not handle!')
@@ -78,24 +74,21 @@ class QuantificationAnalyser:
 
             print(f"Data type is: {experiments.iloc[i]['Data type']}")
 
-            if not os.path.isfile(f"{args.output}/{folder}/{experiments.iloc[i]['Name']}.readcounts"):
-                print(f"{args.output}/{folder}/{experiments.iloc[i]['Name']}.readcounts not found! Generating it")
+            if not os.path.isfile(f"{args.output}/Quantification/{experiments.iloc[i]['Name']}.readcounts"):
+                print(f"{args.output}/Quantification/{experiments.iloc[i]['Name']}.readcounts not found! Generating it")
                 perform_alignment(
                     reference,
-                    [f"{args.output}/Preprocess/Trimmomatic/quality_trimmed_{experiments.iloc[i]['Name']}_{fr}_paired.fq"
-                     for fr in ['forward', 'reverse']],
-                    f"{args.output}/{folder}/{experiments.iloc[i]['Name']}",
-                    blast=(f"{args.output}/Annotation/{experiments.iloc[i]['Sample']}/aligned.blast"
-                           if attribute == 'Name' else None),
-                    threads=args.threads,
-                    attribute=attribute)
+                    [f"{args.output}/Preprocess/Trimmomatic/"
+                     f"quality_trimmed_{experiments.iloc[i]['Name']}_{fr}_paired.fq" for fr in ['forward', 'reverse']],
+                    f"{args.output}/Quantification/{experiments.iloc[i]['Name']}",
+                    threads=args.threads)
             else:
-                print(f"{args.output}/{folder}/{experiments.iloc[i]['Name']}.readcounts exists.")
+                print(f"{args.output}/Quantification/{experiments.iloc[i]['Name']}.readcounts exists.")
 
         self.generate_expression_matrix(
-            [f"{args.output}/Metatranscriptomics/{mt_name}.readcounts" for mt_name in mt_experiments['Name']],
+            [f"{args.output}/Quantification/{mt_name}.readcounts" for mt_name in mt_experiments['Name']],
             mt_experiments['Name'].tolist(),
-            f"{args.output}/Metatranscriptomics/expression_matrix.tsv")
+            f"{args.output}/Quantification/expression_matrix.tsv")
 
 
 if __name__ == '__main__':
