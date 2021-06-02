@@ -6,8 +6,9 @@ import argparse
 import sys
 import json
 import yaml
+from time import gmtime, strftime, time
 
-__version__ = '1.3.6'
+__version__ = '1.4.0'
 
 parser = argparse.ArgumentParser(description="MOSCA's main script")
 parser.add_argument("-s", "--snakefile", type=str, default=f'{sys.path[0]}/Snakefile', help="Snakefile file")
@@ -33,7 +34,11 @@ def read_config(filename):
         exit('Config file must end in either ".json" or ".yaml"')
 
 
+start_time = time()
 config = read_config(args.configfile)
+if config['download_uniprot']:
+    config['diamond_database'] = f'{config["resources_directory"]}/uniprot.dmnd'
 
-snakemake.main("-s {} --printshellcmds --cores {} --configfile {}{}".format(
-    args.snakefile, config['threads'], args.configfile, ' --unlock' if args.unlock else ''))
+snakemake.main(f"-s {args.snakefile} --printshellcmds --cores {config['threads']} --configfile {args.configfile}"
+               f"{' --unlock' if args.unlock else ''}")
+print(f'MOSCA analysis finished in {strftime("%Hh%Mm%Ss", gmtime(time() - start_time))}')

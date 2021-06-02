@@ -31,7 +31,7 @@ class Joiner:
     def run(self):
         args = self.get_arguments()
 
-        rscript_folder = '{}/../../../bin/'.format(sys.path[0])  # TODO - this should have better fix than this hack
+        rscript_folder = '' #'{}/../../../bin/'.format(sys.path[0])  # TODO - this should have better fix than this hack
 
         experiments = (pd.read_csv(args.experiments, sep='\t') if args.input_format == 'tsv' else
                        pd.read_excel(args.experiments))

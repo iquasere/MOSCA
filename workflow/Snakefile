@@ -56,9 +56,7 @@ def all_input(wildcards):
             expand("{output}/Binning/{sample}/checkm.tsv", output=config["output"], sample=set(experiments['Sample']))
         )
     else:
-        return (
-            "{}/MOSCA_Entry_Counts_Report.xlsx".format(config["output"])
-        )
+        return f"{config['output']}/MOSCA_Entry_Counts_Report.xlsx"
 
 def preprocess_input(wildcards):
     # get first value (in case multiple) and split on commas
@@ -68,7 +66,7 @@ def join_reads_input(wildcards):
     df = mg_experiments.loc[mg_experiments['Sample'] == wildcards.sample]
     files = df['Files'].tolist()
     names = df['Name'].tolist()
-    return ['{}/Preprocess/Trimmomatic/quality_trimmed_{}{}.fq'.format(config["output"], name, fr) for name in names
+    return [f'{config["output"]}/Preprocess/Trimmomatic/quality_trimmed_{name}{fr}.fq' for name in names
         for file_list in files for fr in (['_forward_paired', '_reverse_paired'] if ',' in file_list else [''])]
 
 def fastq2fasta_input(wildcards):
@@ -85,10 +83,10 @@ def annotation_input(wildcards):
 
 def upimapi_input(wildcards):
     if config['do_assembly']:
-        return expand("{output}/Annotation/{sample}/aligned.blast",output=config["output"],
-            sample = set(experiments['Sample']))
-    return expand("{output}/Annotation/{name}/aligned.blast",output=config["output"],
-        name = set(experiments['Name']))
+        return expand("{output}/Annotation/{sample}/aligned.blast", output=config["output"],
+                      sample=set(experiments['Sample']))
+    return expand("{output}/Annotation/{name}/aligned.blast", output=config["output"],
+                  name=set(experiments['Name']))
 
 rule all:
     input:
@@ -193,16 +191,12 @@ rule upimapi:
     input:
         upimapi_input
     output:
-        expand("{output}/Annotation/uniprotinfo.tsv", output = config["output"]),
+        f'{config["output"]}/Annotation/uniprotinfo.tsv'
     threads:
         1
     run:
-        if config["do_assembly"]:
-            shell("upimapi.py -i {input} -o {output}/Annotation/uniprotinfo --blast --full-id", output = config["output"])
-        else:
-            for blast in input:
-                shell("upimapi.py -i {blast} -o {output}/Annotation/uniprotinfo --blast --full-id",
-                    output=config["output"])
+        for blast in input:
+            shell("upimapi.py -i {blast} -o {output}/Annotation/uniprotinfo --blast --full-id", output=config["output"])
 
 rule recognizer:
     input:
@@ -285,11 +279,11 @@ if config["do_assembly"]:
 else:
     rule entry_count:
         input:
-            uniprotinfo="{}/Annotation/uniprotinfo.tsv".format(config["output"]),
+            uniprotinfo=f"{config['output']}/Annotation/uniprotinfo.tsv",
             blasts=expand("{output}/Annotation/{name}/aligned.blast",output=config["output"], name=set(experiments['Name']))
         output:
-            "{}/MOSCA_Entry_Counts_Report.xlsx".format(config["output"]),
-            "{}/Metatranscriptomics/expression_matrix.tsv".format(config["output"])
+            f"{config['output']}/MOSCA_Entry_Counts_Report.xlsx",
+            f"{config['output']}/Metatranscriptomics/expression_matrix.tsv"
         threads:
             1
         run:
@@ -299,27 +293,27 @@ else:
             names = list()
             for blast in input.blasts:
                 name = blast.split('/')[-2]
-                print('[{}/{}] Quantifying entries for: {}'.format(i, len(input.blasts), blast))
+                print(f'[{i}/{len(input.blasts)}] Quantifying entries for: {blast}')
                 data = parse_blast(blast).groupby('sseqid').size().reset_index(name=name)
                 data['sseqid'] = [ide.split('|')[1] if ide != '*' else ide for ide in data['sseqid']]
                 result = pd.merge(result, data, on='sseqid', how='outer')
                 i += 1
                 names.append(name)
             result.columns = ['Entry'] + result.columns.to_list()[1:]
-            print('Merging entry counts with info at {}'.format(input.uniprotinfo[0]))
+            print(f'Merging entry counts with info at {input.uniprotinfo[0]}')
             result = pd.merge(result, uniprotinfo, on='Entry', how='left')
-            multi_sheet_excel("{}/MOSCA_Entry_Counts_Report.xlsx".format(config["output"]), result, sheet_name='Sheet')
-            result.to_csv("{}/MOSCA_Entry_Counts_Report.tsv".format(config["output"]), index=False, sep='\t')
-            result[['Entry'] + names].to_csv("{}/Metatranscriptomics/expression_matrix.tsv".format(config["output"]),
+            multi_sheet_excel(f"{config['output']}/MOSCA_Entry_Counts_Report.xlsx", result, sheet_name='Sheet')
+            result.to_csv(f"{config['output']}/MOSCA_Entry_Counts_Report.tsv", index=False, sep='\t')
+            result[['Entry'] + names].to_csv(f"{config['output']}/Metatranscriptomics/expression_matrix.tsv",
                                              sep='\t', index=False)
 
 rule differential_expression:
     input:
-        "{}/Metatranscriptomics/expression_matrix.tsv".format(config["output"])
+        f"{config['output']}/Metatranscriptomics/expression_matrix.tsv"
     output:
-        "{}/Metatranscriptomics/gene_expression.jpeg".format(config["output"]),
-        "{}/Metatranscriptomics/sample_distances.jpeg".format(config["output"]),
-        "{}/Metatranscriptomics/condition_treated_results.csv".format(config["output"])
+        f"{config['output']}/Metatranscriptomics/gene_expression.jpeg",
+        f"{config['output']}/Metatranscriptomics/sample_distances.jpeg",
+        f"{config['output']}/Metatranscriptomics/condition_treated_results.csv"
     threads:
         1
     run:
@@ -339,13 +333,12 @@ rule keggcharter:
         shell("kegg_charter.py -f {input} -o {output}/KEGG_maps{metabolic_maps} -gcol {mg_cols} -tcol {exp_cols} -tc "
               "'Taxonomic lineage ({taxa_level})' -not {number_of_taxa} -keggc 'Cross-reference (KEGG)'",
               output = config["output"], mg_cols = ','.join(mg_experiments['Name'].tolist()),
-              metabolic_maps = " -mm {}".format(','.join(config["keggcharter_maps"])) if
-              len(config["keggcharter_maps"]) > 0 else '',
+              metabolic_maps = f" -mm {','.join(config['keggcharter_maps']) if len(config['keggcharter_maps']) > 0 else ''}",
               exp_cols = ','.join(mt_experiments['Name'].tolist()), taxa_level = config["keggcharter_taxa_level"],
               number_of_taxa = config["keggcharter_number_of_taxa"])
 
-        shutil.copyfile('{}/KEGGCharter_results.xlsx'.format(config["output"]),
-                        '{}/MOSCA_Entry_Report.xlsx'.format(config["output"]))
+        shutil.copyfile(f"{config['output']}/KEGGCharter_results.xlsx",
+                        f"{config['output']}/MOSCA_Entry_Report.xlsx")
 
 rule report:
     input:

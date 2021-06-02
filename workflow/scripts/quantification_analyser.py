@@ -67,33 +67,35 @@ class QuantificationAnalyser:
             if experiments.iloc[i]['Data type'] == 'mrna':
                 attribute = 'Name'
                 folder = 'Metatranscriptomics'
-                reference = '{}/Annotation/{}/fgs.ffn'.format(args.output, experiments.iloc[i]['Sample'])
+                reference = f"{args.output}/Annotation/{experiments.iloc[i]['Sample']}/fgs.ffn"
             elif experiments.iloc[i]['Data type'] == 'dna':
                 attribute = 'gene_id'
                 folder = 'Annotation'
-                reference = '{}/Assembly/{}/contigs.fasta'.format(args.output, experiments.iloc[i]['Sample'])
+                reference = f"{args.output}/Assembly/{experiments.iloc[i]['Sample']}/contigs.fasta"
             else:
                 print('A data type MOSCA can yet not handle!')
                 continue
 
-            print('Data type is: {}'.format(experiments.iloc[i]['Data type']))
+            print(f"Data type is: {experiments.iloc[i]['Data type']}")
 
-            if not os.path.isfile("{}/{}/{}.readcounts".format(args.output, folder, experiments.iloc[i]['Name'])):
-                print("{}/{}/{}.readcounts not found! Generating it".format(args.output, folder,
-                                                                            experiments.iloc[i]['Name']))
-                perform_alignment(reference,
-                    ['{}/Preprocess/Trimmomatic/quality_trimmed_{}_{}_paired.fq'.format(
-                        args.output, experiments.iloc[i]['Name'], fr) for fr in ['forward', 'reverse']],
-                    '{}/{}/{}'.format(args.output, folder, experiments.iloc[i]['Name']),
-                    blast=('{}/Annotation/{}/aligned.blast'.format(args.output, experiments.iloc[i]['Sample'])
-                           if attribute == 'Name' else None), threads=args.threads, attribute=attribute)
+            if not os.path.isfile(f"{args.output}/{folder}/{experiments.iloc[i]['Name']}.readcounts"):
+                print(f"{args.output}/{folder}/{experiments.iloc[i]['Name']}.readcounts not found! Generating it")
+                perform_alignment(
+                    reference,
+                    [f"{args.output}/Preprocess/Trimmomatic/quality_trimmed_{experiments.iloc[i]['Name']}_{fr}_paired.fq"
+                     for fr in ['forward', 'reverse']],
+                    f"{args.output}/{folder}/{experiments.iloc[i]['Name']}",
+                    blast=(f"{args.output}/Annotation/{experiments.iloc[i]['Sample']}/aligned.blast"
+                           if attribute == 'Name' else None),
+                    threads=args.threads,
+                    attribute=attribute)
             else:
-                print("{}/{}/{}.readcounts exists.".format(args.output, folder, experiments.iloc[i]['Name']))
+                print(f"{args.output}/{folder}/{experiments.iloc[i]['Name']}.readcounts exists.")
 
         self.generate_expression_matrix(
-            ["{}/Metatranscriptomics/{}.readcounts".format(args.output, mt_name) for mt_name in
-             mt_experiments['Name']], mt_experiments['Name'].tolist(),
-            '{}/Metatranscriptomics/expression_matrix.tsv'.format(args.output))
+            [f"{args.output}/Metatranscriptomics/{mt_name}.readcounts" for mt_name in mt_experiments['Name']],
+            mt_experiments['Name'].tolist(),
+            f"{args.output}/Metatranscriptomics/expression_matrix.tsv")
 
 
 if __name__ == '__main__':

@@ -513,7 +513,7 @@ dependencies:
   - conda-forge:typing-extensions=3.7.4.3
   - conda-forge:typing_extensions=3.7.4.3
   - conda-forge:ubiquerg=0.6.1
-  - bioconda:upimapi=1.1.3
+  - bioconda:upimapi=1.1.4
   - conda-forge:uritemplate=3.0.1
   - conda-forge:urllib3=1.26.4
   - conda-forge:veracitools=0.1.3

@@ -122,7 +122,7 @@ class Preprocesser:
                     for pu in ['paired', 'unpaired']]) if self.paired else
                 '{}/Trimmomatic/after_adapter_removal_{}_{}.fq'.format(
                     out_dir, name, adapter_name), adapter))
-            
+
             self.run_fastqc(
                 ([f'{out_dir}/Trimmomatic/after_adapter_removal_{name}_{adapter_name}_{fr}_paired.fq'
                   for fr in ['forward', 'reverse']] if self.paired
@@ -133,18 +133,11 @@ class Preprocesser:
             for file in ([
                 f'{out_dir}/FastQC/after_adapter_removal_{name}_{adapter_name}_{fr}_paired_fastqc/fastqc_data.txt'
                 for fr in ['forward', 'reverse']] if self.paired
-                    else [f'{out_dir}/FastQC/after_adapter_removal_{name}_{adapter_name}_fastqc/fastqc_data.txt']):
+            else [f'{out_dir}/FastQC/after_adapter_removal_{name}_{adapter_name}_fastqc/fastqc_data.txt']):
                 if self.has_adapters(file):
                     has_adapters = True
             if not has_adapters:
                 return adapter  # It's solved, adapters have been removed
-            else:
-                for file in ([
-                    f'{out_dir}/Trimmomatic/after_adapter_removal_{name}_{adapter_name}_{fr}_{pu}.fq'
-                    for fr in ['forward', 'reverse'] for pu in ['paired', 'unpaired']] if self.paired
-                        else [f'{out_dir}/Trimmomatic/after_adapter_removal_{name}_{adapter_name}.fq']):
-                    os.remove(file)
-                    print(f'Removed: {file}')
         return 'Failed'
 
     def index_rrna_database(self, database):
@@ -182,15 +175,12 @@ class Preprocesser:
             """awk '{{printf $0;getline; printf \"\\t\"$0;getline;getline;print \"\\t\"$0}}' {} | sort -T.""".format(
                 forward), output="{}/read2.txt".format(out_dir))
 
-        run_pipe_command("""join {} | awk '{{print $1\" \"$2\"\\n\"$3\"\\n+\\n\"$4 > \"{}\";print $1\" \"$5\"\\n\"$6\"\\n+\\n\"$7 > \"{}\"}}'""".format(
-            ' '.join(["{}/{}".format(out_dir, fr) for fr in ['read1.txt', 'read2.txt']]), forward, reverse))
-
-        for file in [f"{out_dir}/read{number}.txt" for number in ['1', '2']]:
-            os.remove(file)
+        run_pipe_command(
+            """join {} | awk '{{print $1\" \"$2\"\\n\"$3\"\\n+\\n\"$4 > \"{}\";print $1\" \"$5\"\\n\"$6\"\\n+\\n\"$7 > \"{}\"}}'""".format(
+                ' '.join(["{}/{}".format(out_dir, fr) for fr in ['read1.txt', 'read2.txt']]), forward, reverse))
 
     # SortMeRNA - rRNA removal
     def rrna_removal(self, files, out_dir, name, databases, threads='12', original_files=True):
-        files_to_delete = [] if original_files else files
         for database in databases:
             self.index_rrna_database(database)
 
@@ -202,11 +192,8 @@ class Preprocesser:
         if self.paired:
             tool_input = f'{out_dir}/{name}_interleaved.fastq'
             self.merge_pe(files[0], files[1], tool_input)
-            files_to_delete += [f'{out_dir}/{name}_interleaved.fastq'] + [
-                f'{args.output}/SortMeRNA/{name}_{rejection}.fastq' for rejection in ['accepted', 'rejected']]
         else:
             tool_input = files[0]
-            files_to_delete += [f'{args.output}/SortMeRNA/{name}_accepted.fastq']
 
         run_command(
             'sortmerna --ref {0} --reads {1} --aligned {2}/after_rrna_removal_{3}_accepted --fastx '
@@ -215,20 +202,16 @@ class Preprocesser:
                 tool_input, out_dir, name, threads, ' --paired_out' if len(files) > 1 else ''))
 
         if self.paired:
-            self.unmerge_pe(tool_input,
-                            f'{out_dir}/{name}_forward.fastq',
-                            f'{out_dir}/{name}_reverse.fastq')
-            
+            self.unmerge_pe(f'{out_dir}/after_rrna_removal_{name}_rejected.fastq',
+                            f'{out_dir}/after_rrna_removal_{name}_forward.fastq',
+                            f'{out_dir}/after_rrna_removal_{name}_reverse.fastq')
+
             for fr in ['forward', 'reverse']:
-                self.remove_messed_reads(f'{out_dir}/{name}_{fr}.fastq')
+                self.remove_messed_reads(f'{out_dir}/after_rrna_removal_{name}_{fr}.fastq')
 
-            self.remove_orphans(f'{out_dir}/{name}_forward.fastq',
-                                f'{out_dir}/{name}_reverse.fastq',
+            self.remove_orphans(f'{out_dir}/after_rrna_removal_{name}_forward.fastq',
+                                f'{out_dir}/after_rrna_removal_{name}_reverse.fastq',
                                 out_dir)
-
-        for file in files_to_delete:
-            os.remove(file)
-            print(f'Removed: {file}')
 
     def get_crop(self, data):
         i = 0
@@ -290,14 +273,16 @@ class Preprocesser:
             f.write(f'AVGQUAL{avgqual}\n')
             f.write(f'MINLEN:{minlen}\n')
 
-        if not original_files:
-            for file in files:
-                os.remove(file)
-                print('Removed: {}'.format(file))
-
     # TODO - implement
     def host_sequences_removal(self):
         pass
+
+    def remove_intermediates(self, out_dir):
+        for file in (glob.glob(f'{out_dir}/Trimmomatic/after_adapter_removal_*.fq') +
+                     glob.glob(f'{out_dir}/SortMeRNA/after_rrna_removal_*.fastq') +
+                     glob.glob(f'{out_dir}/SortMeRNA/read*.txt')):
+            os.remove(file)
+            print(f'Removed intermediate file: {file}')
 
     def run(self):
         args = self.get_arguments()
@@ -367,6 +352,8 @@ class Preprocesser:
             args.input = [f'{args.output}/Trimmomatic/quality_trimmed_{name}.fq']
 
         self.run_fastqc(args.input, f'{args.output}/FastQC', threads=args.threads)
+
+        self.remove_intermediates(args.output)
 
 
 if __name__ == '__main__':
