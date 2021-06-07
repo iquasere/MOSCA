@@ -144,7 +144,7 @@ def perform_alignment(reference, reads, basename, threads=1):
 
     run_pipe_command(
         f"""samtools view -F 260 {basename}.sam | cut -f 3 | sort | uniq -c | """
-        f"""awk '{{printf("%s\t%s\n", $2, $1)}}'""", output=f'{basename}.readcounts')
+        f"""awk '{{printf("%s\\t%s\\n", $2, $1)}}'""", output=f'{basename}.readcounts')
 
 
 def fastq2fasta(fastq, output):
@@ -156,12 +156,9 @@ def timed_message(message):
 
 
 def normalize_mg_readcounts_by_size(readcounts, contigs):
-    run_pipe_command(f'head -n -5 {readcounts}',
-                     # I still don't know how to pipe two things together for the join command, when I do I'll be able to merge this two commands
-                     output=readcounts.replace('.readcounts', '_no_tail.readcounts'))
     run_pipe_command(
         f"seqkit fx2tab {contigs} | sort | awk '{{print $1\"\\t\"length($2)}}' | "
-        f"join - {readcounts.replace('.readcounts', '_no_tail.readcounts')} | awk '{{print $1\"\\t\"$3/$2}}'",
+        f"join - {readcounts} | awk '{{print $1\"\\t\"$3/$2}}'",
         output=readcounts.replace('.readcounts', '_normalized.readcounts'))
 
 
@@ -235,7 +232,7 @@ def normalize_readcounts(joined, columns, method='TMM', rscript_folder=''):
 
 
 def timed_message(message=None):
-    print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ': ' + message)
+    print(f'{time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())}: {message}')
 
 
 def expand_by_list_column(self, df, column='Pathway'):
@@ -271,15 +268,6 @@ def parse_fastqc_report(filename):
                                                  columns=partial_data[0, 1:]))
         i += 1
     return data
-
-
-'''
-Input:
-    bashCommand: str - the command to retrieve the output from
-    shell: bool - True if using some shell tool like grep or awk
-Output:
-    Number of occurrences of character on file
-'''
 
 
 def count_on_file(expression, file, compressed=False):

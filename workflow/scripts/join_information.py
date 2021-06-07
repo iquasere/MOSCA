@@ -36,7 +36,7 @@ class Joiner:
         experiments = (pd.read_csv(args.experiments, sep='\t') if args.input_format == 'tsv' else
                        pd.read_excel(args.experiments))
 
-        uniprotinfo = pd.read_csv('{}/Annotation/uniprotinfo.tsv'.format(args.output), sep='\t')
+        uniprotinfo = pd.read_csv(f'{args.output}/Annotation/uniprotinfo.tsv', sep='\t')
         taxonomy_columns = [col for col in uniprotinfo.columns if 'Taxonomic lineage' in col]
         functional_columns = ['COG general functional category', 'COG functional category',
                               'COG protein description', 'cog']
@@ -51,10 +51,10 @@ class Joiner:
                 sample2mgname[row[1].loc['Sample']] = [row[1].loc['Name']]
 
         for sample in sample2mgname.keys():
-            timed_message('Joining data for sample: {}'.format(sample))
+            timed_message(f'Joining data for sample: {sample}')
 
             # new reCOGnizer exports results in EXCEL always
-            recognizer_filename = '{}/Annotation/{}/reCOGnizer_results.xlsx'.format(args.output, sample)
+            recognizer_filename = f'{args.output}/Annotation/{sample}/reCOGnizer_results.xlsx'
             sheet_names = pd.ExcelFile(recognizer_filename).sheet_names
             cog_sheets = [sheet for sheet in sheet_names if 'COG' in sheet]
             cog_df = pd.read_excel(recognizer_filename, sheet_name=cog_sheets[0])
@@ -64,7 +64,7 @@ class Joiner:
             del cog_df['DB ID']
 
             # Join BLAST and reCOGnizer outputs
-            data = pd.merge(parse_blast('{}/Annotation/{}/aligned.blast'.format(args.output, sample)), cog_df,
+            data = pd.merge(parse_blast(f'{args.output}/Annotation/{sample}/aligned.blast'), cog_df,
                             on='qseqid', how='left')
             data['sseqid'] = data['sseqid_x']
             data['sseqid'] = [ide.split('|')[1] if ide != '*' else ide for ide in data['sseqid']]
@@ -83,20 +83,19 @@ class Joiner:
             for mg_name in sample2mgname[sample]:
                 # Normalization by contig size
                 normalize_mg_readcounts_by_size(
-                    '{}/Annotation/{}.readcounts'.format(args.output, mg_name),
-                    '{}/Assembly/{}/contigs.fasta'.format(args.output, sample))
+                    f'{args.output}/Annotation/{mg_name}.readcounts',
+                    f'{args.output}/Assembly/{sample}/contigs.fasta')
 
-                data = add_abundance(data, '{}/Annotation/{}_normalized.readcounts'.format(
-                                            args.output, mg_name), mg_name, origin_of_data='metagenomics',
-                                     readcounts_has_tail=False)          # readcounts tail is removed in the normalization function
+                data = add_abundance(data, f'{args.output}/Annotation/{mg_name}_normalized.readcounts', mg_name,
+                                     origin_of_data='metagenomics', readcounts_has_tail=False)
 
                 for mt_name in expression_analysed:
-                    data = add_abundance(data, '{}/Metatranscriptomics/{}.readcounts'.format(args.output, mt_name),
-                                                mt_name, origin_of_data='metatranscriptomics')
+                    data = add_abundance(data, f'{args.output}/Quantification/{mt_name}.readcounts', mt_name,
+                                         origin_of_data='metatranscriptomics')
 
-            multi_sheet_excel('{}/MOSCA_Protein_Report.xlsx'.format(args.output), data, sheet_name=sample)
+            multi_sheet_excel(f'{args.output}/MOSCA_Protein_Report.xlsx', data, sheet_name=sample)
 
-            print('Finding consensus COG for each Entry of Sample: {}'.format(sample))
+            print(f'Finding consensus COG for each entry of sample: {sample}')
             tqdm.pandas()
             cogs_df = data.groupby('Entry')['cog'].progress_apply(
                 lambda x: x.value_counts().index[0] if len(x.value_counts().index) > 0
@@ -112,34 +111,33 @@ class Joiner:
             data = data[uniprotinfo.columns.tolist() + functional_columns + abundance_analysed + expression_analysed]
 
             # MG normalization by sample and protein abundance
-            data[abundance_analysed].to_csv(
-                args.output + '/mg_preprocessed_readcounts.table', sep='\t', index=False)
-            data = pd.concat([data, normalize_readcounts(args.output + '/mg_preprocessed_readcounts.table',
-                    abundance_analysed, rscript_folder=rscript_folder)[
+            data[abundance_analysed].to_csv(f'{args.output}/mg_preprocessed_readcounts.table', sep='\t', index=False)
+            data = pd.concat([data, normalize_readcounts(f'{args.output}/mg_preprocessed_readcounts.table',
+                                                         abundance_analysed, rscript_folder=rscript_folder)[
                 [col + '_normalized' for col in abundance_analysed]]], axis=1)
 
             # MT normalization by sample and protein expression - normalization is repeated here because it's not stored from DESeq2 analysis
-            data[expression_analysed].to_csv(args.output + '/expression_analysed_readcounts.table',
+            data[expression_analysed].to_csv(f'{args.output}/expression_analysed_readcounts.table',
                                              sep='\t', index=False)
             data = pd.concat([data, normalize_readcounts(
-                    args.output + '/expression_analysed_readcounts.table', expression_analysed,
-                    rscript_folder=rscript_folder)[[col + '_normalized' for col in expression_analysed]]], axis=1)
+                f'{args.output}/expression_analysed_readcounts.table', expression_analysed,
+                rscript_folder=rscript_folder)[[f'{col}_normalized' for col in expression_analysed]]], axis=1)
 
             # For each sample, write an Entry Report
-            multi_sheet_excel('{}/MOSCA_Entry_Report.xlsx'.format(args.output), data, sheet_name=sample)
+            multi_sheet_excel(f'{args.output}/MOSCA_Entry_Report.xlsx', data, sheet_name=sample)
 
             data[['Entry'] + expression_analysed].groupby('Entry')[expression_analysed].sum().reset_index().to_csv(
-                '{}/Metatranscriptomics/expression_matrix.tsv'.format(args.output), sep='\t', index=False)
+                f'{args.output}/Quantification/expression_matrix.tsv', sep='\t', index=False)
 
             for mg_name in sample2mgname[sample]:
                 # Draw the taxonomy krona plot
                 data.groupby(taxonomy_columns)[mg_name].sum().reset_index()[[mg_name] + taxonomy_columns].to_csv(
-                    '{}/{}_tax.tsv'.format(args.output, mg_name), sep='\t', index=False, header=False)
+                    f'{args.output}/{mg_name}_tax.tsv', sep='\t', index=False, header=False)
                 run_command('ktImportText {0}/{1}_tax.tsv -o {0}/{1}_tax.html'.format(args.output, mg_name))
 
                 # Draw the functional krona plot
                 data.groupby(functional_columns)[mg_name].sum().reset_index()[[mg_name] + functional_columns].to_csv(
-                    '{}/{}_fun.tsv'.format(args.output, mg_name), sep='\t', index=False, header=False)
+                    f'{args.output}/{mg_name}_fun.tsv', sep='\t', index=False, header=False)
                 run_command('ktImportText {0}/{1}_fun.tsv -o {0}/{1}_fun.html'.format(args.output, mg_name))
 
 if __name__ == '__main__':

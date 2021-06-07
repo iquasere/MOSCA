@@ -163,7 +163,7 @@ rule fastq2fasta:
     input:
         fastq2fasta_input
     output:
-        expand("{output}/Preprocess/piled_{{sample}}.fasta", output=config["output"])
+        f"{config['output']}/Preprocess/piled_{{sample}}.fasta"
     threads:
         1
     shell:
@@ -255,7 +255,7 @@ rule metaphlan:
 if config["do_assembly"]:
     rule join_information:
         input:
-            expand("{output}/Annotation/uniprotinfo.tsv", output = config["output"]),
+            f"{config['output']}/Annotation/uniprotinfo.tsv",
             expand("{output}/Annotation/{sample}/aligned.blast", output = config["output"],
                 sample = set(experiments['Sample'])),
             expand("{output}/Annotation/{sample}/reCOGnizer_results.xlsx", output = config["output"],
@@ -265,9 +265,9 @@ if config["do_assembly"]:
             expand("{output}/Annotation/{name}.readcounts", output = config["output"],
                 name = set(mg_experiments['Name']))
         output:
-            expand("{output}/MOSCA_Protein_Report.xlsx", output = config["output"]),
-            expand("{output}/MOSCA_Entry_Report.xlsx", output = config["output"]),
-            expand("{output}/Metatranscriptomics/expression_matrix.tsv", output = config["output"])
+            f"{config['output']}/MOSCA_Protein_Report.xlsx",
+            f"{config['output']}/MOSCA_Entry_Report.xlsx",
+            f"{config['output']}/Quantification/expression_matrix.tsv"
         threads:
             config["threads"] - 2
         run:
@@ -303,7 +303,7 @@ else:
             result = pd.merge(result, uniprotinfo, on='Entry', how='left')
             multi_sheet_excel(f"{config['output']}/MOSCA_Entry_Counts_Report.xlsx", result, sheet_name='Sheet')
             result.to_csv(f"{config['output']}/MOSCA_Entry_Counts_Report.tsv", index=False, sep='\t')
-            result[['Entry'] + names].to_csv(f"{config['output']}/Metatranscriptomics/expression_matrix.tsv",
+            result[['Entry'] + names].to_csv(f"{config['output']}/Quantification/expression_matrix.tsv",
                                              sep='\t', index=False)
 
 rule differential_expression:
@@ -317,15 +317,14 @@ rule differential_expression:
         1
     run:
         conditions = ",".join(map(str, mt_experiments['Condition'].tolist()))
-        shell("{scripts_dir}/../../../bin/Rscript {scripts_dir}/de_analysis.R --readcounts {input} --conditions "
-              "{conditions} --output {output}/Metatranscriptomics",
+        shell("Rscript {scripts_dir}/de_analysis.R --readcounts {input} --conditions {conditions} --output {output}/Quantification",
             conditions = conditions, output = config["output"])
 
 rule keggcharter:
     input:
-        expand("{output}/MOSCA_Entry_Report.xlsx", output = config["output"])
+        f"{config['output']}/MOSCA_Entry_Report.xlsx"
     output:
-        expand("{output}/KEGG_maps/KEGGCharter_results.xlsx", output = config["output"])
+        f"{config['output']}/KEGG_maps/KEGGCharter_results.xlsx"
     threads:
         1
     run:
@@ -341,12 +340,12 @@ rule keggcharter:
 
 rule report:
     input:
-        expand("{output}/MOSCA_Protein_Report.xlsx", output = config["output"]),
-        expand("{output}/Metatranscriptomics/condition_treated_results.csv", output = config["output"])
+        f"{config['output']}/MOSCA_Protein_Report.xlsx",
+        f"{config['output']}/Quantification/condition_treated_results.csv"
     output:
-        expand("{output}/technical_report.tsv", output = config["output"]),
-        expand("{output}/MOSCA_General_Report.xlsx", output = config["output"]),
-        expand("{output}/MOSCA_results.zip", output = config["output"])
+        f"{config['output']}/technical_report.tsv",
+        f"{config['output']}/MOSCA_General_Report.xlsx",
+        f"{config['output']}/MOSCA_results.zip"
     threads:
         1
     run:

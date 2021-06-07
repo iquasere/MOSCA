@@ -14,6 +14,7 @@ import multiprocessing
 import argparse
 import os
 
+
 class QuantificationAnalyser:
 
     def __init__(self, **kwargs):
