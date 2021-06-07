@@ -180,7 +180,7 @@ class Preprocesser:
                 ' '.join(["{}/{}".format(out_dir, fr) for fr in ['read1.txt', 'read2.txt']]), forward, reverse))
 
     # SortMeRNA - rRNA removal
-    def rrna_removal(self, files, out_dir, name, databases, threads='12', original_files=True):
+    def rrna_removal(self, files, out_dir, name, databases, threads='12'):
         for database in databases:
             self.index_rrna_database(database)
 
@@ -238,8 +238,7 @@ class Preprocesser:
         return int(headcrop) + 1
 
     # Trimmomatic - removal of low quality regions and short reads
-    def quality_trimming(self, files, out_dir, name, threads='12', minlen='100', avgqual='20', original_files=True,
-                         type_of_data='dna'):
+    def quality_trimming(self, files, out_dir, name, threads='12', minlen='100', avgqual='20', type_of_data='dna'):
         fastqc_reports = [f"{out_dir}/FastQC/{self.fastqc_name(file.split('/')[-1])}_fastqc/fastqc_data.txt"
                           for file in files]
 
@@ -257,19 +256,19 @@ class Preprocesser:
                     if parameter > headcrop:
                         headcrop = parameter
 
-        run_command('trimmomatic {} -threads {} {} {}{}{} AVGQUAL:{} MINLEN:{}'.format(
-            'PE' if self.paired else 'SE', threads, ' '.join(files),
-            ' '.join('{}/Trimmomatic/quality_trimmed_{}_{}_{}.fq'.format(
-                out_dir, name, fr, pu) for fr in ['forward', 'reverse'] for pu in ['paired', 'unpaired'])
-            if self.paired else '{}/Trimmomatic/quality_trimmed_{}.fq'.format(
-                out_dir, name),
-            ' CROP:{}'.format(crop) if crop < float('inf') else '',
-            ' HEADCROP:{}'.format(headcrop) if headcrop > 0 else '', avgqual, minlen))
+        run_command(f"""trimmomatic {'PE' if self.paired else 'SE'} -threads {threads} {' '.join(files)} 
+                    {' '.join(f'{out_dir}/Trimmomatic/quality_trimmed_{name}_{fr}_{pu}.fq' 
+                        for fr in ['forward', 'reverse'] for pu in ['paired', 'unpaired']) if self.paired 
+                        else f'{out_dir}/Trimmomatic/quality_trimmed_{name}.fq'}
+                    {f' CROP:{crop}' if crop < float('inf') else ''}
+                    {f' HEADCROP:{headcrop}' if headcrop > 0 else ''} 
+                    AVGQUAL:{avgqual} MINLEN:{minlen}""")
 
-        with open('{}/Trimmomatic/{}_quality_params.txt'.format(
-                out_dir, name), 'a') as f:
-            if headcrop > 0: f.write(f'HEADCROP:{headcrop}\n')
-            if crop < float('inf'): f.write(f'CROP:{crop}\n')
+        with open(f'{out_dir}/Trimmomatic/{name}_quality_params.txt', 'a') as f:
+            if headcrop > 0:
+                f.write(f'HEADCROP:{headcrop}\n')
+            if crop < float('inf'):
+                f.write(f'CROP:{crop}\n')
             f.write(f'AVGQUAL{avgqual}\n')
             f.write(f'MINLEN:{minlen}\n')
 
@@ -330,8 +329,7 @@ class Preprocesser:
         # rRNA removal
         if args.data == 'mrna':
             rrna_databases = glob.glob('{}/*.fa*'.format(args.rrna_databases_directory))
-            self.rrna_removal(args.input, f'{args.output}/SortMeRNA', name, rrna_databases, threads=args.threads,
-                              original_files=True if args.input == original_input else False)
+            self.rrna_removal(args.input, f'{args.output}/SortMeRNA', name, rrna_databases, threads=args.threads)
 
             if self.paired:
                 args.input = [
@@ -342,8 +340,7 @@ class Preprocesser:
         self.run_fastqc(args.input, f'{args.output}/FastQC', threads=args.threads)
 
         self.quality_trimming(args.input, args.output, name, threads=args.threads, avgqual=args.avgqual,
-                              minlen=args.minlen, original_files=True if args.input == original_input else False,
-                              type_of_data=args.data)
+                              minlen=args.minlen, type_of_data=args.data)
 
         if self.paired:
             args.input = [
