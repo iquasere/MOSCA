@@ -256,8 +256,8 @@ class Preprocesser:
                     if parameter > headcrop:
                         headcrop = parameter
 
-        files = ' '.join(f'{out_dir}/Trimmomatic/quality_trimmed_{name}_{fr}_{pu}.fq' for fr in ['forward', 'reverse']
-                         for pu in ['paired', 'unpaired']) if self.paired else \
+        files = ' '.join([f'{out_dir}/Trimmomatic/quality_trimmed_{name}_{fr}_{pu}.fq' for fr in ['forward', 'reverse']
+                         for pu in ['paired', 'unpaired']]) if self.paired else \
             f'{out_dir}/Trimmomatic/quality_trimmed_{name}.fq'
         run_command(f"trimmomatic {'PE' if self.paired else 'SE'} -threads {threads} {' '.join(files)}"
                     f"{files}{f' CROP:{crop}' if crop < float('inf') else ''}"
