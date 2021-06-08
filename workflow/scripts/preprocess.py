@@ -256,13 +256,13 @@ class Preprocesser:
                     if parameter > headcrop:
                         headcrop = parameter
 
-        run_command(f"""trimmomatic {'PE' if self.paired else 'SE'} -threads {threads} {' '.join(files)} 
-                    {' '.join(f'{out_dir}/Trimmomatic/quality_trimmed_{name}_{fr}_{pu}.fq' 
-                        for fr in ['forward', 'reverse'] for pu in ['paired', 'unpaired']) if self.paired 
-                        else f'{out_dir}/Trimmomatic/quality_trimmed_{name}.fq'}
-                    {f' CROP:{crop}' if crop < float('inf') else ''}
-                    {f' HEADCROP:{headcrop}' if headcrop > 0 else ''} 
-                    AVGQUAL:{avgqual} MINLEN:{minlen}""")
+        files = ' '.join(f'{out_dir}/Trimmomatic/quality_trimmed_{name}_{fr}_{pu}.fq' for fr in ['forward', 'reverse']
+                         for pu in ['paired', 'unpaired']) if self.paired else \
+            f'{out_dir}/Trimmomatic/quality_trimmed_{name}.fq'
+        run_command(f"trimmomatic {'PE' if self.paired else 'SE'} -threads {threads} {' '.join(files)}"
+                    f"{files}{f' CROP:{crop}' if crop < float('inf') else ''}"
+                    f"{f' HEADCROP:{headcrop}' if headcrop > 0 else ''}"
+                    f" AVGQUAL:{avgqual} MINLEN:{minlen}")
 
         with open(f'{out_dir}/Trimmomatic/{name}_quality_params.txt', 'a') as f:
             if headcrop > 0:

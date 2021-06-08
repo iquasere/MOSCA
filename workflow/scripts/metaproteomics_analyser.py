@@ -37,7 +37,7 @@ class MetaproteomicsAnalyser:
         parser.add_argument("-fl", "--files-list", type=str, help="File listing all input spectra")
         parser.add_argument("-t", "--threads", type=str, help="Number of threads to use.")
         parser.add_argument("-o", "--output", type=str, help="Project directory. Output goes to {output}/Metaproteomics")
-        parser.add_argument("-w", "--workflow", type=str, help="Workflow to use", choices=['maxquant','compomics'])
+        parser.add_argument("-w", "--workflow", type=str, help="Workflow to use", choices=['maxquant', 'compomics'])
         parser.add_argument("-db", "--database", type=str,
                             help="Database file (FASTA format) from metagenomics for protein identification")
         parser.add_argument("-cdb", "--contaminants-database", type=str, default=None,
@@ -66,16 +66,16 @@ class MetaproteomicsAnalyser:
         return args
 
     def get_proteome_uniprot(self, taxid, output):
-        res = requests.get('https://www.uniprot.org/uniprot/?query=taxonomy:{}&format=fasta'.format(taxid))
+        res = requests.get(f'https://www.uniprot.org/uniprot/?query=taxonomy:{taxid}&format=fasta')
         with open(output, 'w') as f:
             f.write(res.content.decode('utf8'))
 
     def get_proteome_ncbi(self, taxid, output, i, n_taxids, batch_size=5000, max_attempts=3):
         Entrez.email = "mr.A.Knife@dundermifflin.com"
-        handle = Entrez.esearch(db="protein", term='txid{}[Organism]'.format(taxid))
+        handle = Entrez.esearch(db="protein", term=f'txid{taxid}[Organism]')
         n_records = int(Entrez.read(handle)['Count'])
-        print('[{}/{}] Retrieving [{}] protein sequences for taxa [{}]'.format(i, n_taxids, n_records, taxid))
-        handle = Entrez.esearch(db="protein", term='txid{}[Organism]'.format(taxid), retmax=n_records)
+        print(f'[{i}/{n_taxids}] Retrieving [{n_records}] protein sequences for taxa [{taxid}]')
+        handle = Entrez.esearch(db="protein", term=f'txid{taxid}[Organism]', retmax=n_records)
         result = Entrez.read(handle)
         handle.close()
         pbar = ProgressBar()
@@ -115,14 +115,14 @@ class MetaproteomicsAnalyser:
         mpa_data = mpa_data[mpa_data['NCBI_tax_id'].str.count('\|') == taxa_levels.index(references_taxa_level)]
         taxids = [ide.split('|')[-1] for ide in mpa_data['NCBI_tax_id']]
         if database == 'uniprot':
-            print('Retrieving reference proteomes for {} taxa from UniProt.'.format(len(taxids)))
+            print(f'Retrieving reference proteomes for {len(taxids)} taxa from UniProt.')
             pbar = ProgressBar()
             for taxid in pbar(taxids):
                 self.get_proteome_uniprot(taxid, '{}/{}.fasta'.format(output, taxid))
         else:
-            print('Retrieving reference proteomes for {} taxa from Entrez.'.format(len(taxids)))
+            print(f'Retrieving reference proteomes for {len(taxids)} taxa from Entrez.')
             for i in range(len(taxids)):
-                self.get_proteome_ncbi(taxids[i], '{}/{}.fasta'.format(output, taxids[i]), i + 1, len(taxids),
+                self.get_proteome_ncbi(taxids[i], f'{output}/{taxids[i]}.fasta', i + 1, len(taxids),
                                        batch_size=batch_size, max_attempts=max_attempts)
         return taxids
 
@@ -138,7 +138,7 @@ class MetaproteomicsAnalyser:
     '''
     def database_generation(self, database, output, mpa_result, contaminants_database=None, protease='trypsin',
                             references_taxa_level='genus', batch_size=5000, max_attempts=3, threads='1'):
-        print('Generating new database in {}'.format(output))
+        print(f'Generating new database in {output}')
 
         # Get reference proteomes for the various taxa
 
@@ -149,33 +149,33 @@ class MetaproteomicsAnalyser:
         if protease == 'Trypsin':
             if not os.path.isfile('{}/P00761.fasta'.format(output)):
                 print('Trypsin file not found. Will be downloaded from UniProt.')
-                run_command('wget https://www.uniprot.org/uniprot/P00761.fasta -P {}'.format(output))
-            protease = '{}/P00761.fasta'.format(output)
+                run_command(f'wget https://www.uniprot.org/uniprot/P00761.fasta -P {output}')
+            protease = 'f{output}/P00761.fasta'
         else:       # is an inputed file
             if not os.path.isfile(protease):
-                exit('Protease file does not exist: {}'.format(protease))
+                exit(f'Protease file does not exist: {protease}')
 
-        files = ['{}/{}.fasta'.format(output, taxid) for taxid in taxids] + [database, protease]
+        files = [f'{output}/{taxid}.fasta' for taxid in taxids] + [database, protease]
 
         if contaminants_database is not None:
             self.verify_crap_db(contaminants_database)
             files.append(contaminants_database)
 
-        run_command('cat {}'.format(' '.join(files)),  output='{}/predatabase.fasta'.format(output), mode='w')
+        run_command(f"cat {' '.join(files)}",  output=f'{output}/predatabase.fasta', mode='w')
 
         # Join aminoacid lines, and remove empty lines
-        run_pipe_command("awk '{{if ($0 ~ /^>/) {{print \"\\n\"$0}} else {{printf $0}}}}' {}/predatabase.fasta".format(
-                        output), output='{}/database.fasta'.format(output))
+        run_pipe_command(f"awk '{{if ($0 ~ /^>/) {{print \"\\n\"$0}} else {{printf $0}}}}' {output}/predatabase.fasta",
+                         output=f'{output}/database.fasta')
 
-        run_command('seqkit rmdup -s -i -w 0 -o {0}/unique.fasta -D {0}/seqkit_duplicated.detail.txt -j {1} {0}/database.fasta'.format(
-            output, threads))
+        run_command(f'seqkit rmdup -s -i -w 0 -o {output}/unique.fasta -D {output}/seqkit_duplicated.detail.txt '
+                    f'-j {threads} {output}/database.fasta')
 
         # Remove asterisks (non identified aminoacids) and plicas
-        run_pipe_command("""sed -i "s/[*\']//g" {}/unique.fasta""".format(output))
+        run_pipe_command(f"""sed -i "s/[*\']//g" {output}/unique.fasta""")
 
         run_command(
-            'seqkit rmdup -n -i -w 0 -o {0}/1st_search_database.fasta -D {0}/seqkit_duplicated.detail.txt -j {1} {0}/unique.fasta'.format(
-                output, threads))
+            f'seqkit rmdup -n -i -w 0 -o {output}/1st_search_database.fasta -D {output}/seqkit_duplicated.detail.txt '
+            f'-j {threads} {output}/unique.fasta')
 
     '''
     Input:
@@ -184,8 +184,8 @@ class MetaproteomicsAnalyser:
         format: str - format to convert to the spectra (mgf,)
     '''
     def convert_spectra_format(self, files_list, out_dir, format='mgf', peak_picking=False):
-        run_pipe_command('msconvert -f {} --{} -o {}{}'.format(files_list, format, out_dir,
-                        ' --filter "peakPicking cwt"' if peak_picking else ''))
+        run_pipe_command(f"""msconvert -f {files_list} --{format} -o {out_dir}
+                        {' --filter "peakPicking cwt"' if peak_picking else ''}""")
 
     '''   
     input: 
@@ -194,12 +194,12 @@ class MetaproteomicsAnalyser:
         confirmation of cRAP database presence in the folder, or download of the 
         database if absent
     '''
-    def verify_crap_db(self, contaminants_database = 'MOSCA/Databases/metaproteomics/crap.fasta'):
+    def verify_crap_db(self, contaminants_database='MOSCA/Databases/metaproteomics/crap.fasta'):
         if os.path.isfile(contaminants_database):
-            print('cRAP database exists at ' + contaminants_database)
+            print(f'cRAP database exists at {contaminants_database}')
         else:
-            print('cRAP database not found at ' + contaminants_database + '. Downloading cRAP database.')
-            run_command('wget ftp://ftp.thegpm.org/fasta/cRAP/crap.fasta -O ' + contaminants_database)
+            print(f'cRAP database not found at {contaminants_database}. Downloading cRAP database.')
+            run_command(f'wget ftp://ftp.thegpm.org/fasta/cRAP/crap.fasta -O {contaminants_database}')
 
     '''   
     input:
@@ -212,9 +212,9 @@ class MetaproteomicsAnalyser:
     def create_decoy_database(self, database):
         decoy_database = database.replace('.fasta', '_concatenated_target_decoy.fasta')
         if not os.path.isfile(decoy_database):
-            run_command('searchgui eu.isas.searchgui.cmd.FastaCLI -in {} -decoy'.format(database))
+            run_command(f'searchgui eu.isas.searchgui.cmd.FastaCLI -in {database} -decoy')
         else:
-            print(decoy_database + ' already exists!')
+            print(f'{decoy_database} already exists!')
 
     '''   
     input: 
@@ -225,9 +225,9 @@ class MetaproteomicsAnalyser:
         a parameters file will be produced for SearchCLI and/or PeptideShakerCLI
     '''
     def generate_parameters_file(self, output, database, protein_fdr=100):
-        run_pipe_command(('searchgui eu.isas.searchgui.cmd.IdentificationParametersCLI -out {} -db {} -prec_tol 10 '
-                    '-frag_tol 0.02 -enzyme Trypsin -fixed_mods "Carbamidomethylation of C" -variable_mods "Oxidation '
-                    'of M, Acetylation of protein N-term" -mc 2').format(output, database, protein_fdr))
+        run_pipe_command(f'searchgui eu.isas.searchgui.cmd.IdentificationParametersCLI -out {output} -db {database} '
+                         f'-prec_tol 10 -frag_tol 0.02 -enzyme Trypsin -fixed_mods "Carbamidomethylation of C" '
+                         f'-variable_mods "Oxidation of M, Acetylation of protein N-term" -mc 2') # TODO - what about protein_fdr??
 
     '''   
     input: 
