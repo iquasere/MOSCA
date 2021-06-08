@@ -9,7 +9,7 @@ RUN buildDeps='build-essential zlib1g-dev' \
 && conda config --add channels anaconda \
 && conda config --add channels bioconda \
 && conda config --add channels conda-forge \
-&& bash MOSCA/workflow/envs/install.bash \
+&& bash MOSCA/workflow/envs/ci_install.bash \
 && conda clean --all \
 && apt-get purge -y --auto-remove $buildDeps
 

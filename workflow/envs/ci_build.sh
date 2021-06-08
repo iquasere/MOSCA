@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 
-read -r BASE_DIR
-ENV_DIR="${BASE_DIR}/envs/mosca"
+mosca_path="/share/MOSCA"
+conda_path="/opt/conda"
 
-echo "Storing MOSCA's files in the Conda environment at: ${ENV_DIR}"
-mkdir -p "${ENV_DIR}/share/MOSCA/scripts" "${ENV_DIR}/bin" "${ENV_DIR}/share/MOSCA/resources"
-cp MOSCA/workflow/scripts/* MOSCA/workflow/Snakefile MOSCA/workflow/mosca.py "${ENV_DIR}/share/MOSCA/scripts"
-cp MOSCA/resources/* "${ENV_DIR}/share/MOSCA/resources"
-chmod +x "${ENV_DIR}/share/MOSCA/scripts/mosca.py"
-ln -s "${ENV_DIR}/share/MOSCA/scripts/mosca.py" "${ENV_DIR}/bin/"
+mkdir -p "${mosca_path}/scripts" "${conda_path}/bin"
+cp MOSCA/workflow/scripts/* "${mosca_path}/scripts"
+cp MOSCA/workflow/Snakefile MOSCA/workflow/mosca.py "${mosca_path}/scripts"
+cp MOSCA/resources/* "${mosca_path}/resources"
+chmod +x "${mosca_path}/scripts/mosca.py"
+ln -s "${mosca_path}/scripts/mosca.py" "${conda_path}/bin/"
