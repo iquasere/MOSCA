@@ -61,10 +61,10 @@ jobs:
         run: docker run mosca /bin/bash -c "ls"
 
       - name: Preprocess
-        run: docker run mosca /bin/bash -c "conda activate mosca; python /share/MOSCA/scripts/preprocess.py -i MOSCA/ci/mt4_R1.fastq,MOSCA/ci/mt4_R2.fastq -t 14 -d mrna -rd resources_directory -n mt_name1 -o output_pp"
+        run: docker run mosca /bin/bash -c "python /share/MOSCA/scripts/preprocess.py -i MOSCA/ci/mt4_R1.fastq,MOSCA/ci/mt4_R2.fastq -t 14 -d mrna -rd resources_directory -n mt_name1 -o output_pp"
 
       - name: Assembly
-        run: docker run mosca /bin/bash -c "conda activate mosca; python /share/MOSCA/scripts/assembly.py -r MOSCA/ci/mg_R1.fastq,MOSCA/ci/mg_R2.fastq -t 16 -o output_ass"
+        run: docker run mosca /bin/bash -c "python /share/MOSCA/scripts/assembly.py -r MOSCA/ci/mg_R1.fastq,MOSCA/ci/mg_R2.fastq -t 16 -o output_ass"
 
       - name: Annotation
-        run: docker run mosca /bin/bash -c "conda activate mosca; python /share/MOSCA/scripts/annotation.py -i MOSCA/ci/contigs.fasta -t 16 -o output_ann -db MOSCA/ci/ad_uniprot.fasta"
+        run: docker run mosca /bin/bash -c "python /share/MOSCA/scripts/annotation.py -i MOSCA/ci/contigs.fasta -t 16 -o output_ann -db MOSCA/ci/ad_uniprot.fasta"
