@@ -23,12 +23,13 @@ from Bio import Entrez
 from urllib.error import HTTPError
 import requests
 
+
 # TODO - integrate apt-get install -y libpwiz-tools poppler-utils
 
 
 class MetaproteomicsAnalyser:
 
-    def __init__ (self, **kwargs):
+    def __init__(self, **kwargs):
         self.__dict__ = kwargs
 
     def get_arguments(self):
@@ -36,7 +37,8 @@ class MetaproteomicsAnalyser:
         parser.add_argument("-sf", "--spectra-folder", type=str, help="Folder with spectra to be analysed")
         parser.add_argument("-fl", "--files-list", type=str, help="File listing all input spectra")
         parser.add_argument("-t", "--threads", type=str, help="Number of threads to use.")
-        parser.add_argument("-o", "--output", type=str, help="Project directory. Output goes to {output}/Metaproteomics")
+        parser.add_argument("-o", "--output", type=str,
+                            help="Project directory. Output goes to {output}/Metaproteomics")
         parser.add_argument("-w", "--workflow", type=str, help="Workflow to use", choices=['maxquant', 'compomics'])
         parser.add_argument("-db", "--database", type=str,
                             help="Database file (FASTA format) from metagenomics for protein identification")
@@ -108,6 +110,7 @@ class MetaproteomicsAnalyser:
         batch_size: int - number of IDs per request to NCBI
         max_attemps: int - number of requests failed before giving up
     '''
+
     def add_reference_proteomes(self, mpa_result, output, references_taxa_level='genus', batch_size=5000,
                                 max_attempts=3, database='uniprot'):
         taxa_levels = ['kingdom', 'phylum', 'class', 'order', 'family', 'genus', 'species']
@@ -136,6 +139,7 @@ class MetaproteomicsAnalyser:
         a FASTA file named output will be created, containing the sequences from reference proteomes, metagenomics, 
         contaminants database and of the protease
     '''
+
     def database_generation(self, database, output, mpa_result, contaminants_database=None, protease='trypsin',
                             references_taxa_level='genus', batch_size=5000, max_attempts=3, threads='1'):
         print(f'Generating new database in {output}')
@@ -143,7 +147,7 @@ class MetaproteomicsAnalyser:
         # Get reference proteomes for the various taxa
 
         taxids = self.add_reference_proteomes(mpa_result, output, references_taxa_level,
-                                     batch_size=batch_size, max_attempts=max_attempts)
+                                              batch_size=batch_size, max_attempts=max_attempts)
 
         # Add protease
         if protease == 'Trypsin':
@@ -151,7 +155,7 @@ class MetaproteomicsAnalyser:
                 print('Trypsin file not found. Will be downloaded from UniProt.')
                 run_command(f'wget https://www.uniprot.org/uniprot/P00761.fasta -P {output}')
             protease = 'f{output}/P00761.fasta'
-        else:       # is an inputed file
+        else:  # is an inputed file
             if not os.path.isfile(protease):
                 exit(f'Protease file does not exist: {protease}')
 
@@ -161,7 +165,7 @@ class MetaproteomicsAnalyser:
             self.verify_crap_db(contaminants_database)
             files.append(contaminants_database)
 
-        run_command(f"cat {' '.join(files)}",  output=f'{output}/predatabase.fasta', mode='w')
+        run_command(f"cat {' '.join(files)}", output=f'{output}/predatabase.fasta', mode='w')
 
         # Join aminoacid lines, and remove empty lines
         run_pipe_command(f"awk '{{if ($0 ~ /^>/) {{print \"\\n\"$0}} else {{printf $0}}}}' {output}/predatabase.fasta",
@@ -183,6 +187,7 @@ class MetaproteomicsAnalyser:
         out_dir: str - foldername of output
         format: str - format to convert to the spectra (mgf,)
     '''
+
     def convert_spectra_format(self, files_list, out_dir, format='mgf', peak_picking=False):
         run_pipe_command(f"""msconvert -f {files_list} --{format} -o {out_dir}
                         {' --filter "peakPicking cwt"' if peak_picking else ''}""")
@@ -194,6 +199,7 @@ class MetaproteomicsAnalyser:
         confirmation of cRAP database presence in the folder, or download of the 
         database if absent
     '''
+
     def verify_crap_db(self, contaminants_database='MOSCA/Databases/metaproteomics/crap.fasta'):
         if os.path.isfile(contaminants_database):
             print(f'cRAP database exists at {contaminants_database}')
@@ -209,6 +215,7 @@ class MetaproteomicsAnalyser:
         a FASTA file named "database + _concatenated_target_decoy.fasta" will be 
         created, containing interleaved original and decoy sequences
     '''
+
     def create_decoy_database(self, database):
         decoy_database = database.replace('.fasta', '_concatenated_target_decoy.fasta')
         if not os.path.isfile(decoy_database):
@@ -224,10 +231,12 @@ class MetaproteomicsAnalyser:
     output:
         a parameters file will be produced for SearchCLI and/or PeptideShakerCLI
     '''
-    def generate_parameters_file(self, output, database, protein_fdr=100):
-        run_pipe_command(f'searchgui eu.isas.searchgui.cmd.IdentificationParametersCLI -out {output} -db {database} '
-                         f'-prec_tol 10 -frag_tol 0.02 -enzyme Trypsin -fixed_mods "Carbamidomethylation of C" '
-                         f'-variable_mods "Oxidation of M, Acetylation of protein N-term" -mc 2') # TODO - what about protein_fdr??
+
+    def generate_parameters_file(self, output, database, protein_fdr=1):
+        run_pipe_command(
+            f'searchgui eu.isas.searchgui.cmd.IdentificationParametersCLI -out {output} -db {database} -prec_tol 10 '
+            f'-frag_tol 0.02 -enzyme Trypsin -fixed_mods "Carbamidomethylation of C" -variable_mods '
+            f'"Oxidation of M, Acetylation of protein N-term" -mc 2 -protein_fdr {protein_fdr}')
 
     '''   
     input: 
@@ -238,11 +247,13 @@ class MetaproteomicsAnalyser:
     output:
         a "searchgui_out.zip" file will be created in the output folder
     '''
+
     def peptide_spectrum_matching(self, spectra_folder, output, parameters_file, threads='12',
-                                  search_engines = ['xtandem', 'myrimatch', 'msgf'], max_memory=4096):
-        run_command('searchgui eu.isas.searchgui.cmd.SearchCLI -Xmx{}M -spectrum_files {} -output_folder {} -id_params {} -threads {}{}'.format(
-            max_memory, spectra_folder, output, parameters_file, threads,
-            ''.join([' -' + engine + ' 1' for engine in search_engines])))
+                                  search_engines=('xtandem', 'myrimatch', 'msgf'), max_memory=4096):
+        run_command(
+            f"searchgui eu.isas.searchgui.cmd.SearchCLI -Xmx{max_memory}M -spectrum_files {spectra_folder} "
+            f"-output_folder {output} -id_params {parameters_file} -threads {threads}"
+            f"{''.join([f' -{engine} 1' for engine in search_engines])}")
 
     '''   
     input: 
@@ -258,14 +269,15 @@ class MetaproteomicsAnalyser:
         a file will be outputed with the validation of the PSMs and protein
         identifications
     '''
+
     def browse_identification_results(self, spectra_folder, parameters_file,
                                       searchcli_output, peptideshaker_output, experiment_name='experiment',
                                       sample_name='sample', replicate_number='1', max_memory=4096):
         try:
-            run_command(('peptide-shaker -Xmx{}M eu.isas.peptideshaker.cmd.PeptideShakerCLI -spectrum_files {} ' +
-                       '-experiment {} -sample {} -replicate {} -identification_files {} -out {}').format(
-            max_memory, spectra_folder, experiment_name, sample_name, replicate_number, searchcli_output,
-            peptideshaker_output))
+            run_command(
+                f'peptide-shaker -Xmx{max_memory}M eu.isas.peptideshaker.cmd.PeptideShakerCLI -spectrum_files '
+                f'{spectra_folder} -experiment {experiment_name} -sample {sample_name} -replicate {replicate_number} '
+                f'-identification_files {searchcli_output} -out {peptideshaker_output}')
         except:
             print('Producing Peptide-Shaker result failed! Maybe no identifications were obtained?')
 
@@ -279,18 +291,21 @@ class MetaproteomicsAnalyser:
         if it doesn't exist, "reports_folder" will be created
         reports will be outputed to "reports_folder"
     '''
+
     def generate_reports(self, peptideshaker_output, reports_folder, reports_list=[str(n) for n in range(12)]):
-        print('Created ' + reports_folder)
-        pathlib.Path(reports_folder).mkdir(parents=True, exist_ok=True)                 # creates folder for reports
-        run_command('peptide-shaker eu.isas.peptideshaker.cmd.ReportCLI -in {} -out_reports {} -reports {}'.format(
-            peptideshaker_output, reports_folder, ','.join(reports_list)))
+        print(f'Created {reports_folder}')
+        pathlib.Path(reports_folder).mkdir(parents=True, exist_ok=True)  # creates folder for reports
+        run_command(
+            f"peptide-shaker eu.isas.peptideshaker.cmd.ReportCLI -in {peptideshaker_output} "
+            f"-out_reports {reports_folder} -reports {','.join(reports_list)}")
 
     '''
     Input:
     Output:
     '''
+
     def join_ps_reports(self, files, local_fdr=None, validation=False):
-        result = pd.DataFrame(columns = ['Main Accession'])
+        result = pd.DataFrame(columns=['Main Accession'])
         for file in files:
             data = pd.read_csv(file, sep='\t', index_col=0)
             if local_fdr is not None:
@@ -316,28 +331,28 @@ class MetaproteomicsAnalyser:
         A tab separated spectra count file named "output", with UniProt IDs
         and corresponding spectra quantification
     '''
+
     def spectra_counting(self, protein_reports, output, blast=None, uniprot_ids=False,
-                         samples_names = None):
+                         samples_names=None):
         protein_reports = sort_alphanumeric(protein_reports)
         if samples_names is None:
-            samples_names = [filename.split('/')[-3] for filename in protein_reports]  # samples names are the folder containing the reports folder
-        spectra_count = pd.DataFrame(columns = ['Main Accession'])
+            samples_names = [filename.split('/')[-3] for filename in
+                             protein_reports]  # samples names are the folder containing the reports folder
+        spectra_count = pd.DataFrame(columns=['Main Accession'])
         for i in range(len(protein_reports)):
-            report = pd.read_csv(protein_reports[i], sep = '\t', index_col = 0)
+            report = pd.read_csv(protein_reports[i], sep='\t', index_col=0)
             if not uniprot_ids:
                 blast = parse_blast(blast)
                 blast['sseqid'] = [ide.split('|')[-1] for ide in blast.sseqid]
-                report = pd.merge(report, blast[['qseqid','sseqid']],
-                                 left_on = 'Main Accession', right_on = 'qseqid')
+                report = pd.merge(report, blast[['qseqid', 'sseqid']], left_on='Main Accession', right_on='qseqid')
                 report = report[['sseqid', '#PSMs']]
             else:
                 report = report[['Main Accession', '#PSMs']]
             report.columns = ['Main Accession', samples_names[i]]
             report = report.groupby('Main Accession')[samples_names[i]].sum().reset_index()
-            spectra_count = pd.merge(spectra_count, report, on = 'Main Accession',
-                                     how = 'outer')
-        spectra_count[samples_names] = spectra_count[samples_names].fillna(value = 0).astype(int)
-        spectra_count.to_csv(output, sep = '\t', index = False)
+            spectra_count = pd.merge(spectra_count, report, on='Main Accession', how='outer')
+        spectra_count[samples_names] = spectra_count[samples_names].fillna(value=0).astype(int)
+        spectra_count.to_csv(output, sep='\t', index=False)
 
     '''
     Metaproteomics with MaxQuant
@@ -349,10 +364,12 @@ class MetaproteomicsAnalyser:
     output:
         a standard parameters file for MaxQuant named "output" will be created
     '''
+
     def create_mqpar(self, output):
-        if os.path.isfile(output):                                              # the create file command will not create a new one if the file already exists
-            os.remove(output)                                                   # even if that file already has non-default information in it, messing with the next commands
-        run_command('maxquant {} --create'.format(output))
+        if os.path.isfile(output):  # the create file command will not create a new one if the file already exists
+            os.remove(
+                output)  # even if that file already has non-default information in it, messing with the next commands
+        run_command(f'maxquant {output} --create')
 
     '''
     input:
@@ -363,6 +380,7 @@ class MetaproteomicsAnalyser:
     output:
         the "file" file will be updated with the new parameters
     '''
+
     def edit_maxquant_mqpar(self, mqpar, fasta_database, spectra_folder, experiment_names, threads=1,
                             spectra_format='RAW', protein_fdr=0.01):
         print('Updating parameters file information.')
@@ -375,27 +393,27 @@ class MetaproteomicsAnalyser:
         root.find("numThreads").text = str(threads)
         root.find("proteinFdr").text = str(protein_fdr)
         print('Number of threads = ' + str(threads))
-        for child in ['filePaths/string', 'experiments/string',
-                                    'fractions/short', 'ptms/boolean',
-                                    'paramGroupIndices/int']:
-            tree.xpath(child)[0].getparent().remove(tree.xpath(child)[0])       # the default params file of MaxQuant brings default arguments that can't be present
+        for child in ['filePaths/string', 'experiments/string', 'fractions/short', 'ptms/boolean',
+                      'paramGroupIndices/int']:
+            tree.xpath(child)[0].getparent().remove(tree.xpath(child)[
+                                                        0])  # the default params file of MaxQuant brings default arguments that can't be present
         filePaths = root.find("filePaths")
         experiments = root.find("experiments")
         fractions = root.find("fractions")
         ptms = root.find("ptms")
         paramGroupIndices = root.find("paramGroupIndices")
-        files = sort_alphanumeric(glob.glob('{}/*.{}'.format(spectra_folder, spectra_format)))
+        files = sort_alphanumeric(glob.glob(f'{spectra_folder}/*.{spectra_format}'))
         for i in range(len(files)):
-            print('Adding file: ' + files[i])
+            print(f'Adding file: {files[i]}')
             etree.SubElement(filePaths, 'string').text = files[i]
-            print('Experiment = ' + experiment_names[i])
+            print(f'Experiment = {experiment_names[i]}')
             etree.SubElement(experiments, 'string').text = experiment_names[i]
             etree.SubElement(fractions, 'short').text = '32767'
             etree.SubElement(ptms, 'boolean').text = 'True'
             etree.SubElement(paramGroupIndices, 'int').text = '0'
         root.find("parameterGroups/parameterGroup/lfqMode").text = '1'
         tree.write(mqpar, pretty_print=True)
-        print('Parameters file is available at ' + mqpar)
+        print(f'Parameters file is available at {mqpar}')
 
     '''
     input:
@@ -405,12 +423,13 @@ class MetaproteomicsAnalyser:
     output:
         
     '''
+
     def run_maxquant(self, mqpar, spectra_folder, output_folder):
-        for directory in [spectra_folder + '/combined', output_folder]:
+        for directory in [f'{spectra_folder}/combined', output_folder]:
             if os.path.isdir(directory):
                 shutil.rmtree(directory, ignore_errors=True)
-        run_command('maxquant {}'.format(mqpar))        # TODO - get the shell messages from MaxQuant to appear
-        os.rename(spectra_folder + '/combined', output_folder)
+        run_command(f'maxquant {mqpar}')  # TODO - get the shell messages from MaxQuant to appear
+        os.rename(f'{spectra_folder}/combined', output_folder)
 
     '''
     Input:
@@ -423,6 +442,7 @@ class MetaproteomicsAnalyser:
         replicate_number: str
         protein_fdr: int - FDR at the protein level in percent
     '''
+
     def compomics_workflow(self, database, output, spectra_folder, threads=1, sample_name='sample',
                            experiment_name='experiment', replicate_number='1', protein_fdr=1, max_memory=4096):
 
@@ -430,19 +450,20 @@ class MetaproteomicsAnalyser:
 
         try:  # try/except - https://github.com/compomics/searchgui/issues/217
             self.generate_parameters_file(
-                output + '/params.par',
+                f'{output}/params.par',
                 database.replace('.fasta', '_concatenated_target_decoy.fasta'),
                 protein_fdr=protein_fdr)
         except:
             print('An illegal reflective access operation has occurred. But MOSCA can handle it.')
 
-        self.peptide_spectrum_matching(spectra_folder, output, output + '/params.par', threads=threads, max_memory=max_memory)
+        self.peptide_spectrum_matching(spectra_folder, output, f'{output}/params.par', threads=threads,
+                                       max_memory=max_memory)
 
         self.browse_identification_results(
             spectra_folder,
-            output + '/params.par',
-            output + '/searchgui_out.zip',
-            output + '/ps_output.cpsx',
+            f'{output}/params.par',
+            f'{output}/searchgui_out.zip',
+            f'{output}/ps_output.cpsx',
             max_memory=max_memory,
             sample_name=sample_name,
             experiment_name=experiment_name,
@@ -450,12 +471,12 @@ class MetaproteomicsAnalyser:
 
         try:  # try/except - if no identifications are present, will throw an error
             self.generate_reports(
-                output + '/ps_output.cpsx',
-                output + '/reports')
+                f'{output}/ps_output.cpsx',
+                f'{output}/reports')
         except:
             print('No identifications?')
 
-        #self.spectra_counting('{}/reports/{}_{}_{}_Default_Protein_Report.txt'.format(
+        # self.spectra_counting('{}/reports/{}_{}_{}_Default_Protein_Report.txt'.format(
         #    output, experiment_name, sample_name, replicate_number), self.blast, self.output + '/Spectra_counting.tsv')
 
     '''
@@ -469,7 +490,7 @@ class MetaproteomicsAnalyser:
     '''
 
     def maxquant_workflow(self, mqpar, database, spectra_folder, experiment_names, output, threads=1,
-                     spectra_format='RAW', protein_fdr=0.01):
+                          spectra_format='RAW', protein_fdr=0.01):
         self.create_mqpar(mqpar)
         self.edit_maxquant_mqpar(mqpar, database, spectra_folder, experiment_names, threads=threads,
                                  spectra_format=spectra_format, protein_fdr=protein_fdr)
@@ -480,11 +501,13 @@ class MetaproteomicsAnalyser:
         for file in results_files:
             proteins += pd.read_csv(file, sep='\t')[column].tolist()
         proteins = set(proteins)
-        print('Selected {} proteins for 2nd peptide-to-spectrum matching.'.format(len(proteins)))
-        with open('{}/2nd_search_ids.txt'.format(output), 'w') as f:
+        print(f'Selected {len(proteins)} proteins for 2nd peptide-to-spectrum matching.')
+        with open(f'{output}/2nd_search_ids.txt', 'w') as f:
             f.write('\n'.join(proteins))
-        run_pipe_command("seqkit grep {} -w 0 --id-regexp '\|(.*)\|' -f {}/2nd_search_ids.txt".format(original_db, output),
-                    output='{}/2nd_search_database.fasta'.format(output))   # the '\|(.*)\|' rule also works for the selection of full ids (like the ones coming from FragGeneScan)
+        run_pipe_command(
+            f"seqkit grep {original_db} -w 0 --id-regexp '\|(.*)\|' -f {output}/2nd_search_ids.txt",
+            output=f'{output}/2nd_search_database.fasta'
+        )  # the '\|(.*)\|' rule also works for the selection of full ids (like the ones coming from FragGeneScan)
 
     def run(self):
 
@@ -497,30 +520,31 @@ class MetaproteomicsAnalyser:
             partial_sample = experiments[experiments['Sample'] == sample].reset_index(drop=True)
 
             for foldername in ['spectra', '1st_search', '2nd_search']:
-                pathlib.Path('{}/Metaproteomics/{}/{}'.format(args.output, sample, foldername)).mkdir(
-                    parents=True, exist_ok=True)
-            
+                pathlib.Path(f'{args.output}/Metaproteomics/{sample}/{foldername}').mkdir(parents=True, exist_ok=True)
+
             self.database_generation(
-                args.database, '{}/Metaproteomics/{}'.format(args.output, sample), args.metaphlan_result,
+                args.database, f'{args.output}/Metaproteomics/{sample}', args.metaphlan_result,
                 contaminants_database=args.contaminants_database, protease=args.protease,
                 references_taxa_level=args.references_taxa_level, batch_size=args.batch_size,
                 max_attempts=args.max_attemps)
 
             if args.workflow == 'maxquant':
-                self.maxquant_workflow('{}/mqpar.xml'.format(args.output), '{}/database.fasta'.format(args.output),
-                                       args.spectra_folder, args.experiment_names.split(','), args.output,
-                                       threads=args.threads, spectra_format='RAW', protein_fdr=1)
+                self.maxquant_workflow(
+                    f'{args.output}/mqpar.xml', f'{args.output}/database.fasta', args.spectra_folder,
+                    args.experiment_names.split(','), args.output, threads=args.threads, spectra_format='RAW',
+                    protein_fdr=1)
 
+                # TODO - have to fix this next command - put right names and parameters
                 self.maxquant_workflow('{}/mqpar.xml'.format(args.output), '{}/database.fasta'.format(args.output),
                                        args.spectra_folder, args.experiment_names.split(','), args.output,
-                                       threads=args.threads, spectra_format='RAW', protein_fdr=1)
+                                       threads=args.threads, spectra_format='RAW', protein_fdr=0.01)
 
             elif args.workflow == 'compomics':
                 for name in set(partial_sample['Name']):
                     if os.path.isfile(
                             '{0}/Metaproteomics/{1}/1st_search/{2}/reports/{1}_{2}_1_Default_Protein_Report_with_non-validated_matches.txt'.format(
-                                    args.output, sample, name)):
-                        print('[{}] already analysed!'.format(name))
+                                args.output, sample, name)):
+                        print(f'[{name}] already analysed!')
                         continue
 
                     '''
@@ -559,11 +583,12 @@ class MetaproteomicsAnalyser:
                         args.output, sample)), column='Main Accession')
                 '''
                 for name in set(partial_sample['Name']):
-                    self.compomics_workflow('{}/Metaproteomics/{}/2nd_search_database.fasta'.format(args.output, sample),
-                                            '{}/Metaproteomics/{}/2nd_search/{}'.format(args.output, sample, name),
-                                            '{}/Metaproteomics/{}/spectra/{}'.format(args.output, sample, name),
-                                            threads=args.threads, protein_fdr=1, max_memory=args.max_memory,
-                                            experiment_name=sample, sample_name=name)
+                    self.compomics_workflow(
+                        '{}/Metaproteomics/{}/2nd_search_database.fasta'.format(args.output, sample),
+                        '{}/Metaproteomics/{}/2nd_search/{}'.format(args.output, sample, name),
+                        '{}/Metaproteomics/{}/spectra/{}'.format(args.output, sample, name),
+                        threads=args.threads, protein_fdr=1, max_memory=args.max_memory,
+                        experiment_name=sample, sample_name=name)
 
                 self.join_ps_reports(
                     ['{0}/Metaproteomics/{1}/2nd_search/{2}/reports/{1}_{2}_1_Default_Protein_Report.txt'.format(
@@ -575,11 +600,8 @@ class MetaproteomicsAnalyser:
                 print('Not a valid workflow option!')
             exit()
 
-
-
-
     def background_inputation(self, df):
-        return df.fillna(value = df.min().min())
+        return df.fillna(value=df.min().min())
 
     def censored_inputation(self, df, replicates):
         for replicate in replicates:
@@ -588,17 +610,20 @@ class MetaproteomicsAnalyser:
                     df.loc[df.index[0]][replicates[0]] = (
                         self.background_inputation(df.loc[df.index[0]][replicates[0]]))
 
+
 def censored_inputation(df, replicates):
     pbar = ProgressBar()
     min_val = df.min().min()
     for replicate in pbar(replicates):
         for line in df.index:
             if df.loc[line][replicate].isnull().sum() > 1:
-                df.loc[line][replicate] = df.loc[line][replicate].fillna(value = min_val)
+                df.loc[line][replicate] = df.loc[line][replicate].fillna(value=min_val)
     return df
 
+
 def background_inputation(df):
-    return df.fillna(value = df.min())
+    return df.fillna(value=df.min())
+
 
 if __name__ == '__main__':
     MetaproteomicsAnalyser().run()
