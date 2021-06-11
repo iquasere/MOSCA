@@ -3,7 +3,7 @@
 mosca_path="/share/MOSCA"
 conda_path="/opt/conda"
 
-mkdir -p "${mosca_path}/scripts" "${conda_path}/bin"
+mkdir -p "${mosca_path}/scripts" "${mosca_path}/resources" "${conda_path}/bin"
 cp MOSCA/workflow/scripts/* "${mosca_path}/scripts"
 cp MOSCA/workflow/Snakefile MOSCA/workflow/mosca.py "${mosca_path}/scripts"
 cp MOSCA/resources/* "${mosca_path}/resources"

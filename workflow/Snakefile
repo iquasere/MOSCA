@@ -25,14 +25,13 @@ for i in range(len(experiments)):
         experiments.iloc[i]['Name'] = set_name(experiments.iloc[i]['Files'], experiments.iloc[i]['Data type'])
     if not config['do_assembly']:
         experiments.iloc[i]['Sample'] = experiments.iloc[i]['Name']
-'''
-if input_format == 'excel':
-    experiments.to_excel(config["experiments"], index = False)
-else:
-    experiments.to_csv(config["experiments"], sep = '\t', index = False)
-'''
 
-name2sample = {experiments.iloc[i]['Name'] : experiments.iloc[i]['Sample'] for i in range(len(experiments))}
+if input_format == 'excel':
+    experiments.to_excel(f"{config['output']}/experiments.xlsx", index = False)
+else:
+    experiments.to_csv(f"{config['output']}/experiments.tsv", sep = '\t', index = False)
+
+
 mg_experiments = experiments[experiments["Data type"] == 'dna']
 mt_experiments = experiments[experiments["Data type"] == 'mrna']
 
