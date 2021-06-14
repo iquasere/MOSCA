@@ -23,15 +23,16 @@ It includes the following sections:
 
 MOSCA can be quickly setup by downloading it and compiling from source code with
 ```
-git clone https://github.com/iquasere/MOSCA.git
-bash MOSCA/workflow/envs/install.bash
+wget https://github.com/iquasere/MOSCA/archive/refs/tags/X.X.X.zip
+unzip X.X.X.zip
+bash MOSCA-X.X.X/workflow/envs/install.bash
 ```
-Two configuration files are required for MOSCA, which can be obtained with MOSCA's GUI: [MOSGUITO](https://iquasere.github.io/MOSGUITO/). After obtaining them, MOSCA can be run with this command
+where ```X.X.X``` should be substituted by the version of MOSCA you intend to run. Two configuration files are required for MOSCA, which can be obtained with MOSCA's GUI: [MOSGUITO](https://iquasere.github.io/MOSGUITO/). After obtaining them, MOSCA can be run with this command
 ```
 mosca.py -c config.json
 ```
-Where ```config.json``` is the configuration file obtained with MOSGUITO. Do note that the ```experiments``` parameter should indicate the path to the ```experiments``` file, the second configuration file for MOSCA.
+where ```config.json``` is the configuration file obtained with MOSGUITO. Do note that the ```experiments``` parameter should indicate the path to the ```experiments``` file, the second configuration file for MOSCA.
 
 If the wiki is not enough to elucidate about MOSCA, or if you find any problem related to using MOSCA, don't hesitate in asking, either through an [issue](https://github.com/iquasere/MOSCA/issues) or by directly contacting the developer of MOSCA at jsequeira@ceb.uminho.pt.
 
-If you would like to contribute to this project, a [pull request](https://github.com/iquasere/MOSCA/pulls) is the way to go.
+If you would like to contribute to this project, a [pull request](https://github.com/iquasere/MOSCA/pulls) is the way to go!
