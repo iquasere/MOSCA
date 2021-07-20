@@ -316,8 +316,9 @@ rule differential_expression:
         1
     run:
         conditions = ",".join(map(str, mt_experiments['Condition'].tolist()))
-        shell("Rscript {scripts_dir}/de_analysis.R --readcounts {input} --conditions {conditions} --output {output}/Quantification",
-            conditions = conditions, output = config["output"])
+        shell("Rscript {scripts_dir}/de_analysis.R --readcounts {input} --conditions {conditions} --output {output}/Quantification"
+              "--minimum-fold-change {minimum_fold_change}",
+              conditions = conditions, output = config["output"], minimum_fold_change = config["minimum_fold_change"])
 
 rule keggcharter:
     input:

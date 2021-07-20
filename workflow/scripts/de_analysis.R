@@ -10,20 +10,20 @@ for (package in packages){
     eval(bquote(library(.(package))))
     }
 
-option_list = list(
-    make_option(c("-r", "--readcounts"), type="character", default=NULL, 
-                help="The expression matrix", metavar="character"),
-    make_option(c("-c", "--conditions"), type="list", metavar="character",
-                help="The conditions to define duplicates (e.g. 'c1,c1,c2,c2')",
-                default=NULL),
-    make_option(c("-m", "--method"), default="differential", type="character", 
+option_list <- list(
+    make_option(c("-r", "--readcounts"), type="character", default=NULL, metavar="character",
+                help="The expression matrix"),
+    make_option(c("-c", "--conditions"), type="list", metavar="character", default=NULL,
+                help="The conditions to define duplicates (e.g. 'c1,c1,c2,c2')"),
+    make_option(c("-m", "--method"), default="differential", type="character", metavar="character",
                 help="Method for ordering rows in protein expression heatmap 
-                [differential/abundance]", metavar="character",),
-    make_option(c("-o", "--output"), type="character", default=NULL, 
-                help="Output directory", metavar="character"));
+                [differential/abundance]"),
+    make_option(c("-o", "--output"), type="character", default=NULL, help="Output directory", metavar="character"),
+    make_option(c("-mfc", "--minimum-fold-change"), type="integer", default=1, metavar="character",
+                help="Minimum fold change for two-tailed hypothesis of differential expression significance"))
 
-opt_parser = OptionParser(option_list=option_list);
-opt = parse_args(opt_parser);
+opt_parser <- OptionParser(option_list=option_list)
+opt <- parse_args(opt_parser)
 
 paste("Readcounts:", opt$readcounts, sep=' ')
 paste("Conditions:", opt$conditions, sep=' ')
@@ -35,13 +35,13 @@ opt$conditions <- strsplit(opt$conditions, ",")[[1]]
 total <- read.table(opt$readcounts, h=T, row.names=1, sep = '\t')
 condition <- factor(opt$conditions)
 total <- total[ rowSums(total) > 1, ]
-cd = data.frame(opt$conditions)
-colnames(cd)[1]="condition"
-rownames(cd)=colnames(total)
+cd <- data.frame(opt$conditions)
+colnames(cd)[1] <- "condition"
+rownames(cd) <- colnames(total)
 
 dds <- DESeqDataSetFromMatrix(countData = total, colData = cd, design = ~condition)
 dds <- DESeq(dds)
-res <- results(dds)
+res <- results(dds, lfcThreshold = log2(opt$minimum_fold_change))
 data <- counts(estimateSizeFactors(dds), normalized=TRUE)
 write.csv(data, paste(file=opt$output, "normalized_counts.csv", sep = '/'), quote = FALSE)
 
@@ -63,8 +63,8 @@ if(identical(opt$method, "differential")) {
 write.csv(as.data.frame(resOrdered), quote = FALSE, 
           paste(file=opt$output, "condition_treated_results.csv", sep = '/'))
 vsd <- varianceStabilizingTransformation(dds, blind=FALSE)
-select=rownames(head(resOrdered,20))
-vsd.counts = assay(vsd)[select,]
+select <- rownames(head(resOrdered,20))
+vsd.counts <- assay(vsd)[select,]
 jpeg(paste(opt$output, "gene_expression.jpeg", sep = '/'))
 pheatmap(vsd.counts)
 dev.off()

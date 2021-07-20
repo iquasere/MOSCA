@@ -4,8 +4,8 @@ import numpy as np
 import pandas as pd
 import multiprocessing
 from mosca_tools import timed_message, parse_blast, normalize_mg_readcounts_by_size, add_abundance, multi_sheet_excel, \
-    normalize_readcounts, run_command
-import sys
+    normalize_readcounts, run_command, parse_fasta
+
 
 class Joiner:
 
@@ -16,8 +16,7 @@ class Joiner:
         parser = argparse.ArgumentParser(description="MOSCA's Protein and Entry reports")
         parser.add_argument("-e", "--experiments", type=str, required=True,
                             help="Experiments file")
-        parser.add_argument("-t", "--threads", type=str,
-                            default=str(multiprocessing.cpu_count() - 2),
+        parser.add_argument("-t", "--threads", type=str, default=str(multiprocessing.cpu_count() - 2),
                             help="Number of threads for reCOGnizer to use. Default is number of CPUs available minus 2.")
         parser.add_argument("-if", "--input-format", type=str, default='tsv', choices=['tsv', 'excel'])
         parser.add_argument("-o", "--output", type=str, help="Output directory")
@@ -139,6 +138,7 @@ class Joiner:
                 data.groupby(functional_columns)[mg_name].sum().reset_index()[[mg_name] + functional_columns].to_csv(
                     f'{args.output}/{mg_name}_fun.tsv', sep='\t', index=False, header=False)
                 run_command('ktImportText {0}/{1}_fun.tsv -o {0}/{1}_fun.html'.format(args.output, mg_name))
+
 
 if __name__ == '__main__':
     Joiner().run()
