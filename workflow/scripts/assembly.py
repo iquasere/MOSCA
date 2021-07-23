@@ -27,14 +27,20 @@ class Assembler:
         parser.add_argument("-r", "--reads", type=str, required=True,
                             help="Reads files for assembly")
         parser.add_argument("-o", "--output", type=str, help="Output directory")
-        parser.add_argument("-t", "--threads", type=str,
-                            default=str(multiprocessing.cpu_count() - 2),
-                            help="Number of threads to use. Default is number of CPUs available minus 2.")
+        parser.add_argument("-t", "--threads", type=str, default=str(multiprocessing.cpu_count() - 2),
+                            help="Number of threads to use [max available - 2]")
         parser.add_argument("-a", "--assembler", type=str, choices=["metaspades", "megahit", "rnaspades"],
-                            help="Tool for assembling the reads", default="metaspades")
-        # default memory is a third of total available memory
+                            help="Tool for assembling the reads [metaspades]", default="metaspades")
         parser.add_argument("-m", "--memory", default=psutil.virtual_memory().available / (1024.0 ** 3) / 3, type=float,
-                            help="Maximum memory (Gb) available for assembly tools.")
+                            help="Maximum memory (Gb) available for assembly tools [max available memory / 3]")
+        parser.add_argument("-rl", "--read-length", type=str, default=150, help="Average length of reads [150]")
+        parser.add_argument("-is", "--insert-size", type=str, default=2500, help="Average insert size [2500]")
+        parser.add_argument("-stdi", "--std-insert", type=str, default=10,
+                            help="Standard deviation of insert size [2500]")
+        parser.add_argument("-bq", "--base-qual", type=str, default='phred33', choices=['phred33', 'phred64'],
+                            help="Quality format of base call of reads files")
+
+
         args = parser.parse_args()
 
         args.output = args.output.rstrip('/')
@@ -57,7 +63,13 @@ class Assembler:
         return lines[-1].split('%')[0]
 
     def run_metaquast(self, contigs, out_dir, threads='12'):
-        run_command(f'metaquast.py --threads {threads} --output-dir {out_dir} --max-ref-number 0 {contigs}')
+        run_command(f'metaquast.py --threads {threads} --output-dir {out_dir} {contigs}')
+
+    def close_gaps(self, scaffolds, contigs, output_basename, read1, read2, read_length=150, insert_size=1500,
+                   std_insert=10, threads=14, base_qual='phred33'):
+        run_command(f'gmcloser --target_scaf {scaffolds} --query_seq {contigs} --prefix_out {output_basename} '
+                    f'-r {read1} {read2} --read_len {read_length} --insert {insert_size} --sd_insert {std_insert} '
+                    f'--thread {threads} --base_qual {base_qual}')
 
     def run(self):
         args = self.get_arguments()
@@ -73,6 +85,12 @@ class Assembler:
             run_pipe_command(f"awk \'{{print $1}}\' {args.output}/final.contigs.fa",
                              # k141_714 flag=1 multi=1.0000 len=369 -> k141_714
                              output=f'{args.output}/contigs.fasta')
+            shutil.copyfile(f'{args.output}/contigs.fasta', f'{args.output}/scaffolds.fasta'
+                            )   # TODO - put SOAPdenovo producing scaffolds from Megahit
+
+        self.close_gaps(f'{args.output}/scaffolds.fasta', f'{args.output}/contigs.fasta', f'{args.output}/gap_close',
+                        args.reads[0], args.reads[1], read_length=args.read_length, insert_size=args.insert_size,
+                        std_insert=args.std_insert, threads=args.threads, base_qual=args.base_qual)
 
         # Quality control
         pathlib.Path(f'{args.output}/quality_control').mkdir(parents=True, exist_ok=True)
@@ -83,7 +101,7 @@ class Assembler:
         percentage_of_reads = self.percentage_of_reads(f'{args.output}/quality_control/alignment.log')
 
         if os.path.isfile(f'{args.output}/quality_control/combined_reference/report.tsv'
-                        ):  # if metaquast finds references to the contigs, it will output results to different folders
+                          ):  # if metaquast finds references to contigs, it will output results to different folders
             shutil.copyfile(f'{args.output}/quality_control/combined_reference/report.tsv',
                             f'{args.output}/quality_control/report.tsv')
         with open(args.output + '/quality_control/report.tsv', 'a') as f:

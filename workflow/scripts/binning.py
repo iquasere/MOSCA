@@ -11,6 +11,10 @@ Nov 2018
 from mosca_tools import run_command
 import argparse
 import multiprocessing
+import pandas as pd
+import shutil
+import pathlib
+
 
 class Binner:
     def __init__(self, **kwargs):
@@ -19,18 +23,15 @@ class Binner:
     def get_arguments(self):
         parser = argparse.ArgumentParser(description="MOSCA binning")
 
-        parser.add_argument("-c", "--contigs", type=str, required=True,
-                            help="Filename of contigs")
-        parser.add_argument("-t", "--threads", type=str,
-                            default=str(multiprocessing.cpu_count() - 2),
+        parser.add_argument("-c", "--contigs", type=str, required=True, help="Filename of contigs")
+        parser.add_argument("-t", "--threads", type=int, default=multiprocessing.cpu_count() - 2,
                             help="Number of threads to use.")
-        parser.add_argument("-o", "--output", type=str, help="Output directory"),
-        parser.add_argument("-mset", "--markerset", type=str, default='40',
-                            help="Set of marker genes to use (40 - all taxa; 107 - only bacteria)",
-                            choices=['40', '107'])
-        parser.add_argument("-s", "--sample", type=str, default='Sample',
-                            help="Name of sample analysed")
+        parser.add_argument("-o", "--output", type=str, help="Output directory")
+        parser.add_argument("-mset", "--markerset", type=str, default='40', choices=['40', '107'],
+                            help="Set of marker genes to use (40 - all taxa; 107 - only bacteria)")
+        parser.add_argument("-s", "--sample", type=str, default='Sample', help="Name of sample analysed")
         parser.add_argument("-r", "--reads", type=str, help="Filenames of reads")
+        parser.add_argument("-ib", "--iterative-binning", action='store_true', default=False, help="Output directory")
 
         args = parser.parse_args()
 
@@ -57,11 +58,12 @@ class Binner:
         markergenes used to compose the bins named basename + .marker
         contigs not included in any bin named basename + .noclass
     '''
-    def run_maxbin(self, contigs, output, threads=8, reads=None, reads2=None,
-                   abundance=None, markerset='40'):
-        run_command('run_MaxBin.pl -contig {} -out {} -thread {} -markerset {}{}{}'.format(
-            contigs, output, threads, markerset,' -reads1 {}'.format(reads) if reads else '',
-            ' -reads2 {}'.format(reads2) if reads2 else ''))
+    def run_maxbin(self, contigs, output, threads=8, reads=None, reads2=None, markerset='40', prob_threshold=0.9):
+        output_folder = '/'.join(output.split('/')[:-1])    # remove the basename
+        pathlib.Path(output_folder).mkdir(parents=True, exist_ok=True)
+        run_command(f'run_MaxBin.pl -contig {contigs} -out {output} -thread {threads} -markerset {markerset} '
+                    f'-prob_threshold {prob_threshold}'
+                    f'{f" -reads1 {reads}" if reads else ""}{f" -reads2 {reads2}" if reads2 else ""}')
 
     '''
     Input:
@@ -70,9 +72,56 @@ class Binner:
     Output:
         checkm.tsv is the table with completeness and contamination for each bin
     '''
-    def run_checkm(self, bins_folder, threads='12'):
-        run_command('checkm lineage_wf -x fasta -r --ali --nt -t {0} --pplacer_threads {0} {1} {1} --tab_table --file {1}/checkm.tsv'.format(
-                threads, bins_folder))
+    def run_checkm(self, bins_folder, threads=12):
+        run_command(f'checkm lineage_wf -x fasta -r --ali --nt -t {threads} --pplacer_threads {threads} {bins_folder} '
+                    f'{bins_folder} --tab_table --file {bins_folder}_checkm.tsv')
+
+    def better_bin(self, table1, table2):
+        table1 = pd.read_csv(table1, sep='\t')
+        table2 = pd.read_csv(table2, sep='\t')
+
+        hq_bins1 = ((table1.Completeness >= 90) & (table1.Contamination < 5)).sum()
+        mq_bins1 = ((table1.Completeness < 90) & (table1.Completeness >= 50) & (table1.Contamination < 10)).sum()
+        lq_bins1 = ((table1.Completeness < 50) & (table1.Contamination < 10)).sum()
+
+        hq_bins2 = ((table2.Completeness > 0.9) & (table2.Contamination < 5)).sum()
+        mq_bins2 = ((table2.Completeness < 90) & (table2.Completeness >= 50) & (table2.Contamination < 10)).sum()
+        lq_bins2 = ((table2.Completeness < 50) & (table2.Contamination < 10)).sum()
+
+        if hq_bins1 > hq_bins2:
+            return True
+        elif hq_bins1 < hq_bins2:
+            return False
+        if mq_bins1 > mq_bins2:
+            return True
+        elif mq_bins1 < mq_bins2:
+            return False
+        if lq_bins1 > lq_bins2:
+            return True
+        elif lq_bins1 < lq_bins2:
+            return False
+        return None
+
+    def iterative_binning(self, contigs, output, threads=8, reads=None, reads2=None, markerset='40'):
+        best_bin = 10
+        sample = output.split('/')[-1]
+        for prob_threshold in range(10, 100, 10):  # [10, 20, 30, 40, 50, 60, 70, 80, 90]
+            print(f'Probability threshold: {prob_threshold}')
+            self.run_maxbin(contigs, f'{output}_{prob_threshold}/{sample}_{prob_threshold}', threads=threads,
+                            reads=reads, reads2=reads2, markerset=markerset, prob_threshold=prob_threshold / 100)
+            self.run_checkm(f'{output}_{prob_threshold}', threads=threads)
+
+            if prob_threshold > 10:
+                if self.better_bin(f'{output}_{prob_threshold}_checkm.tsv',
+                                   f'{output}_{best_bin}_checkm.tsv'):
+                    shutil.rmtree(f'{output}_{best_bin}')
+                    print(f'Removed files for probability threshold: {best_bin}')
+                    best_bin = prob_threshold
+                else:
+                    shutil.rmtree(f'{output}_{prob_threshold}')
+                    print(f'Removed files for probability threshold: {prob_threshold}')
+
+        print(f'Best probability threshold: {best_bin}')
 
     def run(self):
         args = self.get_arguments()
@@ -83,9 +132,15 @@ class Binner:
             reads2 = files[1]
 
         sample = args.output.split('/')[-1]
-        self.run_maxbin(args.contigs, '{}/{}'.format(args.output, sample), threads=args.threads,
-                        reads=reads, reads2=reads2, markerset=args.markerset)
-        self.run_checkm(args.output, threads=args.threads)
+
+        if args.iterative_binning:
+            self.iterative_binning(args.contigs, f'{args.output}/{sample}', threads=args.threads, reads=reads,
+                                   reads2=reads2, markerset=args.markerset)
+        else:
+            self.run_maxbin(args.contigs, f'{args.output}/{sample}', threads=args.threads, reads=reads, reads2=reads2,
+                            markerset=args.markerset)
+            self.run_checkm(args.output, threads=args.threads)
+
 
 if __name__ == '__main__':
     Binner().run()

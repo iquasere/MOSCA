@@ -75,7 +75,7 @@ def fastq2fasta_input(wildcards):
 
 def annotation_input(wildcards):
     if config['do_assembly']:
-        return expand("{output}/Assembly/{sample}/contigs.fasta", output = config["output"],
+        return expand("{output}/Assembly/{sample}/scaffolds.fasta", output = config["output"],
             sample = set(experiments['Sample']))
     return expand("{output}/Preprocess/piled_{name}.fasta", output = config["output"],
         name = wildcards.sample)
@@ -131,6 +131,8 @@ rule assembly:
             fr = (['_forward', '_reverse'] if experiments["Files"].str.contains(',').tolist() else ''))
     output:
         expand("{output}/Assembly/{sample}/contigs.fasta", output = config["output"],
+            sample = set(experiments['Sample'])),
+        expand("{output}/Assembly/{sample}/scaffolds.fasta", output = config["output"],
             sample = set(experiments['Sample']))
     threads:
         config["threads"]
@@ -146,7 +148,7 @@ rule binning:
         reads = expand("{output}/Preprocess/{sample}{fr}.fastq", output = config["output"],
             sample = set(experiments['Sample']),
             fr = (['_forward', '_reverse'] if experiments["Files"].str.contains(',').tolist() else '')),
-        contigs = expand("{output}/Assembly/{sample}/contigs.fasta", output = config["output"],
+        contigs = expand("{output}/Assembly/{sample}/scaffolds.fasta", output = config["output"],
             sample = set(experiments['Sample']))
     output:
         expand("{output}/Binning/{sample}/checkm.tsv", output = config["output"], sample = set(experiments['Sample']))
@@ -155,8 +157,9 @@ rule binning:
     run:
         reads = ",".join(input.reads)
         shell("python {scripts_dir}/binning.py -c {input.contigs} -t {threads} -o {output}/Binning/{sample} -r {reads} "
-              "-mset {markerset}",
-            output = config["output"], markerset = config["markerset"], sample = set(experiments['Sample']))
+              "-mset {markerset}{iterative_binning}",
+              output = config["output"], markerset = config["markerset"], sample = set(experiments['Sample']),
+              iterative_binning = ' --iterative-binning' if config['do_iterative_binning'] else '')
 
 rule fastq2fasta:
     input:

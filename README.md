@@ -23,11 +23,11 @@ It includes the following sections:
 
 MOSCA can be quickly setup by downloading it and compiling from source code with
 ```
-wget https://github.com/iquasere/MOSCA/archive/refs/tags/X.X.X.zip
-unzip X.X.X.zip
-bash MOSCA-X.X.X/workflow/envs/install.bash
+git clone https://github.com/iquasere/MOSCA.git
+bash MOSCA/workflow/envs/install.bash
+conda activate mosca
 ```
-where ```X.X.X``` should be substituted by the version of MOSCA you intend to run. Two configuration files are required for MOSCA, which can be obtained with MOSCA's GUI: [MOSGUITO](https://iquasere.github.io/MOSGUITO/). After obtaining them, MOSCA can be run with this command
+Two configuration files are required for MOSCA, which can be obtained with MOSCA's GUI: [MOSGUITO](https://iquasere.github.io/MOSGUITO/). After obtaining them, MOSCA can be run with this command
 ```
 mosca.py -c config.json
 ```

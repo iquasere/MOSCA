@@ -19,7 +19,7 @@ option_list <- list(
                 help="Method for ordering rows in protein expression heatmap 
                 [differential/abundance]"),
     make_option(c("-o", "--output"), type="character", default=NULL, help="Output directory", metavar="character"),
-    make_option(c("-mfc", "--minimum-fold-change"), type="integer", default=1, metavar="character",
+    make_option(c("-f", "--foldchange"), type="integer", default=2, metavar="character",
                 help="Minimum fold change for two-tailed hypothesis of differential expression significance"))
 
 opt_parser <- OptionParser(option_list=option_list)
@@ -29,6 +29,7 @@ paste("Readcounts:", opt$readcounts, sep=' ')
 paste("Conditions:", opt$conditions, sep=' ')
 paste("Method:", opt$method, sep=' ')
 paste("Output:", opt$output, sep=' ')
+paste("Minimum fold change:", opt$foldchange, sep=' ')
 
 opt$conditions <- strsplit(opt$conditions, ",")[[1]]
 
@@ -41,9 +42,9 @@ rownames(cd) <- colnames(total)
 
 dds <- DESeqDataSetFromMatrix(countData = total, colData = cd, design = ~condition)
 dds <- DESeq(dds)
-res <- results(dds, lfcThreshold = log2(opt$minimum_fold_change))
+res <- results(dds, lfcThreshold = log2(opt$foldchange))
 data <- counts(estimateSizeFactors(dds), normalized=TRUE)
-write.csv(data, paste(file=opt$output, "normalized_counts.csv", sep = '/'), quote = FALSE)
+write.table(data, file=paste(file=opt$output, "normalized_counts.tsv", sep = '/'), sep='\t', col.names = NA, quote=FALSE)
 
 # Bland–Altman plot
 jpeg(paste(opt$output, "ma.jpeg", sep = '/'))
@@ -60,8 +61,8 @@ if(identical(opt$method, "differential")) {
     resOrdered <- res[order(res$padj),]
 } else {
     resOrdered <- res[order(-res$baseMean),]}
-write.csv(as.data.frame(resOrdered), quote = FALSE, 
-          paste(file=opt$output, "condition_treated_results.csv", sep = '/'))
+write.table(as.data.frame(resOrdered), file=paste(file=opt$output, "condition_treated_results.tsv", sep = '/'),
+            sep='\t', col.names = NA, quote=FALSE)
 vsd <- varianceStabilizingTransformation(dds, blind=FALSE)
 select <- rownames(head(resOrdered,20))
 vsd.counts <- assay(vsd)[select,]
