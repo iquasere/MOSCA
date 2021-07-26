@@ -134,7 +134,7 @@ class Binner:
         sample = args.output.split('/')[-1]
 
         if args.iterative_binning:
-            self.iterative_binning(args.contigs, f'{args.output}/{sample}', threads=args.threads, reads=reads,
+            self.iterative_binning(args.contigs, f'{args.output}', threads=args.threads, reads=reads,
                                    reads2=reads2, markerset=args.markerset)
         else:
             self.run_maxbin(args.contigs, f'{args.output}/{sample}', threads=args.threads, reads=reads, reads2=reads2,
