@@ -39,6 +39,8 @@ class Assembler:
                             help="Standard deviation of insert size [2500]")
         parser.add_argument("-bq", "--base-qual", type=str, default='phred33', choices=['phred33', 'phred64'],
                             help="Quality format of base call of reads files")
+        parser.add_argument("-mrn", "--max-ref-number", type=int, default=50,
+                            help="Maximum references to be downloaded by MetaQUAST")
 
 
         args = parser.parse_args()
@@ -62,8 +64,9 @@ class Assembler:
         lines = handler.readlines()
         return lines[-1].split('%')[0]
 
-    def run_metaquast(self, contigs, out_dir, threads='12'):
-        run_command(f'metaquast.py --threads {threads} --output-dir {out_dir} {contigs}')
+    def run_metaquast(self, contigs, out_dir, threads='12', max_ref_number=50):
+        run_command(f'metaquast.py --threads {threads} --output-dir {out_dir} --max-ref-number {max_ref_number} '
+                    f'{contigs}')
 
     def close_gaps(self, scaffolds, contigs, output_basename, read1, read2, read_length=150, insert_size=1500,
                    std_insert=10, threads=14, base_qual='phred33'):
