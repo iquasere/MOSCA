@@ -1,4 +1,6 @@
-<img src="https://github.com/iquasere/MOSCA/blob/master/mosca_logo.png" align="center" height="300">
+<p align="center">
+  <img src="https://github.com/iquasere/MOSCA/blob/master/mosca_logo.png" height="300">
+</p>
 
 Logo by [Sérgio A. Silva](https://www.ceb.uminho.pt/People/Details/64888072-5cde-42da-b7e5-691d380cefb2)
 
