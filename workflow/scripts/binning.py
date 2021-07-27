@@ -122,6 +122,8 @@ class Binner:
                     print(f'Removed files for probability threshold: {prob_threshold}')
         shutil.copyfile(f'{output}_{best_bin}_checkm.tsv', f'{"/".join(output.split("/")[:-1])}/checkm.tsv')
         print(f'Best probability threshold: {best_bin}')
+        with open(f'{output}/result.txt', 'w') as f:
+            f.write(f'Best probability threshold: {best_bin}')
 
     def run(self):
         args = self.get_arguments()

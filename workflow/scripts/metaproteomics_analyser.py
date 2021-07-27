@@ -72,36 +72,6 @@ class MetaproteomicsAnalyser:
         with open(output, 'w') as f:
             f.write(res.content.decode('utf8'))
 
-    def get_proteome_ncbi(self, taxid, output, i, n_taxids, batch_size=5000, max_attempts=3):
-        Entrez.email = "mr.A.Knife@dundermifflin.com"
-        handle = Entrez.esearch(db="protein", term=f'txid{taxid}[Organism]')
-        n_records = int(Entrez.read(handle)['Count'])
-        print(f'[{i}/{n_taxids}] Retrieving [{n_records}] protein sequences for taxa [{taxid}]')
-        handle = Entrez.esearch(db="protein", term=f'txid{taxid}[Organism]', retmax=n_records)
-        result = Entrez.read(handle)
-        handle.close()
-        pbar = ProgressBar()
-        if os.path.isfile(output):
-            os.remove(output)
-        for i in pbar(range(0, len(result["IdList"]), batch_size)):
-            attempt = 0
-            success = False
-            end = min(len(result["IdList"]), i + batch_size)
-            while attempt < max_attempts and not success:
-                attempt += 1
-                try:
-                    fetch_handle = Entrez.efetch(db="protein", id=result["IdList"][i:end], rettype="fasta",
-                                                 retmode="text")
-                except HTTPError as err:
-                    if 500 <= err.code <= 599:
-                        print("Received error from server %s" % err)
-                        print("Attempt %i of 3" % attempt)
-                        time.sleep(15)
-                    else:
-                        raise
-            with open(output, 'a+') as f:
-                f.write(fetch_handle.read())
-
     '''
     Input:
         mpa_result: str - filename of MetaPhlan result
@@ -111,22 +81,15 @@ class MetaproteomicsAnalyser:
         max_attemps: int - number of requests failed before giving up
     '''
 
-    def add_reference_proteomes(self, mpa_result, output, references_taxa_level='genus', batch_size=5000,
-                                max_attempts=3, database='uniprot'):
+    def add_reference_proteomes(self, mpa_result, output, references_taxa_level='genus'):
         taxa_levels = ['kingdom', 'phylum', 'class', 'order', 'family', 'genus', 'species']
         mpa_data = pd.read_csv(mpa_result, sep='\t', skiprows=3)
         mpa_data = mpa_data[mpa_data['NCBI_tax_id'].str.count('\|') == taxa_levels.index(references_taxa_level)]
         taxids = [ide.split('|')[-1] for ide in mpa_data['NCBI_tax_id']]
-        if database == 'uniprot':
-            print(f'Retrieving reference proteomes for {len(taxids)} taxa from UniProt.')
-            pbar = ProgressBar()
-            for taxid in pbar(taxids):
-                self.get_proteome_uniprot(taxid, '{}/{}.fasta'.format(output, taxid))
-        else:
-            print(f'Retrieving reference proteomes for {len(taxids)} taxa from Entrez.')
-            for i in range(len(taxids)):
-                self.get_proteome_ncbi(taxids[i], f'{output}/{taxids[i]}.fasta', i + 1, len(taxids),
-                                       batch_size=batch_size, max_attempts=max_attempts)
+        print(f'Retrieving reference proteomes for {len(taxids)} taxa from UniProt.')
+        pbar = ProgressBar()
+        for taxid in pbar(taxids):
+            self.get_proteome_uniprot(taxid, '{}/{}.fasta'.format(output, taxid))
         return taxids
 
     '''   
@@ -145,7 +108,6 @@ class MetaproteomicsAnalyser:
         print(f'Generating new database in {output}')
 
         # Get reference proteomes for the various taxa
-
         taxids = self.add_reference_proteomes(mpa_result, output, references_taxa_level,
                                               batch_size=batch_size, max_attempts=max_attempts)
 
@@ -177,9 +139,8 @@ class MetaproteomicsAnalyser:
         # Remove asterisks (non identified aminoacids) and plicas
         run_pipe_command(f"""sed -i "s/[*\']//g" {output}/unique.fasta""")
 
-        run_command(
-            f'seqkit rmdup -n -i -w 0 -o {output}/1st_search_database.fasta -D {output}/seqkit_duplicated.detail.txt '
-            f'-j {threads} {output}/unique.fasta')
+        run_command(f'seqkit rmdup -n -i -w 0 -o {output}/1st_search_database.fasta '
+                    f'-D {output}/seqkit_duplicated.detail.txt -j {threads} {output}/unique.fasta')
 
     '''
     Input:
@@ -547,7 +508,6 @@ class MetaproteomicsAnalyser:
                         print(f'[{name}] already analysed!')
                         continue
 
-                    '''
                     for foldername in ['spectra', '1st_search', '2nd_search']:
                         pathlib.Path('{}/Metaproteomics/{}/{}/{}'.format(args.output, sample, foldername, name)).mkdir(
                             parents=True, exist_ok=True)
@@ -581,7 +541,7 @@ class MetaproteomicsAnalyser:
                     '{}/Metaproteomics/{}'.format(args.output, sample),
                     glob.glob('{}/Metaproteomics/{}/1st_search/*/reports/*_Protein_Report_with_non-validated_matches.txt'.format(
                         args.output, sample)), column='Main Accession')
-                '''
+
                 for name in set(partial_sample['Name']):
                     self.compomics_workflow(
                         '{}/Metaproteomics/{}/2nd_search_database.fasta'.format(args.output, sample),

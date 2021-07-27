@@ -1,3 +1,4 @@
+import pathlib
 import pandas as pd
 import shutil
 import sys
@@ -22,9 +23,12 @@ def set_name(files, data_type):
 
 for i in range(len(experiments)):
     if pd.isnull(experiments.iloc[i]['Name']):
-        experiments.iloc[i]['Name'] = set_name(experiments.iloc[i]['Files'], experiments.iloc[i]['Data type'])
+        experiments.iloc[i, experiments.columns.get_loc('Name')] = set_name(experiments.iloc[i]['Files'],
+                                                                            experiments.iloc[i]['Data type'])
     if not config['do_assembly']:
         experiments.iloc[i]['Sample'] = experiments.iloc[i]['Name']
+
+pathlib.Path(f"{config['output']}").mkdir(parents=True, exist_ok=True)
 
 if input_format == 'excel':
     experiments.to_excel(f"{config['output']}/experiments.xlsx", index = False)
@@ -34,15 +38,7 @@ else:
 
 mg_experiments = experiments[experiments["Data type"] == 'dna']
 mt_experiments = experiments[experiments["Data type"] == 'mrna']
-
-'''
-sample2mgname = dict()
-for row in mg_experiments.iterrows():
-    if row[1].loc['Sample'] in sample2mgname.keys():
-        sample2mgname[row[1].loc['Sample']].append(row[1].loc['Name'])
-    else:
-        sample2mgname[row[1].loc['Sample']] = [row[1].loc['Name']]
-'''
+not_mp_experiments = experiments[experiments["Data type"] != 'protein']
 
 def all_input(wildcards):
     if config['do_assembly']:
@@ -63,10 +59,9 @@ def preprocess_input(wildcards):
 
 def join_reads_input(wildcards):
     df = mg_experiments.loc[mg_experiments['Sample'] == wildcards.sample]
-    files = df['Files'].tolist()
-    names = df['Name'].tolist()
-    return [f'{config["output"]}/Preprocess/Trimmomatic/quality_trimmed_{name}{fr}.fq' for name in names
-        for file_list in files for fr in (['_forward_paired', '_reverse_paired'] if ',' in file_list else [''])]
+    return [f'{config["output"]}/Preprocess/Trimmomatic/quality_trimmed_{df.iloc[i]["Name"]}{fr}.fq'
+           for i in range(len(df))
+           for fr in (['_forward_paired', '_reverse_paired'] if ',' in df.iloc[i]["Files"] else [''])]
 
 def fastq2fasta_input(wildcards):
     return expand("{output}/Preprocess/Trimmomatic/quality_trimmed_{name}{fr}.fq", output=config["output"],
@@ -219,7 +214,7 @@ rule recognizer:
 rule quantification_analysis:
     input:
         expand("{output}/Preprocess/Trimmomatic/quality_trimmed_{name}{fr}.fq", output = config["output"],
-            name = experiments["Name"],
+            name = not_mp_experiments["Name"],
             fr = (['_forward_paired', '_reverse_paired'] if experiments["Files"].str.contains(',').tolist() else '')),
         expand("{output}/Assembly/{sample}/contigs.fasta", output = config["output"],
             sample = set(experiments["Sample"])),
@@ -227,7 +222,7 @@ rule quantification_analysis:
             sample = set(experiments["Sample"]))
     output:
         expand("{output}/Quantification/{name}.readcounts", output = config["output"],
-            name = set(experiments['Name'])),
+            name = set(not_mp_experiments['Name'])),
     threads:
         config["threads"]
     run:
@@ -263,9 +258,7 @@ if config["do_assembly"]:
             expand("{output}/Annotation/{sample}/reCOGnizer_results.xlsx", output = config["output"],
                 sample = set(experiments["Sample"])),
             expand("{output}/Quantification/{name}.readcounts", output = config["output"],
-                name = set(mt_experiments['Name'])),
-            expand("{output}/Annotation/{name}.readcounts", output = config["output"],
-                name = set(mg_experiments['Name']))
+                name = set(not_mp_experiments['Name']))
         output:
             f"{config['output']}/MOSCA_Protein_Report.xlsx",
             f"{config['output']}/MOSCA_Entry_Report.xlsx",
