@@ -63,12 +63,13 @@ class QuantificationAnalyser:
         experiments = (pd.read_csv(args.experiments, sep='\t') if args.input_format == 'tsv' else
                        pd.read_excel(args.experiments))
         mt_experiments = experiments[experiments['Data type'] == 'mrna']
-
         for i in experiments.index:
             if experiments.iloc[i]['Data type'] == 'mrna':
                 reference = f"{args.output}/Annotation/{experiments.iloc[i]['Sample']}/fgs.ffn"
             elif experiments.iloc[i]['Data type'] == 'dna':
                 reference = f"{args.output}/Assembly/{experiments.iloc[i]['Sample']}/contigs.fasta"
+            elif experiments.iloc[i]['Data type'] == 'protein':
+                continue
             else:
                 print('A data type MOSCA can yet not handle!')
                 continue

@@ -12,7 +12,8 @@ __version__ = '1.5.1'
 
 parser = argparse.ArgumentParser(description="MOSCA's main script")
 parser.add_argument("-s", "--snakefile", type=str, default=f'{sys.path[0]}/Snakefile', help="Snakefile file")
-parser.add_argument("-c", "--configfile", type=str, help="Configuration file for MOSCA (JSON or YAML)",
+parser.add_argument("-c", "--configfile", type=str, help="Configuration file for MOSCA (JSON or YAML). "
+                                                         "Obtain one at https://iquasere.github.io/MOSGUITO",
                     default='config.json')
 parser.add_argument('--unlock', action='store_true', default=False,
                     help='If user forced termination of workflow, this might be required')
@@ -41,4 +42,5 @@ if config['download_uniprot']:
 
 snakemake.main(f"-s {args.snakefile} --printshellcmds --cores {config['threads']} --configfile {args.configfile}"
                f"{' --unlock' if args.unlock else ''}")
+
 print(f'MOSCA analysis finished in {strftime("%Hh%Mm%Ss", gmtime(time() - start_time))}')

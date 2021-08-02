@@ -34,7 +34,7 @@ if input_format == 'excel':
     experiments.to_excel(f"{config['output']}/experiments.xlsx", index = False)
 else:
     experiments.to_csv(f"{config['output']}/experiments.tsv", sep = '\t', index = False)
-
+config["experiments"] = f"{config['output']}/experiments.tsv"
 
 mg_experiments = experiments[experiments["Data type"] == 'dna']
 mt_experiments = experiments[experiments["Data type"] == 'mrna']
@@ -224,7 +224,7 @@ rule quantification_analysis:
         expand("{output}/Quantification/{name}.readcounts", output = config["output"],
             name = set(not_mp_experiments['Name'])),
     threads:
-        config["threads"]
+        config["threads"] - 1
     run:
         shell("python {scripts_dir}/quantification_analyser.py -e {experiments} -t {threads} -o {output} -if "
               "{input_format}",

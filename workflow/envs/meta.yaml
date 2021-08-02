@@ -22,7 +22,7 @@ requirements:
     - seqtk
     - trimmomatic =0.39
     - megahit =1.2.9
-    - spades =3.14.1
+    - spades =3.15
     - fraggenescan =1.31
     - diamond =2.0.2
     - upimapi =1.0.4

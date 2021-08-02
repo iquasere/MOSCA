@@ -59,7 +59,7 @@ class Binner:
         contigs not included in any bin named basename + .noclass
     '''
     def run_maxbin(self, contigs, output, threads=8, reads=None, reads2=None, markerset='40', prob_threshold=0.9):
-        output_folder = '/'.join(output.split('/')[:-1])    # remove the basename
+        output_folder = '/'.join(output.split('/')[:-1])  # remove the basename
         pathlib.Path(output_folder).mkdir(parents=True, exist_ok=True)
         run_command(f'run_MaxBin.pl -contig {contigs} -out {output} -thread {threads} -markerset {markerset} '
                     f'-prob_threshold {prob_threshold}'
@@ -72,6 +72,7 @@ class Binner:
     Output:
         checkm.tsv is the table with completeness and contamination for each bin
     '''
+
     def run_checkm(self, bins_folder, threads=12):
         run_command(f'checkm lineage_wf -x fasta -r --ali --nt -t {threads} --pplacer_threads {threads} {bins_folder} '
                     f'{bins_folder} --tab_table --file {bins_folder}_checkm.tsv')
@@ -84,27 +85,28 @@ class Binner:
         mq_bins1 = ((table1.Completeness < 90) & (table1.Completeness >= 50) & (table1.Contamination < 10)).sum()
         lq_bins1 = ((table1.Completeness < 50) & (table1.Contamination < 10)).sum()
 
-        hq_bins2 = ((table2.Completeness > 0.9) & (table2.Contamination < 5)).sum()
+        hq_bins2 = ((table2.Completeness >= 90) & (table2.Contamination < 5)).sum()
         mq_bins2 = ((table2.Completeness < 90) & (table2.Completeness >= 50) & (table2.Contamination < 10)).sum()
         lq_bins2 = ((table2.Completeness < 50) & (table2.Contamination < 10)).sum()
 
         if hq_bins1 > hq_bins2:
             return True
-        elif hq_bins1 < hq_bins2:
+        if hq_bins1 < hq_bins2:
             return False
         if mq_bins1 > mq_bins2:
             return True
-        elif mq_bins1 < mq_bins2:
+        if mq_bins1 < mq_bins2:
             return False
         if lq_bins1 > lq_bins2:
             return True
-        elif lq_bins1 < lq_bins2:
+        if lq_bins1 < lq_bins2:
             return False
-        return None
+        return True
 
     def iterative_binning(self, contigs, output, threads=8, reads=None, reads2=None, markerset='40'):
         best_bin = 10
         sample = output.split('/')[-1]
+
         for prob_threshold in range(10, 100, 10):  # [10, 20, 30, 40, 50, 60, 70, 80, 90]
             print(f'Probability threshold: {prob_threshold}')
             self.run_maxbin(contigs, f'{output}_{prob_threshold}/{sample}_{prob_threshold}', threads=threads,
@@ -112,15 +114,17 @@ class Binner:
             self.run_checkm(f'{output}_{prob_threshold}', threads=threads)
 
             if prob_threshold > 10:
-                if self.better_bin(f'{output}_{prob_threshold}_checkm.tsv',
-                                   f'{output}_{best_bin}_checkm.tsv'):
+                if self.better_bin(f'{output}/{prob_threshold}_checkm.tsv',
+                                   f'{output}/{best_bin}_checkm.tsv'):
                     shutil.rmtree(f'{output}_{best_bin}')
                     print(f'Removed files for probability threshold: {best_bin}')
                     best_bin = prob_threshold
+                    print(f'New best probability threshold: {best_bin}')
                 else:
                     shutil.rmtree(f'{output}_{prob_threshold}')
                     print(f'Removed files for probability threshold: {prob_threshold}')
-        shutil.copyfile(f'{output}_{best_bin}_checkm.tsv', f'{"/".join(output.split("/")[:-1])}/checkm.tsv')
+
+        shutil.copyfile(f'{output}_{best_bin}_checkm.tsv', f'{output}/checkm.tsv')
         print(f'Best probability threshold: {best_bin}')
         with open(f'{output}/result.txt', 'w') as f:
             f.write(f'Best probability threshold: {best_bin}')
