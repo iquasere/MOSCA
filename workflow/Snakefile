@@ -194,7 +194,7 @@ rule upimapi:
         1
     run:
         for blast in input:
-            shell("upimapi.py -i {blast} -o {output}/Annotation/uniprotinfo --blast --full-id", output=config["output"])
+            shell("upimapi.py -i {blast} -ot {output}/Annotation/uniprotinfo.tsv --blast", output=config["output"])
 
 rule recognizer:
     input:

@@ -114,18 +114,18 @@ class Binner:
             self.run_checkm(f'{output}_{prob_threshold}', threads=threads)
 
             if prob_threshold > 10:
-                if self.better_bin(f'{output}/{prob_threshold}_checkm.tsv',
-                                   f'{output}/{best_bin}_checkm.tsv'):
+                if self.better_bin(f'{output}_{prob_threshold}_checkm.tsv',
+                                   f'{output}_{best_bin}_checkm.tsv'):
                     shutil.rmtree(f'{output}_{best_bin}')
-                    print(f'Removed files for probability threshold: {best_bin}')
+                    print(f'Removed files for probability threshold: {best_bin} %')
                     best_bin = prob_threshold
-                    print(f'New best probability threshold: {best_bin}')
+                    print(f'New best probability threshold: {best_bin} %')
                 else:
                     shutil.rmtree(f'{output}_{prob_threshold}')
-                    print(f'Removed files for probability threshold: {prob_threshold}')
+                    print(f'Removed files for probability threshold: {prob_threshold} %')
 
         shutil.copyfile(f'{output}_{best_bin}_checkm.tsv', f'{output}/checkm.tsv')
-        print(f'Best probability threshold: {best_bin}')
+        print(f'Best probability threshold: {best_bin} %')
         with open(f'{output}/result.txt', 'w') as f:
             f.write(f'Best probability threshold: {best_bin}')
 

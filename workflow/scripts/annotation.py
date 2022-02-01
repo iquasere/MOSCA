@@ -10,11 +10,8 @@ Jun 2017
 
 import argparse
 import multiprocessing
-import numpy as np
 import os
-import pandas as pd
 from mosca_tools import run_command
-from progressbar import ProgressBar
 import psutil
 import pathlib
 
@@ -35,8 +32,8 @@ class Annotater:
                             help="If input is assembled reads.")
         parser.add_argument("-o", "--output", type=str, help="Output directory"),
         parser.add_argument("-em", "--error-model", type=str, default='illumina_5',
-                            help="Error model for FastQ reads input",
-                            choices=['sanger_5', 'sanger_10', '454_10', '454_30', 'illumina_5', 'illumina_10'])
+                            help="Error model for FastQ reads input", choices=[
+                                'sanger_5', 'sanger_10', '454_10', '454_30', 'illumina_5', 'illumina_10', 'complete'])
         parser.add_argument("-db", "--database", type=str, help="Database for annotation")
         parser.add_argument("-mts", "--max-target-seqs", type=str, default=1,
                             help="Number of identifications for each protein")
@@ -137,6 +134,7 @@ class Annotater:
         self.run_diamond(f'{args.output}/fgs.faa', f'{args.output}/aligned.blast',
                          f'{args.output}/unaligned.fasta', args.database, threads=args.threads,
                          max_target_seqs=args.max_target_seqs, b=b, c=c)
+
 
 if __name__ == '__main__':
     Annotater().run()
