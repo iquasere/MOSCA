@@ -5,13 +5,7 @@ import sys
 from mosca_tools import parse_blast, multi_sheet_excel
 
 scripts_dir = sys.path[0]
-
-if config["experiments"].endswith('.xlsx'):
-    experiments = pd.read_excel(config["experiments"])
-    input_format = 'excel'
-else:
-    experiments = pd.read_csv(config["experiments"], sep = '\t')
-    input_format = 'tsv'
+experiments = pd.DataFrame(config["experiments"])
 
 def set_name(files, data_type):
     filename = files.split('/')[-1]
@@ -23,21 +17,19 @@ def set_name(files, data_type):
 
 for i in range(len(experiments)):
     if pd.isnull(experiments.iloc[i]['Name']):
-        experiments.iloc[i, experiments.columns.get_loc('Name')] = set_name(experiments.iloc[i]['Files'],
-                                                                            experiments.iloc[i]['Data type'])
+        experiments.iloc[i, experiments.columns.get_loc('Name')] = set_name(
+            experiments.iloc[i]['Files'], experiments.iloc[i]['Data type'])
     if not config['do_assembly']:
         experiments.iloc[i]['Sample'] = experiments.iloc[i]['Name']
 
 pathlib.Path(f"{config['output']}").mkdir(parents=True, exist_ok=True)
-
-if input_format == 'excel':
-    experiments.to_excel(f"{config['output']}/experiments.xlsx", index = False)
-else:
-    experiments.to_csv(f"{config['output']}/experiments.tsv", sep = '\t', index = False)
+experiments.to_csv(f"{config['output']}/experiments.tsv", sep = '\t', index = False)
 config["experiments"] = f"{config['output']}/experiments.tsv"
 
 mg_experiments = experiments[experiments["Data type"] == 'dna']
 mt_experiments = experiments[experiments["Data type"] == 'mrna']
+if len(mg_experiments) == 0 and config['assembler'] == 'rnaspades':
+    mg_experiments = mt_experiments
 not_mp_experiments = experiments[experiments["Data type"] != 'protein']
 
 def all_input(wildcards):
@@ -194,7 +186,8 @@ rule upimapi:
         1
     run:
         for blast in input:
-            shell("upimapi.py -i {blast} -ot {output}/Annotation/uniprotinfo.tsv --blast", output=config["output"])
+            shell("upimapi.py -i {blast} -ot {output}/Annotation/uniprotinfo.tsv -cols {cols} -dbs {dbs} --blast",
+                  output=config["output"], cols='&'.join(config['upimapi_columns']), dbs='&'.join(config['upimapi_databases']))
 
 rule recognizer:
     input:
