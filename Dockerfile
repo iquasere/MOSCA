@@ -7,7 +7,7 @@ RUN buildDeps='build-essential zlib1g-dev' \
 && git clone https://github.com/iquasere/MOSCA.git \
 && conda install -c conda-forge -y mamba \
 && mamba env update --file MOSCA/workflow/envs/environment.yml --name base \
-&& bash MOSCA/workflow/envs/install.bash \
+&& bash MOSCA/workflow/envs/ci_build.sh \
 && conda clean --all \
 && apt-get purge -y --auto-remove $buildDeps
 

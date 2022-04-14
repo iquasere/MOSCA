@@ -2,8 +2,43 @@
   "version": "1.5.1",
   "output": "output",
   "resources_directory": "resources_directory",
-  "threads": 14,
-  "experiments": "output/experiments.tsv",
+  "threads": 15,
+  "experiments": [
+    {
+      "Files": "MOSCA/ci/mg_R1.fq,MOSCA/ci/mg_R2.fq",
+      "Sample": "my_sample",
+      "Data type": "dna",
+      "Condition": "don't matter, tis mg!",
+      "Name": ""
+    },
+    {
+      "Files": "MOSCA/ci/mt1_R1.fq,MOSCA/ci/mt1_R2.fq",
+      "Sample": "my_sample",
+      "Data type": "mrna",
+      "Condition": "c1",
+      "Name": "mt_name1"
+    },
+    {
+      "Files": "MOSCA/ci/mt2_R1.fq,MOSCA/ci/mt2_R2.fq",
+      "Sample": "my_sample",
+      "Data type": "mrna",
+      "Condition": "c1",
+      "Name": "mt_name2"
+    },
+    {
+      "Files": "MOSCA/ci/mt3_R1.fq,MOSCA/ci/mt3_R2.fq",
+      "Sample": "my_sample",
+      "Data type": "mrna",
+      "Condition": "c1",
+      "Name": "mt_name3"
+    },
+    {
+      "Files": "MOSCA/ci/mt4_R1.fq,MOSCA/ci/mt4_R2.fq",
+      "Sample": "my_sample",
+      "Data type": "mrna",
+      "Condition": "c1",
+      "Name": "mt_name4"
+    }],
   "minimum_read_length": 100,
   "minimum_read_average_quality": 20,
   "do_assembly": true,
@@ -12,9 +47,9 @@
   "error_model": "illumina_5",
   "markerset": "40",
   "do_iterative_binning": true,
-  "upimapi_database": "uniprot",
+  "upimapi_database": "taxids",
   "upimapi_max_target_seqs": 1,
-  "upimapi_taxids": "",
+  "upimapi_taxids": "196137,143067,2159,213465,213422,213421,68298",
   "uniprot_columns": [
     "Entry",
     "Entry name",
