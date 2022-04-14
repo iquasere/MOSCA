@@ -24,7 +24,6 @@ for i in range(len(experiments)):
 
 pathlib.Path(f"{config['output']}").mkdir(parents=True, exist_ok=True)
 experiments.to_csv(f"{config['output']}/experiments.tsv", sep = '\t', index = False)
-config["experiments"] = f"{config['output']}/experiments.tsv"
 
 mg_experiments = experiments[experiments["Data type"] == 'dna']
 mt_experiments = experiments[experiments["Data type"] == 'mrna']

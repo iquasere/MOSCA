@@ -1,6 +1,0 @@
-Files	Sample	Data type	Condition	Name
-MOSCA/ci/mg_R1.fq,MOSCA/ci/mg_R2.fq	amostra	dna	don't matter, tis mg!	mg_name
-MOSCA/ci/mt1_R1.fq,MOSCA/ci/mt1_R2.fq	amostra	mrna	c1	mt_name1
-MOSCA/ci/mt2_R1.fq,MOSCA/ci/mt2_R2.fq	amostra	mrna	c1	mt_name2
-MOSCA/ci/mt3_R1.fq,MOSCA/ci/mt3_R2.fq	amostra	mrna	c2	mt_name3
-MOSCA/ci/mt4_R1.fq,MOSCA/ci/mt4_R2.fq	amostra	mrna	c2	mt_name4
