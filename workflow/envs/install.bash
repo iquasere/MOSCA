@@ -3,7 +3,6 @@
 conda config --add channels anaconda
 conda config --add channels bioconda
 conda config --add channels conda-forge
-mamba env create --file MOSCA/workflow/envs/environment.yml
 BASE_DIR="conda info --base"
 ENV_DIR="${BASE_DIR}/envs/mosca"
 echo "Storing MOSCA's files in the Conda environment at: ${ENV_DIR}"
