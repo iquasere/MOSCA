@@ -1,5 +1,4 @@
-FROM continuumio/miniconda3:4.9.2
-# should also run with the next version of miniconda image, try that next
+FROM continuumio/miniconda3
 
 RUN buildDeps='build-essential zlib1g-dev' \
 && apt-get update \
