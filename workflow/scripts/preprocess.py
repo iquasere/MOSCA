@@ -10,6 +10,7 @@ March 2017
 '''
 
 import argparse
+import shutil
 from glob import glob
 from multiprocessing import cpu_count
 import os
@@ -43,6 +44,9 @@ class Preprocesser:
         parser.add_argument(
             "-rd", "--resources-directory", required=True,
             help="Directory with resources for SortMeRNA and Trimmomatic")
+        parser.add_argument(
+            "-tmp", "--temporary-directory", default='mosca_pp_tmp',
+            help="Directory to store temporary outputs. Will be deleted at workflow end.")
         parser.add_argument(
             "-n", "--name", help="Name attributed to the data inputted. Will be added to basename of output files")
         parser.add_argument("--minlen", default=100, help='Minimum length of reads to keep')
@@ -137,12 +141,14 @@ class Preprocesser:
         return 'Failed'
 
     # SortMeRNA - rRNA removal
-    def rrna_removal(self, reads, out_dir, name, databases, indexes_dir, threads=12):
+    def rrna_removal(self, reads, out_dir, name, databases, indexes_dir, tmp_dir, threads=12):
+        if os.path.isdir(tmp_dir):
+            shutil.rmtree(tmp_dir)
         run_command(
             f"sortmerna -ref {' -ref '.join(databases)} --reads {' --reads '.join(reads)} --idx-dir {indexes_dir} "
-            f"--workdir tmp --aligned {out_dir}/rrna_{name} --other {out_dir}/norrna_{name} -out2 --fastx --paired_in "
-            f"--threads {threads}")
-        os.remove('tmp')
+            f"--workdir {tmp_dir} --aligned {out_dir}/rrna_{name} --other {out_dir}/norrna_{name} -out2 --fastx "
+            f"--paired_in --threads {threads}")
+        shutil.rmtree(tmp_dir)
 
     def get_crop(self, data):
         data = data['Per base sequence quality'][1]
@@ -241,10 +247,10 @@ class Preprocesser:
         if adapter_result not in ['None', 'Failed']:
             adapter_part = self.remove_fa_end(adapter_result.split('/')[-1])
             if self.paired:
-                args.input = [f'{args.output}/Trimmomatic/after_adapter_removal_{name}_{adapter_part}_{fr}_paired.fq'
+                args.input = [f'{args.output}/Trimmomatic/noadapters_{name}_{adapter_part}_{fr}_paired.fq'
                               for fr in ['forward', 'reverse']]
             else:
-                args.input = [f'{args.output}/Trimmomatic/after_adapter_removal_{name}_{adapter_part}.fq']
+                args.input = [f'{args.output}/Trimmomatic/noadapters_{name}_{adapter_part}.fq']
 
         # self.host_sequences_removal()
 
@@ -253,24 +259,19 @@ class Preprocesser:
             rrna_databases = glob(f'{rrna_databases_directory}/*.fa*')
             self.rrna_removal(
                 args.input, f'{args.output}/SortMeRNA', name, rrna_databases, rrna_databases_directory,
-                threads=args.threads)
+                tmp_dir=args.temporary_directory, threads=args.threads)
 
-            if self.paired:
-                args.input = [
-                    f'{args.output}/SortMeRNA/norrna_{name}_{fr}.fastq' for fr in ['forward', 'reverse']]
-            else:
-                args.input = [f'{args.output}/SortMeRNA/after_rrna_removal_{name}_rejected.fastq']
+            args.input = ([f'{args.output}/SortMeRNA/norrna_{name}_{fr}.fq' for fr in ['fwd', 'rev']] if
+                          self.paired else [f'{args.output}/SortMeRNA/norrna_{name}.fq'])
 
         self.run_fastqc(args.input, f'{args.output}/FastQC', threads=args.threads)
 
         self.quality_trimming(args.input, args.output, name, threads=args.threads, avgqual=args.avgqual,
                               minlen=args.minlen, type_of_data=args.data)
 
-        if self.paired:
-            args.input = [
-                f'{args.output}/Trimmomatic/quality_trimmed_{name}_{fr}_paired.fq' for fr in ['forward', 'reverse']]
-        else:
-            args.input = [f'{args.output}/Trimmomatic/quality_trimmed_{name}.fq']
+        args.input = ([
+            f'{args.output}/Trimmomatic/quality_trimmed_{name}_{fr}_paired.fq' for fr in ['forward', 'reverse']]
+            if self.paired else [f'{args.output}/Trimmomatic/quality_trimmed_{name}.fq'])
 
         self.run_fastqc(args.input, f'{args.output}/FastQC', threads=args.threads)
 
