@@ -2,6 +2,7 @@ name: mosca
 channels:
   - conda-forge
   - bioconda
+  - anaconda
   - defaults
 dependencies:
   - _libgcc_mutex=0.1=conda_forge
@@ -69,6 +70,7 @@ dependencies:
   - capnproto=0.9.1=h780b84a_5
   - certifi=2021.10.8=py37h89c1867_2
   - cffi=1.15.0=py37h036bc23_0
+  - chardet=4.0.0=py37h89c1867_3
   - charset-normalizer=2.0.12=pyhd8ed1ab_0
   - checkm-genome=1.1.8=pyhdfd78af_0
   - circos=0.69.8=hdfd78af_1
@@ -81,6 +83,8 @@ dependencies:
   - coin-or-utils=2.11.6=h573740c_0
   - coincbc=2.10.7=0_metapackage
   - colorama=0.4.4=pyh9f0ad1d_0
+  - conda=4.12.0=py37h89c1867_0
+  - conda-package-handling=1.8.1=py37h540881e_1
   - configargparse=1.5.3=pyhd8ed1ab_0
   - connection_pool=0.0.3=pyhd3deb0d_0
   - cryptography=36.0.2=py37h38fbfac_1
@@ -127,6 +131,7 @@ dependencies:
   - gitdb=4.0.9=pyhd8ed1ab_0
   - gitpython=3.1.27=pyhd8ed1ab_0
   - glimmerhmm=3.0.4=h2d50403_2
+  - gmcloser=1.6.2=hdfd78af_1
   - google-api-core=2.5.0=pyhd8ed1ab_0
   - google-api-python-client=2.44.0=pyhd8ed1ab_0
   - google-auth=2.6.4=pyh6c4a22f_0
@@ -172,6 +177,7 @@ dependencies:
   - lcms2=2.12=hddcbb42_0
   - ld_impl_linux-64=2.36.1=hea4e1c9_2
   - lerc=3.0=h9c3ff4c_0
+  - libarchive=3.5.2=hccf745f_1
   - libblas=3.9.0=14_linux64_openblas
   - libbrotlicommon=1.0.9=h166bdaf_7
   - libbrotlidec=1.0.9=h166bdaf_7
@@ -195,6 +201,8 @@ dependencies:
   - libidn2=2.3.2=h7f98852_0
   - liblapack=3.9.0=14_linux64_openblas
   - liblapacke=3.9.0=14_linux64_openblas
+  - libmamba=0.22.1=hd8a31e3_1
+  - libmambapy=0.22.1=py37h1ee4b26_1
   - libnghttp2=1.47.0=h727a467_0
   - libnsl=2.0.0=h7f98852_0
   - libopenblas=0.3.20=pthreads_h78a6416_0
@@ -202,6 +210,7 @@ dependencies:
   - libprotobuf=3.20.0=h6239696_0
   - libsanitizer=10.3.0=h26c7422_15
   - libsodium=1.0.18=h36c2ea0_1
+  - libsolv=0.7.19=h780b84a_5
   - libssh2=1.10.0=ha56f1ee_2
   - libstdcxx-devel_linux-64=10.3.0=he6cfe16_15
   - libstdcxx-ng=11.2.0=he4da1e4_15
@@ -223,6 +232,7 @@ dependencies:
   - lzo=2.10=h516909a_1000
   - mafft=7.490=hec16e2b_1
   - make=4.3=hd18ef5c_1
+  - mamba=0.22.1=py37h6dacc13_1
   - markupsafe=2.1.1=py37h540881e_1
   - mash=2.3=ha9a2dd8_3
   - matplotlib-base=3.5.1=py37h1058ff1_0
@@ -235,6 +245,7 @@ dependencies:
   - mono=5.14.0.177=he1b5a44_1001
   - mscorefonts=0.0.1=3
   - multidict=6.0.2=py37h540881e_1
+  - mummer=3.23=pl5321h1b792b2_13
   - munkres=1.1.4=pyh9f0ad1d_0
   - muscle=5.1=h9f5acd7_1
   - nbformat=5.3.0=pyhd8ed1ab_0
@@ -282,8 +293,10 @@ dependencies:
   - perl-extutils-makemaker=7.64=pl5321hd8ed1ab_0
   - perl-file-listing=6.14=pl5321hdfd78af_0
   - perl-file-spec=3.48_01=pl5321hdfd78af_2
+  - perl-findbin=1.51=pl5321hdfd78af_3
   - perl-font-ttf=1.06=pl5321hdfd78af_1
   - perl-gd=2.76=pl5321h5b5514e_1
+  - perl-getopt-long=2.52=pl5321hdfd78af_0
   - perl-html-parser=3.72=pl5321h9f5acd7_8
   - perl-html-tagset=3.20=pl5321hdfd78af_4
   - perl-http-cookies=6.10=pl5321hdfd78af_0
@@ -316,6 +329,8 @@ dependencies:
   - perl-params-validate=1.30=pl5321hec16e2b_1
   - perl-parent=0.238=pl5321hd8ed1ab_0
   - perl-pathtools=3.75=pl5321hec16e2b_3
+  - perl-pod-escapes=1.07=pl5321hdfd78af_2
+  - perl-pod-usage=2.01=pl5321hdfd78af_0
   - perl-readonly=2.05=pl5321hdfd78af_1
   - perl-regexp-common=2017060201=pl5321hdfd78af_1
   - perl-scalar-list-utils=1.62=pl5321hec16e2b_0
@@ -323,6 +338,8 @@ dependencies:
   - perl-socket=2.027=pl5321hec16e2b_3
   - perl-statistics-basic=1.6611=pl5321hdfd78af_3
   - perl-svg=2.86=pl5321hdfd78af_0
+  - perl-test=1.26=pl5321hdfd78af_2
+  - perl-test-harness=3.44=pl5321hdfd78af_0
   - perl-text-format=0.62=pl5321hdfd78af_0
   - perl-time-hires=1.9764=pl5321hec16e2b_2
   - perl-time-local=1.30=pl5321hdfd78af_0
@@ -353,6 +370,8 @@ dependencies:
   - py=1.11.0=pyh6c4a22f_0
   - pyasn1=0.4.8=py_0
   - pyasn1-modules=0.2.7=py_0
+  - pybind11-abi=4=hd8ed1ab_3
+  - pycosat=0.6.3=py37h540881e_1010
   - pycparser=2.21=pyhd8ed1ab_0
   - pygments=2.11.2=pyhd8ed1ab_0
   - pynacl=1.5.0=py37h540881e_1
@@ -464,9 +483,12 @@ dependencies:
   - readline=8.1=h46c0cb4_0
   - recognizer=1.4.3=0
   - reportlab=3.5.68=py37h69800bb_1
+  - reproc=14.2.3=h7f98852_0
+  - reproc-cpp=14.2.3=h9c3ff4c_0
   - requests=2.27.1=pyhd8ed1ab_0
   - retry=0.9.2=py_0
   - rsa=4.8=pyhd8ed1ab_0
+  - ruamel_yaml=0.15.80=py37h5e8e339_1006
   - s3transfer=0.5.2=pyhd8ed1ab_0
   - samtools=1.15.1=h1170115_0
   - scipy=1.7.3=py37hf2a6cf1_0
@@ -504,6 +526,7 @@ dependencies:
   - trimmomatic=0.39=hdfd78af_2
   - typing-extensions=4.1.1=hd8ed1ab_0
   - typing_extensions=4.1.1=pyha770c72_0
+  - tzdata=2021a=h52ac0ba_0
   - ubiquerg=0.6.1=pyh9f0ad1d_0
   - unicodedata2=14.0.0=py37h540881e_1
   - upimapi=1.5.2=hdfd78af_0
@@ -537,9 +560,9 @@ dependencies:
   - xtandem=15.12.15.2=h072c6ed_6
   - xz=5.2.5=h516909a_1
   - yaml=0.2.5=h7f98852_2
+  - yaml-cpp=0.6.3=he1b5a44_4
   - yarl=1.7.2=py37h540881e_2
   - yte=1.2.2=py37h89c1867_0
   - zipp=3.8.0=pyhd8ed1ab_0
   - zlib=1.2.11=h166bdaf_1014
   - zstd=1.5.2=ha95c52a_0
-prefix: /opt/conda/envs/mosca
