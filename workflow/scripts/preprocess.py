@@ -93,7 +93,7 @@ class Preprocesser:
 
     def download_resources(self, resources_directory):
         if not os.path.isfile(f'{resources_directory}/downloaded_timestamp.txt'):
-            run_command(
+            run_pipe_command(
                 f'svn export https://github.com/biocore/sortmerna/trunk/data/rRNA_databases '
                 f'"{resources_directory}/rRNA_databases" --force')
             run_pipe_command(f'cp {self.get_adapters_dir()}/*.fa {resources_directory}/adapters')
@@ -217,8 +217,10 @@ class Preprocesser:
 
     def run(self):
         args = self.get_arguments()
-        for directory in ['FastQC', 'Trimmomatic', 'SortMeRNA']:
-            pathlib.Path(f'{args.output}/{directory}').mkdir(parents=True, exist_ok=True)
+        for directory in \
+                [f'{args.output}/{f}' for f in ['FastQC', 'Trimmomatic', 'SortMeRNA']] + \
+                [f'{args.resources_directory}{f}' for f in ['', '/rRNA_databases']]:
+            pathlib.Path(directory).mkdir(parents=True, exist_ok=True)
         if args.name is None:
             name = self.fastqc_name(args.input[0].split('/')[-1])
             if '_R' in name:
@@ -240,15 +242,16 @@ class Preprocesser:
 
         adapter_result = self.remove_adapters(args.input, args.output, name, adapters, threads=args.threads)
 
-        print('adapter result:{}'.format(adapter_result))
+        print(f'adapter result:{adapter_result}')
         with open(f'{args.output}/Trimmomatic/{name}_adapters.txt', 'w') as f:
             f.write(adapter_result)
 
         if adapter_result not in ['None', 'Failed']:
             adapter_part = self.remove_fa_end(adapter_result.split('/')[-1])
             if self.paired:
-                args.input = [f'{args.output}/Trimmomatic/noadapters_{name}_{adapter_part}_{fr}_paired.fq'
-                              for fr in ['forward', 'reverse']]
+                args.input = [
+                    f'{args.output}/Trimmomatic/noadapters_{name}_{adapter_part}_{fr}_paired.fq'
+                    for fr in ['forward', 'reverse']]
             else:
                 args.input = [f'{args.output}/Trimmomatic/noadapters_{name}_{adapter_part}.fq']
 
