@@ -233,11 +233,14 @@ class Preprocesser:
         self.run_fastqc(args.input, f'{args.output}/FastQC', threads=args.threads)
 
         self.download_resources(args.resources_directory)
-        adapters_directory = f'{args.resources_directory}/adapters'
-        rrna_databases_directory = f'{args.resources_directory}/rRNA_databases'
+
+        if not hasattr(args, "adapters_directory"):
+            args.adapters_directory = f'{args.resources_directory}/adapters'
+        if not hasattr(args, "rrna_databases_directory"):
+            args.rrna_databases_directory = f'{args.resources_directory}/rRNA_databases'
 
         # Adapter removal
-        adapters = self.select_adapters(glob(f'{adapters_directory}/*.fa*'), paired=self.paired)
+        adapters = self.select_adapters(glob(f'{args.adapters_directory}/*.fa*'), paired=self.paired)
         print('Available adapter files:\n{}'.format('\n'.join(adapters)))
 
         adapter_result = self.remove_adapters(args.input, args.output, name, adapters, threads=args.threads)
@@ -259,9 +262,9 @@ class Preprocesser:
 
         # rRNA removal
         if args.data == 'mrna':
-            rrna_databases = glob(f'{rrna_databases_directory}/*.fa*')
+            rrna_databases = glob(f'{args.rrna_databases_directory}/*.fa*')
             self.rrna_removal(
-                args.input, f'{args.output}/SortMeRNA', name, rrna_databases, rrna_databases_directory,
+                args.input, f'{args.output}/SortMeRNA', name, rrna_databases, args.rrna_databases_directory,
                 tmp_dir=args.temporary_directory, threads=args.threads)
 
             args.input = ([f'{args.output}/SortMeRNA/norrna_{name}_{fr}.fq' for fr in ['fwd', 'rev']] if

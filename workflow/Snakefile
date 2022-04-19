@@ -16,7 +16,7 @@ def set_name(files, data_type):
     return filename.split('.fa')[0]
 
 for i in range(len(experiments)):
-    if pd.isnull(experiments.iloc[i]['Name']):
+    if pd.isnull(experiments.iloc[i]['Name']) or experiments.iloc[i]['Name'] == '':
         experiments.iloc[i, experiments.columns.get_loc('Name')] = set_name(
             experiments.iloc[i]['Files'], experiments.iloc[i]['Data type'])
     if not config['do_assembly']:

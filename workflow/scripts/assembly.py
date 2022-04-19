@@ -21,26 +21,28 @@ class Assembler:
     def __init__(self, **kwargs):
         self.__dict__ = kwargs
 
-
     def get_arguments(self):
         parser = argparse.ArgumentParser(description="MOSCA assembly")
-        parser.add_argument("-r", "--reads", type=str, required=True,
-                            help="Reads files for assembly")
-        parser.add_argument("-o", "--output", type=str, help="Output directory")
-        parser.add_argument("-t", "--threads", type=str, default=str(multiprocessing.cpu_count() - 2),
-                            help="Number of threads to use [max available - 2]")
-        parser.add_argument("-a", "--assembler", type=str, choices=["metaspades", "megahit", "rnaspades"],
-                            help="Tool for assembling the reads [metaspades]", default="metaspades")
-        parser.add_argument("-m", "--memory", default=psutil.virtual_memory().available / (1024.0 ** 3) / 3, type=float,
-                            help="Maximum memory (Gb) available for assembly tools [max available memory / 3]")
-        parser.add_argument("-rl", "--read-length", type=str, default=150, help="Average length of reads [150]")
-        parser.add_argument("-is", "--insert-size", type=str, default=2500, help="Average insert size [2500]")
-        parser.add_argument("-stdi", "--std-insert", type=str, default=10,
-                            help="Standard deviation of insert size [2500]")
-        parser.add_argument("-bq", "--base-qual", type=str, default='phred33', choices=['phred33', 'phred64'],
-                            help="Quality format of base call of reads files")
-        parser.add_argument("-mrn", "--max-ref-number", type=int, default=50,
-                            help="Maximum references to be downloaded by MetaQUAST")
+        parser.add_argument("-r", "--reads", required=True, help="Reads files for assembly")
+        parser.add_argument("-o", "--output", help="Output directory")
+        parser.add_argument(
+            "-t", "--threads", default=multiprocessing.cpu_count() - 2,
+            help="Number of threads to use [max available - 2]")
+        parser.add_argument(
+            "-a", "--assembler", choices=["metaspades", "megahit", "rnaspades"],
+            help="Tool for assembling the reads [metaspades]", default="metaspades")
+        parser.add_argument(
+            "-m", "--memory", default=psutil.virtual_memory().available / (1024.0 ** 3) / 3, type=float,
+            help="Maximum memory (Gb) available for assembly tools [max available memory / 3]")
+        parser.add_argument("-rl", "--read-length", default=150, help="Average length of reads [150]")
+        parser.add_argument("-is", "--insert-size", default=2500, help="Average insert size [2500]")
+        parser.add_argument(
+            "-stdi", "--std-insert", default=10, help="Standard deviation of insert size [2500]")
+        parser.add_argument(
+            "-bq", "--base-qual", default='phred33', choices=['phred33', 'phred64'],
+            help="Quality format of base call of reads files")
+        parser.add_argument(
+            "-mrn", "--max-ref-number", type=int, default=50, help="Maximum references to be downloaded by MetaQUAST")
 
 
         args = parser.parse_args()
@@ -54,25 +56,27 @@ class Assembler:
         return args
 
     def run_assembler(self, reads, out_dir, assembler, threads='12', memory=None):
-        run_command(f"{assembler if assembler == 'megahit' else f'{assembler}.py'} -o {out_dir} -t {threads} "
-                    f"""{f'-1 {reads[0]} -2 {reads[1]}' if len(reads) == 2 else 
-                        f'-{"r" if assembler == "megahit" else "s"} {reads[0]}'} """
-                    f"-m {round(memory) if memory else ''}")
+        run_command(
+            f"{assembler if assembler == 'megahit' else f'{assembler}.py'} -o {out_dir} -t {threads} "
+            f"""{f'-1 {reads[0]} -2 {reads[1]}' if len(reads) == 2 else 
+            f'-{"r" if assembler == "megahit" else "s"} {reads[0]}'} """
+            f"-m {round(memory) if memory else ''}")
 
     def percentage_of_reads(self, file):
         handler = open(file)
         lines = handler.readlines()
         return lines[-1].split('%')[0]
 
-    def run_metaquast(self, contigs, out_dir, threads='12', max_ref_number=50):
-        run_command(f'metaquast.py --threads {threads} --output-dir {out_dir} --max-ref-number {max_ref_number} '
-                    f'{contigs}')
+    def run_metaquast(self, contigs, out_dir, threads='12', max_ref_number=0):
+        run_command(
+            f'metaquast.py --threads {threads} --output-dir {out_dir} --max-ref-number {max_ref_number} {contigs}')
 
     def close_gaps(self, scaffolds, contigs, output_basename, read1, read2, read_length=150, insert_size=1500,
                    std_insert=10, threads=14, base_qual='phred33'):
-        run_command(f'gmcloser --target_scaf {scaffolds} --query_seq {contigs} --prefix_out {output_basename} '
-                    f'-r {read1} {read2} --read_len {read_length} --insert {insert_size} --sd_insert {std_insert} '
-                    f'--thread {threads} --base_qual {base_qual}')
+        run_command(
+            f'gmcloser --target_scaf {scaffolds} --query_seq {contigs} --prefix_out {output_basename} '
+            f'-r {read1} {read2} --read_len {read_length} --insert {insert_size} --sd_insert {std_insert} '
+            f'--thread {threads} --base_qual {base_qual}')
 
     def run(self):
         args = self.get_arguments()
