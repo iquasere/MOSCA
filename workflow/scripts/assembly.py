@@ -44,15 +44,11 @@ class Assembler:
         parser.add_argument(
             "-mrn", "--max-ref-number", type=int, default=50, help="Maximum references to be downloaded by MetaQUAST")
 
-
         args = parser.parse_args()
-
         args.output = args.output.rstrip('/')
         args.reads = args.reads.split(',')
-
         if args.assembler == 'megahit':     # Megahit reads max memory in byte
             args.memory *= 10e9
-
         return args
 
     def run_assembler(self, reads, out_dir, assembler, threads='12', memory=None):
@@ -71,8 +67,9 @@ class Assembler:
         run_command(
             f'metaquast.py --threads {threads} --output-dir {out_dir} --max-ref-number {max_ref_number} {contigs}')
 
-    def close_gaps(self, scaffolds, contigs, output_basename, read1, read2, read_length=150, insert_size=1500,
-                   std_insert=10, threads=14, base_qual='phred33'):
+    def close_gaps(
+            self, scaffolds, contigs, output_basename, read1, read2, read_length=150, insert_size=1500, std_insert=10,
+            threads=14, base_qual='phred33'):
         run_command(
             f'gmcloser --target_scaf {scaffolds} --query_seq {contigs} --prefix_out {output_basename} '
             f'-r {read1} {read2} --read_len {read_length} --insert {insert_size} --sd_insert {std_insert} '

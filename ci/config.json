@@ -1,6 +1,7 @@
 {
+  "version": "1.5.1",
   "output": "output",
-  "resources_directory": "resources_directory",
+  "resources_directory": "resources_directory1",
   "threads": 15,
   "experiments": [
     {
@@ -43,13 +44,13 @@
   "do_assembly": true,
   "max_memory": 50,
   "assembler": "metaspades",
-  "markerset": "40",
-  "do_iterative_binning": true,
   "error_model": "illumina_5",
-  "upimapi_database": "uniprot",
+  "markerset": "40",
+  "do_iterative_binning": false,
+  "upimapi_database": "taxids",
   "upimapi_max_target_seqs": 1,
-  "upimapi_taxids": "",
-  "upimapi_columns": [
+  "upimapi_taxids": "196137,143067,2159,213465,213422,213421,68298",
+  "uniprot_columns": [
     "Entry",
     "Entry name",
     "Gene names",
@@ -71,7 +72,7 @@
     "Taxonomic lineage (SPECIES)",
     "Taxonomic identifier (SPECIES)"
   ],
-  "upimapi_databases": [
+  "uniprot_databases": [
     "BioCyc Collection of Pathway/Genome Databases",
     "BRENDA Comprehensive Enzyme Information System",
     "Conserved Domains Database",
@@ -99,7 +100,7 @@
   "minimum_differential_expression": 1,
   "proteomics_workflow": "compomics",
   "use_crap": true,
-  "proteomics_contaminantes_database": "crap.fasta",
+  "proteomics_contaminants_database": "crap.fasta",
   "reference_proteomes_taxa_level": "SPECIES",
   "protease": "Trypsin",
   "protease_file": "",

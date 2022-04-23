@@ -232,6 +232,9 @@ class Reporter:
             if not args.no_differential_expression:
                 self.info_from_differential_expression(args.output, sample)
 
+            with open(f"{args.output}/{sample}/MOSCA_General_Report.tsv", 'w') as f:
+                f.write('done')
+
         for mt_name in exps[exps["Data type"] == 'mrna']['Name']:
             self.info_from_alignment(args.output, mt_name)
 

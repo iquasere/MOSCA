@@ -19,7 +19,7 @@ option_list <- list(
                 help="Method for ordering rows in protein expression heatmap 
                 [differential/abundance]"),
     make_option(c("-o", "--output"), type="character", default=NULL, help="Output directory", metavar="character"),
-    make_option(c("-f", "--foldchange"), type="integer", default=2, metavar="character",
+    make_option(c("-f", "--foldchange"), type="numeric", default=2,
                 help="Minimum fold change for two-tailed hypothesis of differential expression significance"))
 
 opt_parser <- OptionParser(option_list=option_list)

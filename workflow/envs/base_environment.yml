@@ -1,0 +1,44 @@
+name: base
+channels:
+  - conda-forge
+  - bioconda
+  - anaconda
+  - defaults
+dependencies:
+  - bioconductor-deseq2
+  - bioconductor-edger
+  - bioconductor-rots
+  - biopython
+  - bowtie2
+  - checkm-genome
+  - fastqc
+  - fraggenescan
+  - gmcloser
+  - keggcharter
+  - krona
+  - lxml
+  - maxbin2
+  - maxquant=2
+  - megahit
+  - numpy
+  - pandas
+  - peptide-shaker=2
+  - python=3
+  - quast
+  - r-optparse
+  - r-pheatmap
+  - r-rcolorbrewer
+  - recognizer=1.7
+  - requests
+  - samtools
+  - searchgui=4
+  - seqkit
+  - seqtk
+  - snakemake
+  - snakemake-minimal
+  - sortmerna
+  - spades
+  - trimmomatic
+  - upimapi=1.7
+  - xlrd
+  - xlsxwriter

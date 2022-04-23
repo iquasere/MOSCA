@@ -30,17 +30,7 @@ class Joiner:
     def run(self):
         args = self.get_arguments()
 
-        rscript_folder = ''
-
-        experiments = (pd.read_csv(args.experiments, sep='\t') if args.input_format == 'tsv' else
-                       pd.read_excel(args.experiments))
-
         uniprotinfo = pd.read_csv(f'{args.output}/Annotation/uniprotinfo.tsv', sep='\t')
-        taxonomy_columns = [col for col in uniprotinfo.columns if 'Taxonomic lineage' in col]
-        functional_columns = ['COG general functional category', 'COG functional category',
-                              'COG protein description', 'cog']
-
-        mg_experiments = experiments[experiments["Data type"] == 'dna']
 
         sample2mgname = dict()
         for row in mg_experiments.iterrows():
@@ -88,42 +78,13 @@ class Joiner:
                 data = add_abundance(data, f'{args.output}/Annotation/{mg_name}_normalized.readcounts', mg_name,
                                      origin_of_data='metagenomics', readcounts_has_tail=False)
 
-                for mt_name in expression_analysed:
-                    data = add_abundance(data, f'{args.output}/Quantification/{mt_name}.readcounts', mt_name,
-                                         origin_of_data='metatranscriptomics')
+            for mt_name in expression_analysed:
+                data = add_abundance(data, f'{args.output}/Quantification/{mt_name}.readcounts', mt_name,
+                                     origin_of_data='metatranscriptomics')
 
             multi_sheet_excel(f'{args.output}/MOSCA_Protein_Report.xlsx', data, sheet_name=sample)
 
-            print(f'Finding consensus COG for each entry of sample: {sample}')
-            tqdm.pandas()
-            cogs_df = data.groupby('Entry')['cog'].progress_apply(
-                lambda x: x.value_counts().index[0] if len(x.value_counts().index) > 0
-                else np.nan)
-            cogs_df = cogs_df.reset_index()
-            cogs_categories = data[functional_columns].drop_duplicates()
 
-            # Aggregate information for each Entry, keep UniProt information, sum MG and MT or MP quantification
-            data = data.groupby('Entry')[abundance_analysed + expression_analysed].sum().reset_index()
-            data = pd.merge(data, uniprotinfo, on='Entry', how='left')
-            data = pd.merge(data, cogs_df, on='Entry', how='left')
-            data = pd.merge(data, cogs_categories, on='cog', how='left')
-            data = data[uniprotinfo.columns.tolist() + functional_columns + abundance_analysed + expression_analysed]
-
-            # MG normalization by sample and protein abundance
-            data[abundance_analysed].to_csv(f'{args.output}/mg_preprocessed_readcounts.table', sep='\t', index=False)
-            data = pd.concat([data, normalize_readcounts(f'{args.output}/mg_preprocessed_readcounts.table',
-                                                         abundance_analysed, rscript_folder=rscript_folder)[
-                [col + '_normalized' for col in abundance_analysed]]], axis=1)
-
-            # MT normalization by sample and protein expression - normalization is repeated here because it's not stored from DESeq2 analysis
-            data[expression_analysed].to_csv(f'{args.output}/expression_analysed_readcounts.table',
-                                             sep='\t', index=False)
-            data = pd.concat([data, normalize_readcounts(
-                f'{args.output}/expression_analysed_readcounts.table', expression_analysed,
-                rscript_folder=rscript_folder)[[f'{col}_normalized' for col in expression_analysed]]], axis=1)
-
-            # For each sample, write an Entry Report
-            multi_sheet_excel(f'{args.output}/MOSCA_Entry_Report.xlsx', data, sheet_name=sample)
 
             data[['Entry'] + expression_analysed].groupby('Entry')[expression_analysed].sum().reset_index().to_csv(
                 f'{args.output}/Quantification/expression_matrix.tsv', sep='\t', index=False)

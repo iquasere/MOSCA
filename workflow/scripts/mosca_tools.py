@@ -8,42 +8,46 @@ Jun 2017
 '''
 
 import glob
+from pathlib import Path
+
 import numpy as np
 import os
 import pandas as pd
-import subprocess
+from subprocess import run, Popen, PIPE, check_output
 import sys
 import time
+from tqdm import tqdm
+
+
+blast_cols = ['qseqid', 'sseqid', 'pident', 'length', 'mismatch', 'gapopen', 'qstart', 'qend', 'sstart', 'send',
+              'evalue', 'bitscore']
 
 
 def run_command(bashCommand, output='', mode='w', sep=' ', print_message=True, verbose=True):
     if print_message:
         print(f"{bashCommand.replace(sep, ' ')}{' > ' + output if output != '' else ''}")
     if output == '':
-        subprocess.run(bashCommand.split(sep), stdout=sys.stdout if verbose else None, check=True)
+        run(bashCommand.split(sep), stdout=sys.stdout if verbose else None, check=True)
     else:
         with open(output, mode) as output_file:
-            subprocess.run(bashCommand.split(sep), stdout=output_file)
+            run(bashCommand.split(sep), stdout=output_file)
 
 
 def run_pipe_command(bashCommand, output='', mode='w', sep=' ', print_message=True):
     if print_message:
         print(bashCommand)
     if output == '':
-        subprocess.Popen(bashCommand, stdin=subprocess.PIPE, shell=True).communicate()
+        Popen(bashCommand, stdin=PIPE, shell=True).communicate()
     elif output == 'PIPE':
-        return subprocess.Popen(bashCommand, stdin=subprocess.PIPE, shell=True,
-                                stdout=subprocess.PIPE).communicate()[0].decode('utf8')
+        return Popen(bashCommand, stdin=PIPE, shell=True, stdout=PIPE).communicate()[0].decode('utf8')
     else:
         with open(output, mode) as output_file:
-            subprocess.Popen(bashCommand, stdin=subprocess.PIPE, shell=True, stdout=output_file).communicate()
+            Popen(bashCommand, stdin=PIPE, shell=True, stdout=output_file).communicate()
 
 
 def parse_blast(blast):
     result = pd.read_csv(blast, sep='\t', header=None)
-    result.columns = ['qseqid', 'sseqid', 'pident', 'length', 'mismatch',
-                      'gapopen', 'qstart', 'qend', 'sstart', 'send',
-                      'evalue', 'bitscore']
+    result.columns = blast_cols
     return result
 
 
@@ -129,22 +133,19 @@ Output:
 
 def perform_alignment(reference, reads, basename, threads=1):
     ext = f".{reference.split('.')[-1]}"
-
     if not check_bowtie2_index(reference.replace(ext, '_index')):
         print('INDEX files not found. Generating new ones')
         generate_mg_index(reference, reference.replace(ext, '_index'))
     else:
         print(f"INDEX was located at {reference.replace(ext, '_index')}")
-
     if not os.path.isfile(f'{basename}.log'):
         align_reads(reads, reference.replace(ext, '_index'), f'{basename}.sam',
                     f'{basename}_bowtie2_report.txt', log=f'{basename}.log', threads=threads)
     else:
         print(f'{basename}.log was found!')
-
     run_pipe_command(
-        f"""samtools view -F 260 {basename}.sam | cut -f 3 | sort | uniq -c | """
-        f"""awk '{{printf("%s\\t%s\\n", $2, $1)}}'""", output=f'{basename}.readcounts')
+        f"""samtools view -F 260 -S {basename}.sam | cut -f 3 | sort | uniq -c | 
+        awk '{{printf("%s\\t%s\\n", $2, $1)}}'""", output=f'{basename}.readcounts')
 
 
 def fastq2fasta(fastq, output):
@@ -155,7 +156,7 @@ def timed_message(message):
     print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ': ' + message)
 
 
-def normalize_mg_readcounts_by_size(readcounts, contigs):
+def normalize_mg_by_size(readcounts, contigs):
     run_pipe_command(
         f"seqkit fx2tab {contigs} | sort | awk '{{print $1\"\\t\"length($2)}}' | "
         f"join - {readcounts} | awk '{{print $1\"\\t\"$3/$2}}'",
@@ -168,19 +169,15 @@ Input:
     readcounts: readcounts file from quantification with htseq-count
     origin_of_data: 'metagenomics', 'metatranscriptomics' defines column of joining
     name: name of column to add to relation
-    readcounts_has_tail: boolean, if file is htseq-count expression matrix with
-    those last 5 lines of general information
 Output: 
     'data' df will receive additional column with abundance/expression 
     information. This column will be named 'name'
 '''
 
 
-def add_abundance(data, readcounts, name, origin_of_data='metagenomics', readcounts_has_tail=True):
+def add_abundance(data, readcounts, name, origin_of_data='metagenomics'):
     readcounts = pd.read_csv(readcounts, sep='\t', header=None, names=['qseqid', name])
     readcounts[name] = readcounts[name].fillna(value=0)
-    if readcounts_has_tail:
-        readcounts = readcounts[:-5]  # remove those last resume lines from htseq-count
     if origin_of_data == 'metagenomics':
         readcounts['Contig'] = [qseqid.split('_')[1] for qseqid in readcounts['qseqid']]
         del readcounts['qseqid']
@@ -215,14 +212,14 @@ Output:
 '''
 
 
-def normalize_readcounts(joined, columns, method='TMM', rscript_folder=''):
+def normalize_readcounts(joined, columns, method='TMM'):
     working_dir = '/'.join(joined.split('/')[:-1])
     info = pd.read_csv(joined, sep='\t')
     info[columns] = info[columns].fillna(value=0)
     info[columns].to_csv(working_dir + '/to_normalize.tsv', sep='\t', index=False)
     print(f"Normalizing {joined} on columns {','.join(columns)}")
     run_command(
-        f'{rscript_folder}Rscript {sys.path[0]}/normalization.R --readcounts {working_dir}/to_normalize.tsv '
+        f'Rscript {sys.path[0]}/normalization.R --readcounts {working_dir}/to_normalize.tsv '
         f'--output {working_dir}/normalization_factors.txt -m {method}')
     factors = open(f'{working_dir}/normalization_factors.txt').read().split('\n')[:-1]  # \n always last element
 
@@ -235,7 +232,7 @@ def timed_message(message=None):
     print(f'{time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())}: {message}')
 
 
-def expand_by_list_column(self, df, column='Pathway'):
+def expand_by_list_column(df, column='Pathway'):
     lens = [len(item) for item in df[column]]
     dictionary = dict()
     for column in df.columns:
@@ -271,9 +268,111 @@ def parse_fastqc_report(filename):
 
 
 def count_on_file(expression, file, compressed=False):
-    return int(subprocess.check_output(f"{'zgrep' if compressed else 'grep'} -c '{expression}' {file}", shell=True))
+    return int(check_output(f"{'zgrep' if compressed else 'grep'} -c '{expression}' {file}", shell=True))
 
 
 def sort_alphanumeric(alphanumeric_list):
-    return sorted(alphanumeric_list, key=lambda item: (int(item.partition(' ')[0])
-                                                       if item[0].isdigit() else float('inf'), item))
+    return sorted(alphanumeric_list, key=lambda item: (
+        int(item.partition(' ')[0]) if item[0].isdigit() else float('inf'), item))
+
+
+def generate_expression_matrix(readcount_files, header, output):
+    expression_matrix = pd.DataFrame()
+    for file in readcount_files:
+        df = pd.read_csv(file, sep='\t', index_col=0, header=None)
+        df.columns = [file.split('/')[-1].rstrip('.readcounts')]
+        expression_matrix = pd.merge(expression_matrix, df, how='outer',
+                                     left_index=True, right_index=True)
+    expression_matrix = expression_matrix[1:-5]  # remove non identified proteins (*) and the metrics at the end
+    expression_matrix = expression_matrix.fillna(value=0).astype(
+        int)  # set not identified proteins expression to 0, and convert floats, since DeSEQ2 only accepts integers
+    expression_matrix.index.name = 'geneid'
+    expression_matrix.columns = header
+    expression_matrix.to_csv(output, sep='\t')
+
+
+def make_protein_report(out, exps):
+    for sample in set(exps['Sample']):
+        timed_message(f'Joining data for sample: {sample}')
+        report = pd.read_csv(f'{out}/Annotation/{sample}/reCOGnizer_results.tsv', sep='\t')
+        report = report.groupby('qseqid')[report.columns.tolist()[1:]].first().reset_index()
+        report = report[report['DB ID'].str.startswith('COG')].rename(columns={'DB ID': 'COG ID'})
+        report = pd.merge(pd.read_csv(f'{out}/Annotation/{sample}/UPIMAPI_results.tsv', sep='\t'), report, on='qseqid')
+        report = report.rename(columns={**{f'{col}_x': f'{col} (UPIMAPI)' for col in blast_cols},
+                                        **{f'{col}_y': f'{col} (reCOGnizer)' for col in blast_cols}})
+        report['Contig'] = report['qseqid'].apply(lambda x: x.split('_')[1])
+        mg_names = exps[(exps['Sample'] == sample) & (exps['Data type'] == 'dna')]['Name'].tolist()
+        mt_names = exps[(exps['Sample'] == sample) & (exps['Data type'] == 'mrna')]['Name'].tolist()
+        for mg_name in mg_names:
+            readcounts = pd.read_csv(
+                f'{out}/Quantification/{mg_name}.readcounts', sep='\t', header=None,
+                names=['Contig', mg_name])
+            normalize_mg_by_size(
+                f'{out}/Quantification/{mg_name}.readcounts', f'{out}/Assembly/{sample}/contigs.fasta')
+            norm_by_size = pd.read_csv(
+                f'{out}/Quantification/{mg_name}_normalized.readcounts', sep='\t', header=None,
+                names=['Contig', f'{mg_name} (Normalized by contig size)'])
+            for counts in [readcounts, norm_by_size]:
+                counts['Contig'] = counts['Contig'].apply(lambda x: x.split('_')[1])
+            report = pd.merge(report, readcounts, on='Contig', how='left')
+            report = pd.merge(report, norm_by_size, on='Contig', how='left')
+        for mt_name in mt_names:
+            readcounts = pd.read_csv(f'{out}/Quantification/{mt_name}.readcounts', sep='\t', header=None,
+                                     names=['qseqid', mt_name])
+            report = pd.merge(report, readcounts, on='qseqid', how='left')
+        report[mg_names + mt_names] = report[mg_names + mt_names].fillna(value=0).astype(int)
+        report[[f'{name} (Normalized by contig size)' for name in mg_names]] = report[
+            [f'{name} (Normalized by contig size)' for name in mg_names]].fillna(value=0)
+        multi_sheet_excel(f'{out}/MOSCA_Protein_Report.xlsx', report, sheet_name=sample)
+
+
+def make_entry_report(protein_report, out, exps):
+    for sample in set(exps['Sample']):
+        report = pd.read_excel(protein_report, sheet_name=sample)
+        upimapi_res = pd.read_csv(f'{out}/Annotation/{sample}/UPIMAPI_results.tsv', sep='\t')
+        uniprot_cols = list(set(upimapi_res.columns) - set(blast_cols))
+        taxonomy_columns = [col for col in upimapi_res.columns if 'Taxonomic lineage' in col]
+        functional_columns = [
+            'COG general functional category', 'COG functional category', 'Protein description', 'cog']
+        print(f'Finding consensus COG for each entry of sample: {sample}')
+        tqdm.pandas()
+        cogs_df = report.groupby('Entry')['cog'].progress_apply(
+            lambda x: x.value_counts().index[0] if len(x.value_counts().index) > 0 else np.nan).reset_index()
+        cogs_categories = report[functional_columns].drop_duplicates()
+        mg_names = exps[(exps["Data type"] == 'dna') & (exps["Sample"] == sample)]['Name'].tolist()
+        mt_names = exps[(exps["Data type"] == 'mrna') & (exps["Sample"] == sample)]['Name'].tolist()
+        # Aggregate information for each Entry, keep UniProt information, sum MG and MT or MP quantification
+        for mg_name in mg_names:
+            del report[mg_name]
+        report.rename(columns={f'{mg_name} (Normalized by contig size)': mg_name for mg_name in mg_names}, inplace=True)
+        report = report.groupby('Entry')[[mg_name for mg_name in mg_names] + mt_names].sum().reset_index()
+        report = pd.merge(report, upimapi_res, on='Entry', how='left')
+        report = pd.merge(report, cogs_df, on='Entry', how='left')
+        report = pd.merge(report, cogs_categories, on='cog', how='left')
+        report = report[uniprot_cols + functional_columns + mg_names + mt_names]
+        # MG normalization by sample and protein abundance
+        report[mg_names].to_csv(f'{out}/Quantification/mg_preprocessed_readcounts.tsv', sep='\t', index=False)
+        report = pd.concat([report, normalize_readcounts(f'{out}/Quantification/mg_preprocessed_readcounts.tsv',
+                                                         mg_names)[[f'{col}_normalized' for col in mg_names]]], axis=1)
+        # MT normalization by sample and protein expression
+        report[mt_names].to_csv(f'{out}/Quantification/expression_analysed_readcounts.tsv', sep='\t', index=False)
+        report = pd.concat([report, normalize_readcounts(f'{out}/Quantification/expression_analysed_readcounts.tsv',
+                                                     mt_names)[[f'{col}_normalized' for col in mt_names]]], axis=1)
+        # For each sample, write an Entry Report
+        timed_message('Written Entry Report.')
+        multi_sheet_excel(f'{out}/MOSCA_Entry_Report.xlsx', report, sheet_name=sample)
+        # Also make expression matrix for DE analysis
+        timed_message('Written expression matrix.')
+        if len(mt_names) > 0:
+            Path(f'{out}/Quantification/{sample}').mkdir(parents=True, exists_ok=True)
+            report[['Entry'] + mt_names].groupby('Entry')[mt_names].sum().reset_index().to_csv(
+                f'{out}/Quantification/{sample}/expression_matrix.tsv', sep='\t', index=False)
+        for mg_name in mg_names:
+            # Draw the taxonomy krona plot
+            report.groupby(taxonomy_columns)[mg_name].sum().reset_index()[[mg_name] + taxonomy_columns].to_csv(
+                f'{out}/{mg_name}_tax.tsv', sep='\t', index=False, header=False)
+            run_command('ktImportText {0}/{1}_tax.tsv -o {0}/{1}_tax.html'.format(out, mg_name))
+            # Draw the functional krona plot
+            report.groupby(functional_columns)[mg_name].sum().reset_index()[[mg_name] + functional_columns].to_csv(
+                f'{out}/{mg_name}_fun.tsv', sep='\t', index=False, header=False)
+            run_command('ktImportText {0}/{1}_fun.tsv -o {0}/{1}_fun.html'.format(out, mg_name))

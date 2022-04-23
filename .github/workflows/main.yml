@@ -70,4 +70,4 @@ jobs:
         run: docker run mosca /bin/bash -c "python /share/MOSCA/scripts/annotation.py -i MOSCA/ci/contigs.fasta -t 16 -o output_ann -db MOSCA/ci/ad_uniprot.fasta"
 
       - name: Full workflow
-        run: docker run mosca /bin/bash -c "mosca.py -c MOSCA/ci/config.json"
+        run: docker run mosca /bin/bash -c "mkdir resources_directory; mv MOSCA/ci/cdd.tar.gz resources_directory; mosca.py -c MOSCA/ci/config.json"
