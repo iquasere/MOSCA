@@ -28,8 +28,11 @@ exps.to_csv(f"{config['output']}/exps.tsv", sep = '\t', index = False)
 
 mg_exps = exps[exps["Data type"] == 'dna']
 mt_exps = exps[exps["Data type"] == 'mrna']
-if len(mg_exps) == 0 and config['assembler'] == 'rnaspades':
+if len(mg_exps) == 0 and config['assembler'] in ['rnaspades', 'trinity']:
     mg_exps = mt_exps
+    mt_is_reference = True
+else:
+    mt_is_reference = False
 not_mp_exps = exps[exps["Data type"] != 'protein']
 
 def all_input(wildcards):
@@ -50,7 +53,8 @@ def preprocess_input(wildcards):
     return exps.loc[exps['Name'] == wildcards.name, 'Files'].iloc[0].split(',')
 
 def join_reads_input(wildcards):
-    df = mg_exps.loc[mg_exps['Sample'] == wildcards.sample]
+    df = (mg_exps[mg_exps['Sample'] == wildcards.sample].reset_index() if not mt_is_reference else
+          mt_exps[mt_exps['Sample'] == wildcards.sample].reset_index())
     return [f'{config["output"]}/Preprocess/Trimmomatic/quality_trimmed_{df.iloc[i]["Name"]}{fr}.fq'
            for i in range(len(df))
            for fr in (['_forward_paired', '_reverse_paired'] if ',' in df.iloc[i]["Files"] else [''])]
@@ -88,9 +92,8 @@ rule preprocess:
     threads:
         config["threads"]
     run:
-        shell("python {scripts_dir}/preprocess.py -i {reads} -t {threads} -o {output}/Preprocess -adaptdir "
-              "{resources_directory}/adapters -rrnadbs {resources_directory}/rRNA_databases -d {data_type} -rd "
-              "{resources_directory} -n {wildcards.name} --minlen {minlen} --avgqual {avgqual}",
+        shell("python {scripts_dir}/preprocess.py -i {reads} -t {threads} -o {output}/Preprocess "
+              "-d {data_type} -rd {resources_directory} -n {wildcards.name} --minlen {minlen} --avgqual {avgqual}",
             output = config["output"], reads = ",".join(input), resources_directory = config["resources_directory"],
             data_type = exps.loc[exps['Name'] == wildcards.name]["Data type"].iloc[0],
             minlen = config["minimum_read_length"], avgqual = config["minimum_read_average_quality"])
@@ -101,8 +104,10 @@ rule join_reads:
     output:
         expand("{output}/Preprocess/{{sample}}{fr}.fastq", output = config["output"],
             fr = (['_forward', '_reverse'] if exps["Files"].str.contains(',').tolist() else ''))
+    threads: 1
     run:
         for file in input:
+            print(file)
             if 'forward' in file:
                 shell("touch {output}/Preprocess/{wildcards.sample}_forward.fastq; cat {file} >> "
                       "{output}/Preprocess/{wildcards.sample}_forward.fastq", output = config["output"])
@@ -165,21 +170,21 @@ rule annotation:
     output:
         expand("{output}/Annotation/{{sample}}/fgs.faa", output = config["output"]),
         expand("{output}/Annotation/{{sample}}/fgs.ffn", output = config["output"]),
-        expand("{output}/Annotation/{{sample}}/aligned.blast", output = config["output"])
+        expand("{output}/Annotation/{{sample}}/UPIMAPI_results.tsv", output = config["output"])
     threads:
         config["threads"]
     run:
         if not config['do_assembly']:
             input = ",".join(input)
-        shell("python {scripts_dir}/annotation.py -i {input} -t {threads} -o {output}/Annotation/{wildcards.sample} -em "
-              "{error_model} -db {upimapi_database} -mts {upimapi_max_target_seqs}{assembled}{taxids}"
-              "-cols '{cols}' -dbs '{dbs}'",
+        shell('python {scripts_dir}/annotation.py -i {input} -t {threads} -o {output}/Annotation/{wildcards.sample} '
+              '-em {error_model} -db {upimapi_database} -mts {max_target_seqs}{assembled}{taxids} '
+              '-cols "{cols}" -dbs "{dbs}"',
               output = config["output"],
               error_model = config["error_model"],
               upimapi_database = config["upimapi_database"],
               assembled = ' --assembled' if config['do_assembly'] else '',
               taxids = f' --taxids {config["upimapi_taxids"]}' if config["upimapi_database"] == 'taxids' else '',
-              upimapi_max_target_seqs = config["upimapi_max_target_seqs"],
+              max_target_seqs = config["upimapi_max_target_seqs"],
               cols='&'.join(config['uniprot_columns']), dbs='&'.join(config['uniprot_databases']))
 
 rule recognizer:
@@ -246,8 +251,7 @@ rule metaphlan:
 
 rule protein_report:
     input:
-        f"{config['output']}/Annotation/uniprotinfo.tsv",
-        expand("{output}/Annotation/{sample}/aligned.blast", output = config["output"],
+        expand("{output}/Annotation/{sample}/UPIMAPI_results.tsv", output = config["output"],
             sample = set(exps['Sample'])),
         expand("{output}/Annotation/{sample}/reCOGnizer_results.xlsx", output = config["output"],
             sample = set(exps["Sample"])),
@@ -348,3 +352,4 @@ rule report:
               exps = config["exps"], output = config["output"],
               reporter_lists = f'{scripts_dir}/../resources')
 '''
+

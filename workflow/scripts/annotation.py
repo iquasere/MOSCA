@@ -77,7 +77,7 @@ class Annotater:
             error_model=args.error_model)
 
         self.run_upimapi(
-            f'{args.output}/fgs.faa', args.output, args.database, evalue=args.evalue, threads=args.threads,
+            f'{args.output}/fgs.faa', args.output, database=args.database, evalue=args.evalue, threads=args.threads,
             max_target_seqs=args.max_target_seqs, b=args.block_size, c=args.index_chunks, taxids=args.taxids)
 
 

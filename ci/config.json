@@ -1,11 +1,11 @@
 {
   "version": "1.5.1",
   "output": "output",
-  "resources_directory": "resources_directory1",
+  "resources_directory": "resources_directory",
   "threads": 15,
   "experiments": [
     {
-      "Files": "MOSCA/ci/mg_R1.fastq,MOSCA/ci/mg_R2.fastq",
+      "Files": "MOSCA/ci/mg_R1.fastq.gz,MOSCA/ci/mg_R2.fastq.gz",
       "Sample": "sample",
       "Data type": "dna",
       "Condition": "don't matter, tis mg!",

@@ -29,7 +29,7 @@ class Assembler:
             "-t", "--threads", default=multiprocessing.cpu_count() - 2,
             help="Number of threads to use [max available - 2]")
         parser.add_argument(
-            "-a", "--assembler", choices=["metaspades", "megahit", "rnaspades"],
+            "-a", "--assembler", choices=["metaspades", "megahit", "rnaspades", "trinity"],
             help="Tool for assembling the reads [metaspades]", default="metaspades")
         parser.add_argument(
             "-m", "--memory", default=psutil.virtual_memory().available / (1024.0 ** 3) / 3, type=float,
@@ -51,12 +51,17 @@ class Assembler:
             args.memory *= 10e9
         return args
 
-    def run_assembler(self, reads, out_dir, assembler, threads='12', memory=None):
+    def run_assembler_mg(self, reads, out_dir, assembler, threads='12', memory=None):
         run_command(
             f"{assembler if assembler == 'megahit' else f'{assembler}.py'} -o {out_dir} -t {threads} "
             f"""{f'-1 {reads[0]} -2 {reads[1]}' if len(reads) == 2 else 
             f'-{"r" if assembler == "megahit" else "s"} {reads[0]}'} """
             f"-m {round(memory) if memory else ''}")
+
+    def run_assembler_mt(self, reads, out_dir, threads, memory=None):
+        reads = f'--left {reads[0]} --right {reads[1]}' if len(reads) == 2 else f'--single {reads[0]}'
+        run_command(
+            f"Trinity --seqType fq {reads} --CPU {threads} --max_memory {memory}G --output {out_dir}/trinity")
 
     def percentage_of_reads(self, file):
         handler = open(file)
@@ -83,7 +88,10 @@ class Assembler:
             if os.path.isdir(args.output):
                 shutil.rmtree(args.output)
 
-        self.run_assembler(args.reads, args.output, args.assembler, threads=args.threads, memory=args.memory)
+        if args.assembler != 'trinity':
+            self.run_assembler_mg(args.reads, args.output, args.assembler, threads=args.threads, memory=args.memory)
+        else:
+            self.run_assembler_mt(args.reads, args.output, threads=args.threads, memory=args.memory)
 
         if args.assembler == 'megahit':  # all contigs files are outputed the metaspades way
             run_pipe_command(f"awk \'{{print $1}}\' {args.output}/final.contigs.fa",
@@ -91,6 +99,12 @@ class Assembler:
                              output=f'{args.output}/contigs.fasta')
             shutil.copyfile(f'{args.output}/contigs.fasta', f'{args.output}/scaffolds.fasta'
                             )   # TODO - put SOAPdenovo producing scaffolds from Megahit
+        elif args.assembler == 'trinity':
+            run_pipe_command(f"awk \'{{print $1}}\' {args.output}/trinity/Trinity.fasta",
+                             # >TRINITY_DN19419_c0_g1_i1 len=248 path=[0:0-247] -> TRINITY_DN19419_c0_g1_i1
+                             output=f'{args.output}/contigs.fasta')
+            shutil.copyfile(f'{args.output}/contigs.fasta', f'{args.output}/scaffolds.fasta'
+                            )  # TODO - put SOAPdenovo producing scaffolds from Megahit
 
         self.close_gaps(f'{args.output}/scaffolds.fasta', f'{args.output}/contigs.fasta', f'{args.output}/gap_close',
                         args.reads[0], args.reads[1], read_length=args.read_length, insert_size=args.insert_size,

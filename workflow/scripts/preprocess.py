@@ -14,10 +14,9 @@ import shutil
 from glob import glob
 from multiprocessing import cpu_count
 import os
-import sys
 import pathlib
 import time
-from subprocess import check_output
+from subprocess import check_output, DEVNULL
 from mosca_tools import run_command, run_pipe_command, parse_fastqc_report
 
 
@@ -35,12 +34,6 @@ class Preprocesser:
             help="Number of threads to use [available - 2]")
         parser.add_argument("-d", "--data", choices=["dna", "mrna"])
         parser.add_argument("-o", "--output", help="Output directory"),
-        parser.add_argument(
-            "-adaptdir", "--adapters-directory", help="Directory with adapter files for Trimmomatic",
-            default=os.path.expanduser('~/illumina_adapters'))
-        parser.add_argument(
-            "-rrnadbs", "--rrna-databases-directory", help="Directory with rRNA databases for SortMeRNA",
-            default=os.path.expanduser('~/rRNA_databases'))
         parser.add_argument(
             "-rd", "--resources-directory", required=True,
             help="Directory with resources for SortMeRNA and Trimmomatic")
@@ -85,12 +78,6 @@ class Preprocesser:
         return filename.replace("stdin:", "").replace(".gz", "").replace(".bz2", "").replace(".txt", "").replace(
             ".fastq", "").replace(".fq", "").replace(".csfastq", "").replace(".sam", "").replace(".bam", "")
 
-    def remove_fa_end(self, filename):
-        if 'fasta' in filename:
-            return filename.split('.fasta')[0]
-        else:
-            return filename.split('.fa')[0]
-
     def download_resources(self, resources_directory):
         if not os.path.isfile(f'{resources_directory}/downloaded_timestamp.txt'):
             run_pipe_command(
@@ -116,7 +103,7 @@ class Preprocesser:
             print('No adapter contamination detected.')
             return 'None'
         for adapter in adapters:  # trim according to each adapter file
-            adapter_name = self.remove_fa_end(adapter.split('/')[-1])
+            adapter_name = adapter.split('/')[-1].split('.fa')[0]
             output_files = (
                 ' '.join([f'{out_dir}/Trimmomatic/noadapters_{name}_{adapter_name}_{fr}_{pu}.fq'
                           for fr in ['forward', 'reverse'] for pu in ['paired', 'unpaired']]) if self.paired else
@@ -147,7 +134,7 @@ class Preprocesser:
         run_command(
             f"sortmerna -ref {' -ref '.join(databases)} --reads {' --reads '.join(reads)} --idx-dir {indexes_dir} "
             f"--workdir {tmp_dir} --aligned {out_dir}/rrna_{name} --other {out_dir}/norrna_{name} -out2 --fastx "
-            f"--paired_in --threads {threads}")
+            f"--paired_in --threads {threads}", verbose=False)
         shutil.rmtree(tmp_dir)
 
     def get_crop(self, data):
@@ -219,7 +206,7 @@ class Preprocesser:
         args = self.get_arguments()
         for directory in \
                 [f'{args.output}/{f}' for f in ['FastQC', 'Trimmomatic', 'SortMeRNA']] + \
-                [f'{args.resources_directory}{f}' for f in ['', '/rRNA_databases']]:
+                [f'{args.resources_directory}{f}' for f in ['/adapters', '/rRNA_databases']]:
             pathlib.Path(directory).mkdir(parents=True, exist_ok=True)
         if args.name is None:
             name = self.fastqc_name(args.input[0].split('/')[-1])
@@ -234,13 +221,10 @@ class Preprocesser:
 
         self.download_resources(args.resources_directory)
 
-        if not hasattr(args, "adapters_directory"):
-            args.adapters_directory = f'{args.resources_directory}/adapters'
-        if not hasattr(args, "rrna_databases_directory"):
-            args.rrna_databases_directory = f'{args.resources_directory}/rRNA_databases'
+        adapters_dir, rrna_databases_dir = [f'{args.resources_directory}/{f}' for f in ['adapters', 'rRNA_databases']]
 
         # Adapter removal
-        adapters = self.select_adapters(glob(f'{args.adapters_directory}/*.fa*'), paired=self.paired)
+        adapters = self.select_adapters(glob(f'{adapters_dir}/*.fa*'), paired=self.paired)
         print('Available adapter files:\n{}'.format('\n'.join(adapters)))
 
         adapter_result = self.remove_adapters(args.input, args.output, name, adapters, threads=args.threads)
@@ -248,9 +232,8 @@ class Preprocesser:
         print(f'adapter result:{adapter_result}')
         with open(f'{args.output}/Trimmomatic/{name}_adapters.txt', 'w') as f:
             f.write(adapter_result)
-
         if adapter_result not in ['None', 'Failed']:
-            adapter_part = self.remove_fa_end(adapter_result.split('/')[-1])
+            adapter_part = adapter_result.split('/')[-1].split('.fa')[0]
             if self.paired:
                 args.input = [
                     f'{args.output}/Trimmomatic/noadapters_{name}_{adapter_part}_{fr}_paired.fq'
@@ -262,9 +245,9 @@ class Preprocesser:
 
         # rRNA removal
         if args.data == 'mrna':
-            rrna_databases = glob(f'{args.rrna_databases_directory}/*.fa*')
+            rrna_databases = glob(f'{rrna_databases_dir}/*.fa*')
             self.rrna_removal(
-                args.input, f'{args.output}/SortMeRNA', name, rrna_databases, args.rrna_databases_directory,
+                args.input, f'{args.output}/SortMeRNA', name, rrna_databases, rrna_databases_dir,
                 tmp_dir=args.temporary_directory, threads=args.threads)
 
             args.input = ([f'{args.output}/SortMeRNA/norrna_{name}_{fr}.fq' for fr in ['fwd', 'rev']] if
