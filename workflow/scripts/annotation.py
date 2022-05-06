@@ -9,6 +9,7 @@ Jun 2017
 """
 
 import argparse
+import os
 from multiprocessing import cpu_count
 from mosca_tools import run_command
 import pathlib
@@ -47,6 +48,9 @@ class Annotater:
             "-cols", "--uniprot-columns", default=None, help="Columns to retrieve information from with UPIMAPI")
         parser.add_argument(
             "-dbs", "--uniprot-databases", default=None, help="Databases to cross-reference with UPIMAPI")
+        parser.add_argument(
+            "-rd", "--resources-directory", default=os.path.expanduser('~/resources'),
+            help="Output directory for storing databases and other resources [~/resources]")
 
 
         args = parser.parse_args()
@@ -59,10 +63,10 @@ class Annotater:
             f'{file} -out={output} -complete=0 -train=./{error_model}'}""")
 
     def run_upimapi(
-            self, query, output, database='uniprot', evalue=0.001, threads=12, max_target_seqs=50, b=None, c=None,
-            taxids=None, cols=None, dbs=None):
+            self, query, output, rd='resources_directory', database='uniprot', evalue=0.001, threads=12,
+            max_target_seqs=50, b=None, c=None, taxids=None, cols=None, dbs=None):
         run_command(
-            f"upimapi.py -i {query} -o {output} -db {database} --threads {threads} -mts {max_target_seqs} "
+            f"upimapi.py -i {query} -o {output} -rd {rd} -db {database} --threads {threads} -mts {max_target_seqs} "
             f"--evalue {evalue}{f' --taxids {taxids}' if taxids is not None else ''}"
             f"{f' -b {b}' if b is not None else ''}{f' -c {c}' if c is not None else ''}"
             f"{f' --cols {cols}' if cols is not None else ''}{f' --dbs {dbs}' if dbs is not None else ''}")
@@ -77,7 +81,7 @@ class Annotater:
             error_model=args.error_model)
 
         self.run_upimapi(
-            f'{args.output}/fgs.faa', args.output, database=args.database, evalue=args.evalue, threads=args.threads,
+            f'{args.output}/fgs.faa', args.output, rd=args.resources_directory, database=args.database, evalue=args.evalue, threads=args.threads,
             max_target_seqs=args.max_target_seqs, b=args.block_size, c=args.index_chunks, taxids=args.taxids)
 
 

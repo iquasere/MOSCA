@@ -12,6 +12,8 @@ import multiprocessing
 import os
 import pathlib
 import shutil
+from glob import glob
+
 from mosca_tools import run_command, run_pipe_command, perform_alignment
 import psutil
 
@@ -61,7 +63,7 @@ class Assembler:
     def run_assembler_mt(self, reads, out_dir, threads, memory=None):
         reads = f'--left {reads[0]} --right {reads[1]}' if len(reads) == 2 else f'--single {reads[0]}'
         run_command(
-            f"Trinity --seqType fq {reads} --CPU {threads} --max_memory {memory}G --output {out_dir}/trinity")
+            f"Trinity --seqType fq {reads} --CPU {threads} --max_memory {int(memory)}G --output {out_dir}/trinity")
 
     def percentage_of_reads(self, file):
         handler = open(file)
@@ -92,7 +94,7 @@ class Assembler:
             self.run_assembler_mg(args.reads, args.output, args.assembler, threads=args.threads, memory=args.memory)
         else:
             self.run_assembler_mt(args.reads, args.output, threads=args.threads, memory=args.memory)
-
+        print(f'Assembler is: {args.assembler}')
         if args.assembler == 'megahit':  # all contigs files are outputed the metaspades way
             run_pipe_command(f"awk \'{{print $1}}\' {args.output}/final.contigs.fa",
                              # k141_714 flag=1 multi=1.0000 len=369 -> k141_714
@@ -103,8 +105,7 @@ class Assembler:
             run_pipe_command(f"awk \'{{print $1}}\' {args.output}/trinity/Trinity.fasta",
                              # >TRINITY_DN19419_c0_g1_i1 len=248 path=[0:0-247] -> TRINITY_DN19419_c0_g1_i1
                              output=f'{args.output}/contigs.fasta')
-            shutil.copyfile(f'{args.output}/contigs.fasta', f'{args.output}/scaffolds.fasta'
-                            )  # TODO - put SOAPdenovo producing scaffolds from Megahit
+            shutil.copyfile(f'{args.output}/contigs.fasta', f'{args.output}/scaffolds.fasta')
 
         self.close_gaps(f'{args.output}/scaffolds.fasta', f'{args.output}/contigs.fasta', f'{args.output}/gap_close',
                         args.reads[0], args.reads[1], read_length=args.read_length, insert_size=args.insert_size,

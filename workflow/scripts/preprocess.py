@@ -215,7 +215,7 @@ class Preprocesser:
         else:
             name = args.name
         self.paired = len(args.input) > 1
-
+        '''
         # First quality check
         self.run_fastqc(args.input, f'{args.output}/FastQC', threads=args.threads)
 
@@ -254,7 +254,7 @@ class Preprocesser:
                           self.paired else [f'{args.output}/SortMeRNA/norrna_{name}.fq'])
 
         self.run_fastqc(args.input, f'{args.output}/FastQC', threads=args.threads)
-
+        '''
         self.quality_trimming(args.input, args.output, name, threads=args.threads, avgqual=args.avgqual,
                               minlen=args.minlen, type_of_data=args.data)
 

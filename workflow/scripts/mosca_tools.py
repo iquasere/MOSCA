@@ -18,7 +18,6 @@ import sys
 import time
 from tqdm import tqdm
 
-
 blast_cols = ['qseqid', 'sseqid', 'pident', 'length', 'mismatch', 'gapopen', 'qstart', 'qend', 'sstart', 'send',
               'evalue', 'bitscore']
 
@@ -59,7 +58,7 @@ def check_bowtie2_index(index_prefix):
 
 
 def generate_mg_index(reference, index_prefix):
-    run_command(f'bowtie2-build {reference} {index_prefix}')
+    run_command(f'bowtie2-build {reference} {index_prefix} 1> {index_prefix}.log 2> {index_prefix}.err')
 
 
 def align_reads(reads, index_prefix, sam, report, log=None, threads=6):
@@ -330,7 +329,7 @@ def make_entry_report(protein_report, out, exps):
     for sample in set(exps['Sample']):
         report = pd.read_excel(protein_report, sheet_name=sample)
         upimapi_res = pd.read_csv(f'{out}/Annotation/{sample}/UPIMAPI_results.tsv', sep='\t')
-        uniprot_cols = list(set(upimapi_res.columns) - set(blast_cols))
+        uniprot_cols = [col for col in upimapi_res.columns if col not in blast_cols]
         taxonomy_columns = [col for col in upimapi_res.columns if 'Taxonomic lineage' in col]
         functional_columns = [
             'COG general functional category', 'COG functional category', 'Protein description', 'cog']
@@ -342,31 +341,38 @@ def make_entry_report(protein_report, out, exps):
         mg_names = exps[(exps["Data type"] == 'dna') & (exps["Sample"] == sample)]['Name'].tolist()
         mt_names = exps[(exps["Data type"] == 'mrna') & (exps["Sample"] == sample)]['Name'].tolist()
         # Aggregate information for each Entry, keep UniProt information, sum MG and MT or MP quantification
-        for mg_name in mg_names:
-            del report[mg_name]
-        report.rename(columns={f'{mg_name} (Normalized by contig size)': mg_name for mg_name in mg_names}, inplace=True)
-        report = report.groupby('Entry')[[mg_name for mg_name in mg_names] + mt_names].sum().reset_index()
+        if len(mg_names) > 0:
+            report.rename(
+                columns={f'{mg_name} (Normalized by contig size)': mg_name for mg_name in mg_names}, inplace=True)
+        report = report.groupby('Entry')[mg_names + mt_names].sum().reset_index()
         report = pd.merge(report, upimapi_res, on='Entry', how='left')
         report = pd.merge(report, cogs_df, on='Entry', how='left')
         report = pd.merge(report, cogs_categories, on='cog', how='left')
         report = report[uniprot_cols + functional_columns + mg_names + mt_names]
         # MG normalization by sample and protein abundance
-        report[mg_names].to_csv(f'{out}/Quantification/mg_preprocessed_readcounts.tsv', sep='\t', index=False)
-        report = pd.concat([report, normalize_readcounts(f'{out}/Quantification/mg_preprocessed_readcounts.tsv',
-                                                         mg_names)[[f'{col}_normalized' for col in mg_names]]], axis=1)
+        if len(mg_names) > 0:
+            report[mg_names].to_csv(f'{out}/Quantification/mg_preprocessed_readcounts.tsv', sep='\t', index=False)
+            report = pd.concat([report, normalize_readcounts(
+                f'{out}/Quantification/mg_preprocessed_readcounts.tsv', mg_names)[
+                [f'{col}_normalized' for col in mg_names]]], axis=1)
         # MT normalization by sample and protein expression
-        report[mt_names].to_csv(f'{out}/Quantification/expression_analysed_readcounts.tsv', sep='\t', index=False)
-        report = pd.concat([report, normalize_readcounts(f'{out}/Quantification/expression_analysed_readcounts.tsv',
-                                                     mt_names)[[f'{col}_normalized' for col in mt_names]]], axis=1)
+        if len(mt_names) > 0:
+            report[mt_names].to_csv(f'{out}/Quantification/expression_analysed_readcounts.tsv', sep='\t', index=False)
+            report = pd.concat([report, normalize_readcounts(
+                f'{out}/Quantification/expression_analysed_readcounts.tsv', mt_names)[
+                [f'{col}_normalized' for col in mt_names]]], axis=1)
         # For each sample, write an Entry Report
-        timed_message('Written Entry Report.')
+        report = report.drop_duplicates()
+        timed_message('Writing Entry Report.')
         multi_sheet_excel(f'{out}/MOSCA_Entry_Report.xlsx', report, sheet_name=sample)
         # Also make expression matrix for DE analysis
         timed_message('Written expression matrix.')
         if len(mt_names) > 0:
-            Path(f'{out}/Quantification/{sample}').mkdir(parents=True, exists_ok=True)
+            Path(f'{out}/Quantification/{sample}').mkdir(parents=True, exist_ok=True)
             report[['Entry'] + mt_names].groupby('Entry')[mt_names].sum().reset_index().to_csv(
                 f'{out}/Quantification/{sample}/expression_matrix.tsv', sep='\t', index=False)
+        if len(mg_names) == 0:
+            mg_names = mt_names
         for mg_name in mg_names:
             # Draw the taxonomy krona plot
             report.groupby(taxonomy_columns)[mg_name].sum().reset_index()[[mg_name] + taxonomy_columns].to_csv(

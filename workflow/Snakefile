@@ -28,11 +28,6 @@ exps.to_csv(f"{config['output']}/exps.tsv", sep = '\t', index = False)
 
 mg_exps = exps[exps["Data type"] == 'dna']
 mt_exps = exps[exps["Data type"] == 'mrna']
-if len(mg_exps) == 0 and config['assembler'] in ['rnaspades', 'trinity']:
-    mg_exps = mt_exps
-    mt_is_reference = True
-else:
-    mt_is_reference = False
 not_mp_exps = exps[exps["Data type"] != 'protein']
 
 def all_input(wildcards):
@@ -53,8 +48,9 @@ def preprocess_input(wildcards):
     return exps.loc[exps['Name'] == wildcards.name, 'Files'].iloc[0].split(',')
 
 def join_reads_input(wildcards):
-    df = (mg_exps[mg_exps['Sample'] == wildcards.sample].reset_index() if not mt_is_reference else
-          mt_exps[mt_exps['Sample'] == wildcards.sample].reset_index())
+    df = mg_exps[mg_exps['Sample'] == wildcards.sample].reset_index()
+    if len(df) == 0:
+        df = mt_exps[mt_exps['Sample'] == wildcards.sample].reset_index()
     return [f'{config["output"]}/Preprocess/Trimmomatic/quality_trimmed_{df.iloc[i]["Name"]}{fr}.fq'
            for i in range(len(df))
            for fr in (['_forward_paired', '_reverse_paired'] if ',' in df.iloc[i]["Files"] else [''])]
@@ -177,9 +173,10 @@ rule annotation:
         if not config['do_assembly']:
             input = ",".join(input)
         shell('python {scripts_dir}/annotation.py -i {input} -t {threads} -o {output}/Annotation/{wildcards.sample} '
-              '-em {error_model} -db {upimapi_database} -mts {max_target_seqs}{assembled}{taxids} '
+              '-rd {rd} -em {error_model} -db {upimapi_database} -mts {max_target_seqs}{assembled}{taxids} '
               '-cols "{cols}" -dbs "{dbs}"',
               output = config["output"],
+              rd = config["resources_directory"],
               error_model = config["error_model"],
               upimapi_database = config["upimapi_database"],
               assembled = ' --assembled' if config['do_assembly'] else '',
@@ -198,9 +195,10 @@ rule recognizer:
     run:
         shell("recognizer.py -f {input} -t {threads} -o {output}/Annotation/{sample} -rd {resources_directory}"
               "{download_cdd_resources} -dbs {recognizer_databases} -sd",
-            output = config["output"], sample = set(exps["Sample"]),
-            resources_directory = config["resources_directory"], recognizer_databases = config["recognizer_databases"],
-            download_cdd_resources = '' if not config['download_cdd_resources'] else ' -dr')
+              output = config["output"], sample = set(exps["Sample"]),
+              resources_directory = config["resources_directory"],
+              recognizer_databases = config["recognizer_databases"],
+              download_cdd_resources = '' if not config['download_cdd_resources'] else ' -dr')
 
 rule quantification_analysis:
     input:
