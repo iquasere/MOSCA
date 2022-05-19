@@ -35,9 +35,9 @@ def all_input(wildcards):
         return (
             expand("{output}/MOSCA_Protein_Report.xlsx", output=config["output"]) +
             expand("{output}/MOSCA_Entry_Report.xlsx", output=config["output"]) +
-            #expand("{output}/technical_report.tsv", output=config["output"]) +
-            #expand("{output}/MOSCA_General_Report.xlsx", output=config["output"]) +
-            #expand("{output}/MOSCA_results.zip", output=config["output"]) +
+            expand("{output}/technical_report.tsv", output=config["output"]) +
+            expand("{output}/MOSCA_General_Report.xlsx", output=config["output"]) +
+            expand("{output}/MOSCA_results.zip", output=config["output"]) +
             expand("{output}/Binning/{sample}/checkm.tsv", output=config["output"], sample=set(exps['Sample']))
         )
     else:
@@ -333,7 +333,7 @@ rule keggcharter:
 
         shutil.copyfile(f"{config['output']}/KEGGCharter_results.xlsx",
                         f"{config['output']}/MOSCA_Entry_Report.xlsx")
-'''
+
 rule report:
     input:
         f"{config['output']}/MOSCA_Protein_Report.xlsx",
@@ -346,8 +346,7 @@ rule report:
     threads:
         1
     run:
-        shell("python {scripts_dir}/report.py -e {exps} -o {output} -ldir {reporter_lists} -if {input_format}",
-              exps = config["exps"], output = config["output"],
-              reporter_lists = f'{scripts_dir}/../resources')
-'''
+        shell("python {scripts_dir}/report.py -e {output}/exps.tsv -o {output} -ldir {reporter_lists} -if tsv -s _001",
+              output = config["output"], reporter_lists = f'{scripts_dir}/../resources')
+
 

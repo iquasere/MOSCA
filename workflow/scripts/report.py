@@ -22,10 +22,11 @@ class Reporter:
     def get_arguments(self):
         parser = argparse.ArgumentParser(description="MOSCA's technical and quality control reports")
         parser.add_argument("-e", "--experiments", required=True, help="Experiments file")
-        parser.add_argument("-o", "--output", help="Output directory"),
+        parser.add_argument("-o", "--output", help="Output directory")
         parser.add_argument("-ldir", "--lists-directory", help="Directory with lists for Reporter")
         parser.add_argument("-if", "--input-format", default='tsv', choices=['tsv', 'excel'])
         parser.add_argument("--no-differential-expression", action='store_true', default=False)
+        parser.add_argument("-s", "--suffix", help="If files don't end with _R1, _R2, this will be added to ends")
         args = parser.parse_args()
         args.output = args.output.rstrip('/')
         return args
@@ -78,7 +79,8 @@ class Reporter:
                 self.report.loc[col_name, f'{prefix} {column}'] = (
                     f'{reports[0][column][0]} (forward) {reports[1][column][0]} (reverse)')
 
-    def info_from_preprocessing(self, output_dir, name, input_file, fastq_columns, performed_rrna_removal=False):
+    def info_from_preprocessing(self, output_dir, name, input_file, fastq_columns, performed_rrna_removal=False,
+                                suffix=''):
         print(f'Retrieving preprocessing information for dataset: {name}')
         if name not in self.report.index:
             self.report = self.report.append(pd.Series(name=name, dtype='object'))
@@ -92,10 +94,10 @@ class Reporter:
             adapter = None
 
         # For each preprocessing step, a tuple of (prefix, suffix for forward, suffix for reverse)
-        prefix2terms = {'[Initial quality assessment]': ('', 'R1', 'R2'),
+        prefix2terms = {'[Initial quality assessment]': ('', f'R1{suffix}', f'R2{suffix}'),
                         '[Before quality trimming]': (
-                            ('after_rrna_removal_', 'forward', 'reverse') if performed_rrna_removal else (
-                            'after_adapter_removal_', f'{adapter}_forward_paired', f'{adapter}_reverse_paired')
+                            ('norrna_', 'fwd', 'rev') if performed_rrna_removal else (
+                            'noadapters_', f'{adapter}_forward_paired', f'{adapter}_reverse_paired')
                         if adapter is not None else ('', 'R1', 'R2')),
                         '[After quality trimming]': ('quality_trimmed_', 'forward_paired', 'reverse_paired')}
 
@@ -155,7 +157,7 @@ class Reporter:
             count_on_file('*', f'{output_dir}/Annotation/{sample}/aligned.blast')))
 
         sample_report['# of proteins annotated (reCOGnizer)'] = (
-            len(set(parse_blast(f'{output_dir}/Annotation/{sample}/COG_aligned.blast')['qseqid'])))
+            len(set(pd.read_csv(f'{output_dir}/Annotation/{sample}/COG_report.tsv', sep='\t')['qseqid'])))
 
         sample_report = pd.DataFrame.from_dict(sample_report, orient='index').transpose()
         sample_report.index = [sample]
@@ -182,17 +184,14 @@ class Reporter:
             self.report.loc[self.report['Sample'] == sample, f'[Binning] {col}'] = (
                 sample_report.loc[sample][col])
 
-    def info_from_alignment(self, output_dir, mt_name):
+    def info_from_alignment(self, p_report, mt_name):
         self.report.set_index('Name', inplace=True)
-        self.report.loc[mt_name, '[Metatranscriptomics] # of reads aligned'] = (
-            run_pipe_command(
-                f"""cat {output_dir}/Quantification/{mt_name}.sam | cut -f 3 | sort | uniq -c | """
-                f"""awk \'{{printf(\"%s\\t%s\\n\", $2, $1)}}\' | awk '{{sum+=$2}} END {{print sum}}\'""",
-                output='PIPE').rstrip('\n'))
+        self.report.loc[mt_name, '[Metatranscriptomics] # of reads aligned'] = p_report[mt_name].sum()
         self.report.reset_index(inplace=True)
 
     def info_from_differential_expression(self, output_dir, sample, cutoff=0.01):
-        de_results = pd.read_csv(f'{output_dir}/Quantification/condition_treated_results.csv', index_col=0)
+        de_results = pd.read_csv(
+            f'{output_dir}/Quantification/{sample}/condition_treated_results.tsv', index_col=0, sep='\t')
         self.report.loc[self.report['Sample'] == sample, '[Gene expression] # of differentially expressed proteins'] = (
             (de_results['padj'] < cutoff).sum())
 
@@ -217,7 +216,7 @@ class Reporter:
         for i in exps.index:
             self.info_from_preprocessing(
                 args.output, exps.iloc[i]['Name'], exps.iloc[i]['Files'].split(',')[0], fastq_columns,
-                performed_rrna_removal=(False if exps.iloc[i]['Data type'] == 'dna' else True))
+                performed_rrna_removal=(False if exps.iloc[i]['Data type'] == 'dna' else True), suffix=args.suffix)
 
         self.set_samples(exps)
 
@@ -232,11 +231,12 @@ class Reporter:
             if not args.no_differential_expression:
                 self.info_from_differential_expression(args.output, sample)
 
-            with open(f"{args.output}/{sample}/MOSCA_General_Report.tsv", 'w') as f:
+            with open(f"{args.output}/{sample}_report.txt", 'w') as f:
                 f.write('done')
 
+        protein_report = pd.read_excel(f'{args.output}/MOSCA_Protein_Report.xlsx')
         for mt_name in exps[exps["Data type"] == 'mrna']['Name']:
-            self.info_from_alignment(args.output, mt_name)
+            self.info_from_alignment(protein_report, mt_name)
 
         self.report.to_excel(f'{args.output}/MOSCA_General_Report.xlsx', index=False)
 

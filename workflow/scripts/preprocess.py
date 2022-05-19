@@ -17,7 +17,7 @@ import os
 import pathlib
 import time
 from subprocess import check_output, DEVNULL
-from mosca_tools import run_command, run_pipe_command, parse_fastqc_report
+from mosca_tools import run_command, run_pipe_command, parse_fastqc_report, fastqc_name
 
 
 class Preprocesser:
@@ -74,10 +74,6 @@ class Preprocesser:
         else:
             return [adapter for adapter in adapters if 'SE' in adapter]
 
-    def fastqc_name(self, filename):
-        return filename.replace("stdin:", "").replace(".gz", "").replace(".bz2", "").replace(".txt", "").replace(
-            ".fastq", "").replace(".fq", "").replace(".csfastq", "").replace(".sam", "").replace(".bam", "")
-
     def download_resources(self, resources_directory):
         if not os.path.isfile(f'{resources_directory}/downloaded_timestamp.txt'):
             run_pipe_command(
@@ -96,7 +92,7 @@ class Preprocesser:
     def remove_adapters(self, files, out_dir, name, adapters, threads='12'):
         adapter_contaminated = False
         for file in files:
-            folder = self.fastqc_name(file.split('/')[-1])
+            folder = fastqc_name(file.split('/')[-1])
             if self.has_adapters(f'{out_dir}/FastQC/{folder}_fastqc/fastqc_data.txt'):
                 adapter_contaminated = True
         if not adapter_contaminated:  # No files had adapters
@@ -164,7 +160,7 @@ class Preprocesser:
     # Trimmomatic - removal of low quality regions and short reads
     def quality_trimming(self, files, out_dir, name, threads='12', minlen='100', avgqual='20', type_of_data='dna'):
         fastqc_reports = [
-            f"{out_dir}/FastQC/{self.fastqc_name(file.split('/')[-1])}_fastqc/fastqc_data.txt" for file in files]
+            f"{out_dir}/FastQC/{fastqc_name(file.split('/')[-1])}_fastqc/fastqc_data.txt" for file in files]
         crop = float('inf')
         headcrop = 0
         for report in fastqc_reports:
@@ -209,13 +205,13 @@ class Preprocesser:
                 [f'{args.resources_directory}{f}' for f in ['/adapters', '/rRNA_databases']]:
             pathlib.Path(directory).mkdir(parents=True, exist_ok=True)
         if args.name is None:
-            name = self.fastqc_name(args.input[0].split('/')[-1])
+            name = fastqc_name(args.input[0].split('/')[-1])
             if '_R' in name:
                 name = name.split('_R')[0]
         else:
             name = args.name
         self.paired = len(args.input) > 1
-        '''
+
         # First quality check
         self.run_fastqc(args.input, f'{args.output}/FastQC', threads=args.threads)
 
@@ -254,7 +250,7 @@ class Preprocesser:
                           self.paired else [f'{args.output}/SortMeRNA/norrna_{name}.fq'])
 
         self.run_fastqc(args.input, f'{args.output}/FastQC', threads=args.threads)
-        '''
+
         self.quality_trimming(args.input, args.output, name, threads=args.threads, avgqual=args.avgqual,
                               minlen=args.minlen, type_of_data=args.data)
 

@@ -330,7 +330,7 @@ def make_entry_report(protein_report, out, exps):
         report = pd.read_excel(protein_report, sheet_name=sample)
         upimapi_res = pd.read_csv(f'{out}/Annotation/{sample}/UPIMAPI_results.tsv', sep='\t')
         uniprot_cols = [col for col in upimapi_res.columns if col not in blast_cols]
-        taxonomy_columns = [col for col in upimapi_res.columns if 'Taxonomic lineage' in col]
+        taxonomy_columns = [col for col in upimapi_res.columns if 'Taxonomic lineage (' in col]
         functional_columns = [
             'COG general functional category', 'COG functional category', 'Protein description', 'cog']
         print(f'Finding consensus COG for each entry of sample: {sample}')
@@ -382,3 +382,8 @@ def make_entry_report(protein_report, out, exps):
             report.groupby(functional_columns)[mg_name].sum().reset_index()[[mg_name] + functional_columns].to_csv(
                 f'{out}/{mg_name}_fun.tsv', sep='\t', index=False, header=False)
             run_command('ktImportText {0}/{1}_fun.tsv -o {0}/{1}_fun.html'.format(out, mg_name))
+
+
+def fastqc_name(filename):
+    return filename.replace("stdin:", "").replace(".gz", "").replace(".bz2", "").replace(".txt", "").replace(
+        ".fastq", "").replace(".fq", "").replace(".csfastq", "").replace(".sam", "").replace(".bam", "")
