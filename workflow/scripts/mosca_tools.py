@@ -58,11 +58,12 @@ def check_bowtie2_index(index_prefix):
 
 
 def generate_mg_index(reference, index_prefix):
-    run_command(f'bowtie2-build {reference} {index_prefix} 1> {index_prefix}.log 2> {index_prefix}.err')
+    run_pipe_command(f'bowtie2-build {reference} {index_prefix} 1> {index_prefix}.log 2> {index_prefix}.err')
 
 
 def align_reads(reads, index_prefix, sam, report, log=None, threads=6):
-    run_command(f'bowtie2 -x {index_prefix} -1 {reads[0]} -2 {reads[1]} -S {sam} -p {threads} 1> {report} 2> {log}')
+    run_pipe_command(
+        f'bowtie2 -x {index_prefix} -1 {reads[0]} -2 {reads[1]} -S {sam} -p {threads} 1> {report} 2> {log}')
 
 
 def parse_fasta(file):
