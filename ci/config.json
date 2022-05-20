@@ -5,35 +5,35 @@
   "threads": 15,
   "experiments": [
     {
-      "Files": "MOSCA/ci/mg_R1.fastq,MOSCA/ci/mg_R2.fastq",
+      "Files": "MOSCA/ci/mg_R1.fastq.gz,MOSCA/ci/mg_R2.fastq.gz",
       "Sample": "sample",
       "Data type": "dna",
       "Condition": "don't matter, tis mg!",
       "Name": ""
     },
     {
-      "Files": "MOSCA/ci/mt1_R1.fastq,MOSCA/ci/mt1_R2.fastq",
+      "Files": "MOSCA/ci/mt1_R1.fastq.gz,MOSCA/ci/mt1_R2.fastq.gz",
       "Sample": "sample",
       "Data type": "mrna",
       "Condition": "c1",
       "Name": ""
     },
     {
-      "Files": "MOSCA/ci/mt2_R1.fastq,MOSCA/ci/mt2_R2.fastq",
+      "Files": "MOSCA/ci/mt2_R1.fastq.gz,MOSCA/ci/mt2_R2.fastq.gz",
       "Sample": "sample",
       "Data type": "mrna",
       "Condition": "c1",
       "Name": ""
     },
     {
-      "Files": "MOSCA/ci/mt3_R1.fastq,MOSCA/ci/mt3_R2.fastq",
+      "Files": "MOSCA/ci/mt3_R1.fastq.gz,MOSCA/ci/mt3_R2.fastq.gz",
       "Sample": "sample",
       "Data type": "mrna",
       "Condition": "c2",
       "Name": ""
     },
     {
-      "Files": "MOSCA/ci/mt4_R1.fastq,MOSCA/ci/mt4_R2.fastq",
+      "Files": "MOSCA/ci/mt4_R1.fastq.gz,MOSCA/ci/mt4_R2.fastq.gz",
       "Sample": "sample",
       "Data type": "mrna",
       "Condition": "c2",
