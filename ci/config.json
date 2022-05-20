@@ -5,7 +5,7 @@
   "threads": 15,
   "experiments": [
     {
-      "Files": "MOSCA/ci/mg_R1.fastq.gz,MOSCA/ci/mg_R2.fastq.gz",
+      "Files": "MOSCA/ci/mg_R1.fastq,MOSCA/ci/mg_R2.fastq",
       "Sample": "sample",
       "Data type": "dna",
       "Condition": "don't matter, tis mg!",
