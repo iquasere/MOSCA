@@ -324,7 +324,7 @@ rule keggcharter:
     threads:
         1
     run:
-        shell("kegg_charter.py -f {input} -o {output}/KEGG_maps{metabolic_maps} -gcol {mg_cols} -tcol {exp_cols} -tc "
+        shell("keggcharter.py -f {input} -o {output}/KEGG_maps{metabolic_maps} -gcol {mg_cols} -tcol {exp_cols} -tc "
               "'Taxonomic lineage ({taxa_level})' -not {number_of_taxa} -keggc 'Cross-reference (KEGG)'",
               output = config["output"], mg_cols = ','.join(mg_exps['Name'].tolist()),
               metabolic_maps = f" -mm {','.join(config['keggcharter_maps']) if len(config['keggcharter_maps']) > 0 else ''}",
@@ -346,7 +346,8 @@ rule report:
     threads:
         1
     run:
-        shell("python {scripts_dir}/report.py -e {output}/exps.tsv -o {output} -ldir {reporter_lists} -if tsv -s _001",
-              output = config["output"], reporter_lists = f'{scripts_dir}/../resources')
+        shell("python {scripts_dir}/report.py -e {output}/exps.tsv -o {output} -ldir {reporter_lists} -if tsv{suffix}",
+              output = config["output"], reporter_lists = f'{scripts_dir}/../resources',
+              suffix = f' -s {config["suffix"]}' if config["suffix"] != '' else '')
 
 

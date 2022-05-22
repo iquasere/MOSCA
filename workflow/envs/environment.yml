@@ -529,7 +529,7 @@ dependencies:
   - tzdata=2021a=h52ac0ba_0
   - ubiquerg=0.6.1=pyh9f0ad1d_0
   - unicodedata2=14.0.0=py37h540881e_1
-  - upimapi=1.5.2=hdfd78af_0
+  - upimapi=1.7.4
   - uritemplate=4.1.1=pyhd8ed1ab_0
   - urllib3=1.26.9=pyhd8ed1ab_0
   - veracitools=0.1.3=py_0

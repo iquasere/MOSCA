@@ -39,6 +39,7 @@
       "Condition": "c2",
       "Name": ""
     }],
+  "suffix": "",
   "minimum_read_length": 100,
   "minimum_read_average_quality": 20,
   "do_assembly": true,

@@ -26,7 +26,8 @@ class Reporter:
         parser.add_argument("-ldir", "--lists-directory", help="Directory with lists for Reporter")
         parser.add_argument("-if", "--input-format", default='tsv', choices=['tsv', 'excel'])
         parser.add_argument("--no-differential-expression", action='store_true', default=False)
-        parser.add_argument("-s", "--suffix", help="If files don't end with _R1, _R2, this will be added to ends")
+        parser.add_argument("-s", "--suffix", default="",
+                            help="If files don't end with _R1, _R2, this will be added to ends")
         args = parser.parse_args()
         args.output = args.output.rstrip('/')
         return args
@@ -65,7 +66,7 @@ class Reporter:
     def info_from_fastqc(self, output_dir, name, col_name, prefix, prefix2terms, fastq_columns):
         reports = [parse_fastqc_report(f'{output_dir}/Preprocess/FastQC/{prefix2terms[prefix][0]}{name}_'
                                        f'{prefix2terms[prefix][i]}_fastqc/fastqc_data.txt') for i in [1, 2]]
-        self.report.loc[col_name, 'f{prefix} # of reads'] = reports[0]['Basic Statistics'][1].loc[
+        self.report.loc[col_name, f'{prefix} # of reads'] = reports[0]['Basic Statistics'][1].loc[
             'Total Sequences']['Value']
 
         for column in fastq_columns:

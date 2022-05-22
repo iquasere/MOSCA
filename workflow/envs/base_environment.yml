@@ -9,6 +9,7 @@ dependencies:
   - bioconductor-edger
   - bioconductor-rots
   - biopython
+  - blast>=2.12
   - bowtie2
   - checkm-genome
   - fastqc
@@ -36,7 +37,7 @@ dependencies:
   - seqtk
   - snakemake
   - snakemake-minimal
-  - sortmerna
+  - sortmerna=4
   - spades
   - trimmomatic
   - upimapi=1.7

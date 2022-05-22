@@ -9,7 +9,7 @@ import json
 import yaml
 from time import gmtime, strftime, time
 
-__version__ = '1.5.2'
+__version__ = '1.6.0'
 
 parser = argparse.ArgumentParser(description="MOSCA's main script")
 parser.add_argument("-s", "--snakefile", default=f'{sys.path[0]}/Snakefile', help="Snakefile file")

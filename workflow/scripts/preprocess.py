@@ -127,11 +127,15 @@ class Preprocesser:
     def rrna_removal(self, reads, out_dir, name, databases, indexes_dir, tmp_dir, threads=12):
         if os.path.isdir(tmp_dir):
             shutil.rmtree(tmp_dir)
-        run_command(
+        run_pipe_command(
             f"sortmerna -ref {' -ref '.join(databases)} --reads {' --reads '.join(reads)} --idx-dir {indexes_dir} "
             f"--workdir {tmp_dir} --aligned {out_dir}/rrna_{name} --other {out_dir}/norrna_{name} -out2 --fastx "
-            f"--paired_in --threads {threads}", verbose=False)
+            f"--paired_in --threads {threads} 1>{out_dir}/{name}_sortmerna.log 2>{out_dir}/{name}_sortmerna.err")
         shutil.rmtree(tmp_dir)
+        not_compressed = glob(f'{out_dir}/*.fq')
+        if len(not_compressed) > 0:
+            for file in not_compressed:
+                run_pipe_command(f'gzip {file}')
 
     def get_crop(self, data):
         data = data['Per base sequence quality'][1]
@@ -194,7 +198,7 @@ class Preprocesser:
         pass
 
     def remove_intermediates(self, out_dir):
-        for file in (glob(f'{out_dir}/Trimmomatic/noadapters_*.fq') + glob(f'{out_dir}/SortMeRNA/norrna_*.fastq')):
+        for file in (glob(f'{out_dir}/Trimmomatic/noadapters_*.fq') + glob(f'{out_dir}/SortMeRNA/norrna_*.fq.gz')):
             os.remove(file)
             print(f'Removed intermediate file: {file}')
 
@@ -246,8 +250,8 @@ class Preprocesser:
                 args.input, f'{args.output}/SortMeRNA', name, rrna_databases, rrna_databases_dir,
                 tmp_dir=args.temporary_directory, threads=args.threads)
 
-            args.input = ([f'{args.output}/SortMeRNA/norrna_{name}_{fr}.fq' for fr in ['fwd', 'rev']] if
-                          self.paired else [f'{args.output}/SortMeRNA/norrna_{name}.fq'])
+            args.input = ([f'{args.output}/SortMeRNA/norrna_{name}_{fr}.fq.gz' for fr in ['fwd', 'rev']] if
+                          self.paired else [f'{args.output}/SortMeRNA/norrna_{name}.fq.gz'])
 
         self.run_fastqc(args.input, f'{args.output}/FastQC', threads=args.threads)
 
