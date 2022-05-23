@@ -16,7 +16,7 @@ dependencies:
   - fraggenescan
   - gmcloser
   - keggcharter
-  - krona
+  - krona=2.5
   - lxml
   - maxbin2
   - maxquant=2
