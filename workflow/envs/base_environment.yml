@@ -24,6 +24,7 @@ dependencies:
   - numpy
   - pandas
   - peptide-shaker=2
+  - perl=5.26
   - python=3
   - quast
   - r-optparse
@@ -39,6 +40,7 @@ dependencies:
   - snakemake-minimal
   - sortmerna=4
   - spades
+  - subversion
   - trimmomatic
   - upimapi=1.7
   - xlrd
