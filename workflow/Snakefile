@@ -2,8 +2,7 @@ import pathlib
 import pandas as pd
 import shutil
 import sys
-from mosca_tools import parse_blast, multi_sheet_excel, perform_alignment, generate_expression_matrix, timed_message, \
-    normalize_mg_by_size, make_entry_report, make_protein_report
+from mosca_tools import perform_alignment, generate_expression_matrix, make_entry_report, make_protein_report
 
 scripts_dir = sys.path[0]
 exps = pd.DataFrame(config["experiments"])
@@ -38,7 +37,9 @@ def all_input(wildcards):
             expand("{output}/technical_report.tsv", output=config["output"]) +
             expand("{output}/MOSCA_General_Report.xlsx", output=config["output"]) +
             expand("{output}/MOSCA_results.zip", output=config["output"]) +
-            expand("{output}/Binning/{sample}/checkm.tsv", output=config["output"], sample=set(exps['Sample']))
+            expand("{output}/Binning/{sample}/checkm.tsv", output=config["output"], sample=set(exps['Sample'])) +
+            expand("{output}/KEGG_maps/{sample}/KEGGCharter_results.xlsx", output=config["output"],
+                sample=set(exps['Sample']))
         )
     else:
         return f"{config['output']}/MOSCA_Entry_Counts_Report.xlsx"
@@ -319,14 +320,16 @@ rule differential_expression:
 rule keggcharter:
     input:
         f"{config['output']}/MOSCA_Entry_Report.xlsx"
+    params:
+        outdir="{output}/KEGG_maps/{sample}"
     output:
-        f"{config['output']}/KEGG_maps/KEGGCharter_results.xlsx"
+        "{output}/KEGG_maps/{sample}/KEGGCharter_results.xlsx"
     threads:
         1
     run:
-        shell("keggcharter.py -f {input} -o {output}/KEGG_maps{metabolic_maps} -gcol {mg_cols} -tcol {exp_cols} -tc "
-              "'Taxonomic lineage ({taxa_level})' -not {number_of_taxa} -keggc 'Cross-reference (KEGG)'",
-              output = config["output"], mg_cols = ','.join(mg_exps['Name'].tolist()),
+        shell("keggcharter.py -f {input} -o {params.outdir} -gcol {mg_cols} -tcol {exp_cols} -tc "
+              "'Taxonomic lineage ({taxa_level})' -not {number_of_taxa} -keggc 'Cross-reference (KEGG)'{metabolic_maps}",
+              mg_cols = ','.join(mg_exps['Name'].tolist()),
               metabolic_maps = f" -mm {','.join(config['keggcharter_maps']) if len(config['keggcharter_maps']) > 0 else ''}",
               exp_cols = ','.join(mt_exps['Name'].tolist()), taxa_level = config["keggcharter_taxa_level"],
               number_of_taxa = config["keggcharter_number_of_taxa"])
