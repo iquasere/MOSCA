@@ -27,6 +27,8 @@ exps.to_csv(f"{config['output']}/exps.tsv", sep = '\t', index = False)
 
 mg_exps = exps[exps["Data type"] == 'dna']
 mt_exps = exps[exps["Data type"] == 'mrna']
+if len(mg_exps) == 0 and len(mt_exps) != 0:
+    mg_exps = mt_exps
 not_mp_exps = exps[exps["Data type"] != 'protein']
 
 def all_input(wildcards):
@@ -38,7 +40,7 @@ def all_input(wildcards):
             expand("{output}/MOSCA_General_Report.xlsx", output=config["output"]) +
             expand("{output}/MOSCA_results.zip", output=config["output"]) +
             expand("{output}/Binning/{sample}/checkm.tsv", output=config["output"], sample=set(exps['Sample'])) +
-            expand("{output}/KEGG_maps/{sample}/KEGGCharter_results.xlsx", output=config["output"],
+            expand("{output}/KEGG_maps/{sample}/KEGGCharter_results.tsv", output=config["output"],
                 sample=set(exps['Sample']))
         )
     else:
@@ -50,8 +52,6 @@ def preprocess_input(wildcards):
 
 def join_reads_input(wildcards):
     df = mg_exps[mg_exps['Sample'] == wildcards.sample].reset_index()
-    if len(df) == 0:
-        df = mt_exps[mt_exps['Sample'] == wildcards.sample].reset_index()
     return [f'{config["output"]}/Preprocess/Trimmomatic/quality_trimmed_{df.iloc[i]["Name"]}{fr}.fq'
            for i in range(len(df))
            for fr in (['_forward_paired', '_reverse_paired'] if ',' in df.iloc[i]["Files"] else [''])]
@@ -323,13 +323,14 @@ rule keggcharter:
     params:
         outdir="{output}/KEGG_maps/{sample}"
     output:
-        "{output}/KEGG_maps/{sample}/KEGGCharter_results.xlsx"
+        "{output}/KEGG_maps/{sample}/KEGGCharter_results.tsv"
     threads:
         1
     run:
         shell("keggcharter.py -f {input} -o {params.outdir} -gcol {mg_cols} -tcol {exp_cols} -tc "
-              "'Taxonomic lineage ({taxa_level})' -not {number_of_taxa} -keggc 'Cross-reference (KEGG)'{metabolic_maps}",
-              mg_cols = ','.join(mg_exps['Name'].tolist()),
+              "'Taxonomic lineage ({taxa_level})' -not {number_of_taxa} -keggc 'Cross-reference (KEGG)'"
+              "-rd {resources_directory}{metabolic_maps}",
+              mg_cols = ','.join(mg_exps['Name'].tolist()), resources_directory = config["resources_directory"],
               metabolic_maps = f" -mm {','.join(config['keggcharter_maps']) if len(config['keggcharter_maps']) > 0 else ''}",
               exp_cols = ','.join(mt_exps['Name'].tolist()), taxa_level = config["keggcharter_taxa_level"],
               number_of_taxa = config["keggcharter_number_of_taxa"])
