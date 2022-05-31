@@ -329,14 +329,11 @@ rule keggcharter:
     run:
         shell("keggcharter.py -f {input} -o {params.outdir} -gcol {mg_cols} -tcol {exp_cols} -tc "
               "'Taxonomic lineage ({taxa_level})' -not {number_of_taxa} -keggc 'Cross-reference (KEGG)' "
-              "-rd {resources_directory}{metabolic_maps}",
+              "-rd {resources_directory}{metabolic_maps} || true",
               mg_cols = ','.join(mg_exps['Name'].tolist()), resources_directory = config["resources_directory"],
               metabolic_maps = f" -mm {','.join(config['keggcharter_maps']) if len(config['keggcharter_maps']) > 0 else ''}",
               exp_cols = ','.join(mt_exps['Name'].tolist()), taxa_level = config["keggcharter_taxa_level"],
               number_of_taxa = config["keggcharter_number_of_taxa"])
-
-        shutil.copyfile(f"{config['output']}/KEGGCharter_results.xlsx",
-                        f"{config['output']}/MOSCA_Entry_Report.xlsx")
 
 rule report:
     input:
