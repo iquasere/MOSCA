@@ -328,7 +328,7 @@ rule keggcharter:
         1
     run:
         shell("keggcharter.py -f {input} -o {params.outdir} -gcol {mg_cols} -tcol {exp_cols} -tc "
-              "'Taxonomic lineage ({taxa_level})' -not {number_of_taxa} -keggc 'Cross-reference (KEGG)'"
+              "'Taxonomic lineage ({taxa_level})' -not {number_of_taxa} -keggc 'Cross-reference (KEGG)' "
               "-rd {resources_directory}{metabolic_maps}",
               mg_cols = ','.join(mg_exps['Name'].tolist()), resources_directory = config["resources_directory"],
               metabolic_maps = f" -mm {','.join(config['keggcharter_maps']) if len(config['keggcharter_maps']) > 0 else ''}",
