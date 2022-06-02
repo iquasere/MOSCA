@@ -3,11 +3,9 @@ name: CI
 on:
   push:
     branches:
-      - master
       - development
   pull_request:
     branches:
-      - master
       - development
 
   # Allows you to run this workflow manually from the Actions tab
@@ -74,9 +72,4 @@ jobs:
         run: docker run mosca /bin/bash -c "python /share/MOSCA/scripts/annotation.py -i MOSCA/ci/contigs.fasta -t 16 -o output_ann -db MOSCA/ci/ad_uniprot.fasta"
 
      - name: All workflows
-        run:
-         docker run mosca /bin/bash -c "mkdir resources_directory; mv MOSCA/ci/cdd.tar.gz resources_directory; 
-         mosca.py -c MOSCA/ci/mg_and_mt_config.json; mkdir mg_output; mv mgmt_output/Preprocess mg_output; 
-         cp MOSCA/ci/mg_R1.fastq.gz MOSCA/ci/mg_R1_001.fastq.gz; cp MOSCA/ci/mg_R2.fastq.gz MOSCA/ci/mg_R2_001.fastq.gz 
-         mosca.py -c MOSCA/ci/mg_only_config.json; mkdir mt_output; mv mg_output/Preprocess mt_output;
-         mosca.py -c MOSCA/ci/mt_only_config.json"
+        run: docker run mosca /bin/bash -c "mkdir resources_directory; mv MOSCA/ci/cdd.tar.gz resources_directory; mosca.py -c MOSCA/ci/mg_and_mt_config.json; mkdir mg_output; mv mgmt_output/Preprocess mg_output; cp MOSCA/ci/mg_R1.fastq.gz MOSCA/ci/mg_R1_001.fastq.gz; cp MOSCA/ci/mg_R2.fastq.gz MOSCA/ci/mg_R2_001.fastq.gz mosca.py -c MOSCA/ci/mg_only_config.json; mkdir mt_output; mv mg_output/Preprocess mt_output; mosca.py -c MOSCA/ci/mt_only_config.json"
