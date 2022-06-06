@@ -42,6 +42,7 @@ dependencies:
   - spades
   - subversion
   - trimmomatic
+  - trinity
   - upimapi=1.7
   - xlrd
   - xlsxwriter

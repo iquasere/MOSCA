@@ -5,7 +5,7 @@
   "threads": 15,
   "experiments": [
     {
-      "Files": "MOSCA/ci/mg_R1.fastq.gz,MOSCA/ci/mg_R2.fastq.gz",
+      "Files": "MOSCA/ci/mg_R1_001.fastq.gz,MOSCA/ci/mg_R2_001.fastq.gz",
       "Sample": "sample",
       "Data type": "dna",
       "Condition": "don't matter, tis mg!",
@@ -58,7 +58,7 @@
     "NCBI Reference Sequences",
     "UniPathway: a resource for the exploration and annotation of metabolic pathways"
   ],
-  "download_cdd_resources": true,
+  "download_cdd_resources": false,
   "recognizer_databases": [
     "CDD",
     "Pfam",

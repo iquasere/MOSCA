@@ -212,7 +212,7 @@ rule quantification_analysis:
             sample = set(exps["Sample"]))
     output:
         expand("{output}/Quantification/{name}.readcounts", output = config["output"],
-            name = set(not_mp_exps['Name'])),
+            name = set(not_mp_exps['Name']))
     threads: config["threads"]
     run:
         for i in exps.index:
@@ -226,9 +226,6 @@ rule quantification_analysis:
                 reference, [f"{config['output']}/Preprocess/Trimmomatic/"
                 f"quality_trimmed_{exps.iloc[i]['Name']}_{fr}_paired.fq" for fr in ['forward', 'reverse']],
                 f"{config['output']}/Quantification/{exps.iloc[i]['Name']}", threads=threads)
-        generate_expression_matrix(
-            [f"{config['output']}/Quantification/{mt_name}.readcounts" for mt_name in mt_exps['Name']],
-            mt_exps['Name'].tolist(), f"{config['output']}/Quantification/expression_matrix.tsv")
 
 rule metaphlan:
     input:
@@ -265,9 +262,9 @@ rule entry_report:
     input:
         f"{config['output']}/MOSCA_Protein_Report.xlsx"
     output:
-        f"{config['output']}/MOSCA_Entry_Report.xlsx",
-        expand("{output}/Quantification/{sample}/expression_matrix.tsv", output = config["output"],
-            sample = set(exps["Sample"]))
+        [f"{config['output']}/MOSCA_Entry_Report.xlsx"] +
+        (expand("{output}/Quantification/{sample}/expression_matrix.tsv", output=config["output"],
+            sample=set(exps["Sample"])) if len(mt_exps) > 0 else [''])
     threads: 1
     run: make_entry_report(f"{config['output']}/MOSCA_Protein_Report.xlsx", config["output"], exps)
 
@@ -327,19 +324,20 @@ rule keggcharter:
     threads:
         1
     run:
-        shell("keggcharter.py -f {input} -o {params.outdir} -gcol {mg_cols} -tcol {exp_cols} -tc "
+        shell("keggcharter.py -f {input} -o {params.outdir} -gcol {mg_cols}{exp_cols} -tc "
               "'Taxonomic lineage ({taxa_level})' -not {number_of_taxa} -keggc 'Cross-reference (KEGG)' "
               "-rd {resources_directory}{metabolic_maps} || true",
               mg_cols = ','.join(mg_exps['Name'].tolist()), resources_directory = config["resources_directory"],
               metabolic_maps = f" -mm {','.join(config['keggcharter_maps']) if len(config['keggcharter_maps']) > 0 else ''}",
-              exp_cols = ','.join(mt_exps['Name'].tolist()), taxa_level = config["keggcharter_taxa_level"],
-              number_of_taxa = config["keggcharter_number_of_taxa"])
+              exp_cols = f" -tcol {','.join(mt_exps['Name'].tolist())}" if len(mt_exps) > 0 else '',
+              taxa_level = config["keggcharter_taxa_level"], number_of_taxa = config["keggcharter_number_of_taxa"])
 
 rule report:
     input:
-        f"{config['output']}/MOSCA_Protein_Report.xlsx",
-        expand("{output}/Quantification/{sample}/condition_treated_results.tsv", output=config['output'],
-               sample=set(exps["Sample"]))
+        [f"{config['output']}/MOSCA_Protein_Report.xlsx",
+        f"{config['output']}/MOSCA_Entry_Report.xlsx"] +
+        (expand("{output}/Quantification/{sample}/condition_treated_results.tsv", output=config['output'],
+               sample=set(exps["Sample"])) if len(mt_exps) > 0 else [''])
     output:
         f"{config['output']}/technical_report.tsv",
         f"{config['output']}/MOSCA_General_Report.xlsx",
@@ -347,8 +345,8 @@ rule report:
     threads:
         1
     run:
-        shell("python {scripts_dir}/report.py -e {output}/exps.tsv -o {output} -ldir {reporter_lists} -if tsv{suffix}",
-              output = config["output"], reporter_lists = f'{scripts_dir}/../resources',
-              suffix = f' -s {config["suffix"]}' if config["suffix"] != '' else '')
-
-
+        shell("python {scripts_dir}/report.py -e {output}/exps.tsv -o {output} -ldir {reporter_lists} -if tsv{suffix} "
+              "{no_de}",
+            output = config["output"], reporter_lists = f'{scripts_dir}/../resources',
+            suffix = f' -s {config["suffix"]}' if config["suffix"] != '' else '',
+            no_de = '' if len(mt_exps) > 0 else ' --no-differential-expression')
