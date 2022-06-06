@@ -8,7 +8,7 @@ Logo by [Sérgio A. Silva](https://www.ceb.uminho.pt/People/Details/64888072-5cd
 
 **MOSCA** (portuguese for fly) is a pipeline designed for performing metagenomics (MG) and metatranscriptomics (MT) integrated data analyses, in a mostly local and fully automated workflow.
 
-[![CI](https://github.com/iquasere/MOSCA/actions/workflows/main.yml/badge.svg?branch=master)](https://github.com/iquasere/MOSCA/actions/workflows/main.yml)
+[![Development CI](https://github.com/iquasere/MOSCA/actions/workflows/main.yml/badge.svg?branch=development)](https://github.com/iquasere/MOSCA/actions/workflows/main.yml)
 
 ## MOSCA's wiki
 

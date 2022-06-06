@@ -62,25 +62,29 @@ jobs:
         run: docker run mosca /bin/bash -c "ls"
 
       - name: Preprocess
-        run: |
-          docker run mosca /bin/bash -c "python /share/MOSCA/scripts/preprocess.py 
-          -i MOSCA/ci/mt4_R1.fastq.gz,MOSCA/ci/mt4_R2.fastq.gz -t 15 -d mrna -rd resources_directory -n mt_name1 
-          -o output_pp"
+        run:
+          - >
+            docker run mosca /bin/bash -c "python /share/MOSCA/scripts/preprocess.py 
+            -i MOSCA/ci/mt4_R1.fastq.gz,MOSCA/ci/mt4_R2.fastq.gz -t 15 -d mrna -rd resources_directory -n mt_name1 
+            -o output_pp"
 
       - name: Assembly
-        run: |
-          docker run mosca /bin/bash -c "python /share/MOSCA/scripts/assembly.py 
-          -r MOSCA/ci/mg_R1.fastq.gz,MOSCA/ci/mg_R2.fastq.gz -t 15 -o output_ass --max-ref-number 0"
+        run:
+          - >
+            docker run mosca /bin/bash -c "python /share/MOSCA/scripts/assembly.py 
+            -r MOSCA/ci/mg_R1.fastq.gz,MOSCA/ci/mg_R2.fastq.gz -t 15 -o output_ass --max-ref-number 0"
 
       - name: Annotation
-        run: |
-          docker run mosca /bin/bash -c "python /share/MOSCA/scripts/annotation.py -i MOSCA/ci/contigs.fasta -t 16 
-          -o output_ann -db MOSCA/ci/ad_uniprot.fasta"
+        run:
+          - >
+            docker run mosca /bin/bash -c "python /share/MOSCA/scripts/annotation.py -i MOSCA/ci/contigs.fasta -t 16 
+            -o output_ann -db MOSCA/ci/ad_uniprot.fasta"
 
       - name: All workflows
-        run: | 
-          docker run mosca /bin/bash -c "mkdir resources_directory; mv MOSCA/ci/cdd.tar.gz resources_directory; 
-          mosca.py -c MOSCA/ci/mg_and_mt_config.json; cp MOSCA/ci/mg_R1.fastq.gz MOSCA/ci/mg_R1_001.fastq.gz; 
-          cp MOSCA/ci/mg_R2.fastq.gz MOSCA/ci/mg_R2_001.fastq.gz; rm resources_directory/upimapi_database.fasta; 
-          mosca.py -c MOSCA/ci/mg_only_config.json; rm resources_directory/upimapi_database.fasta; 
-          mosca.py -c MOSCA/ci/mt_only_config.json"
+        run:
+          - >
+            docker run mosca /bin/bash -c "mkdir resources_directory; mv MOSCA/ci/cdd.tar.gz resources_directory; 
+            mosca.py -c MOSCA/ci/mg_and_mt_config.json; cp MOSCA/ci/mg_R1.fastq.gz MOSCA/ci/mg_R1_001.fastq.gz; 
+            cp MOSCA/ci/mg_R2.fastq.gz MOSCA/ci/mg_R2_001.fastq.gz; rm resources_directory/upimapi_database.fasta; 
+            mosca.py -c MOSCA/ci/mg_only_config.json; rm resources_directory/upimapi_database.fasta; 
+            mosca.py -c MOSCA/ci/mt_only_config.json"
