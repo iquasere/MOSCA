@@ -2,7 +2,7 @@
   "version": "1.6.1",
   "output": "mt_output",
   "resources_directory": "resources_directory",
-  "threads": 256,
+  "threads": 15,
   "experiments": [
     {
       "Files": "MOSCA/ci/mt1_R1.fastq.gz,MOSCA/ci/mt1_R2.fastq.gz",

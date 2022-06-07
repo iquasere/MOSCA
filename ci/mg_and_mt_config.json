@@ -2,7 +2,7 @@
   "version": "1.6.1",
   "output": "mgmt_output",
   "resources_directory": "resources_directory",
-  "threads": 256,
+  "threads": 15,
   "experiments": [
     {
       "Files": "MOSCA/ci/mg_R1.fastq.gz,MOSCA/ci/mg_R2.fastq.gz",

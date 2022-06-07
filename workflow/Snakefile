@@ -192,7 +192,7 @@ rule recognizer:
         expand("{output}/Annotation/{sample}/reCOGnizer_results.xlsx", output = config["output"],
             sample = set(exps["Sample"]))
     threads:
-        config["threads"] - 1
+        config["threads"]
     run:
         shell("recognizer.py -f {input} -t {threads} -o {output}/Annotation/{sample} -rd {resources_directory}"
               "{download_cdd_resources} -dbs {recognizer_databases} -sd",
