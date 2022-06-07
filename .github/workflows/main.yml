@@ -30,7 +30,7 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           context: .
-          file: ./Dockerfile
+          file: ./ci/Dockerfile
           tags: mosca:latest
           outputs: type=docker,dest=/tmp/mosca.tar
 
@@ -85,7 +85,7 @@ jobs:
       - name: MG only workflow
         run: >
           docker run mosca /bin/bash -c "mkdir resources_directory; mv MOSCA/ci/cdd.tar.gz resources_directory;
-          mv MOSCA/ci/mg_R1.fastq.gz MOSCA/ci/mg_R1_001.fastq.gz;
+          mv MOSCA/ci/mg_R1.fastq.gz MOSCA/ci/mg_R1_001.fastq.gz;   # this move is just to test the "suffix" parameter
           mv MOSCA/ci/mg_R2.fastq.gz MOSCA/ci/mg_R2_001.fastq.gz;
           mosca.py -c MOSCA/ci/mg_only_config.json"
 
