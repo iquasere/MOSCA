@@ -1,8 +1,7 @@
 import pathlib
 import pandas as pd
-import shutil
 import sys
-from mosca_tools import perform_alignment, generate_expression_matrix, make_entry_report, make_protein_report
+from mosca_tools import perform_alignment, make_entry_report, make_protein_report
 
 scripts_dir = sys.path[0]
 exps = pd.DataFrame(config["experiments"])
@@ -194,9 +193,11 @@ rule recognizer:
     threads:
         config["threads"]
     run:
-        shell("recognizer.py -f {input} -t {threads} -o {output}/Annotation/{sample} -rd {resources_directory}"
-              "{download_cdd_resources} -dbs {recognizer_databases} -sd",
-              output = config["output"], sample = set(exps["Sample"]),
+        shell("recognizer.py -f {input} -t {threads} -o {output}/{sample} -rd {resources_directory}"
+              "{download_cdd_resources} -dbs {recognizer_databases} -sd "
+              "--tax-file {output}/{sample}/UPIMAPI_results.tsv --protein-id-col Entry "
+              "--tax-col 'Taxonomic lineage (SPECIES)' --species-taxids",
+              output = f'{config["output"]}/Annotation', sample = set(exps["Sample"]),
               resources_directory = config["resources_directory"],
               recognizer_databases = config["recognizer_databases"],
               download_cdd_resources = '' if not config['download_cdd_resources'] else ' -dr')
@@ -244,6 +245,12 @@ rule metaphlan:
         shell("metaphlan {output}/Taxonomy/{sample}_mg.bowtie2.bz2 --nproc {threads} --input_type bowtie2out -o "
               "{output}/Taxonomy/{sample}_profiled_metagenome.txt",
               output = config["output"], sample = set(exps["Sample"]))
+'''
+rule metaproteomics:
+    input:
+        exps[exps['Data type'] == 'protein']['Files'].tolist()
+    output:
+'''
 
 rule protein_report:
     input:
@@ -264,9 +271,10 @@ rule entry_report:
     output:
         [f"{config['output']}/MOSCA_Entry_Report.xlsx"] +
         (expand("{output}/Quantification/{sample}/expression_matrix.tsv", output=config["output"],
-            sample=set(exps["Sample"])) if len(mt_exps) > 0 else [''])
+            sample=set(exps["Sample"])) if len(mt_exps) > 0 else [])
     threads: 1
-    run: make_entry_report(f"{config['output']}/MOSCA_Protein_Report.xlsx", config["output"], exps)
+    run:
+        make_entry_report(f"{config['output']}/MOSCA_Protein_Report.xlsx", config["output"], exps)
 
 '''
 rule entry_count:
@@ -299,6 +307,7 @@ rule entry_count:
         result[['Entry'] + names].to_csv(f"{config['output']}/Quantification/expression_matrix.tsv",
                                          sep='\t', index=False)
 '''
+
 rule differential_expression:
     input:
         expand("{output}/Quantification/{sample}/expression_matrix.tsv", output=config['output'],
@@ -337,7 +346,7 @@ rule report:
         [f"{config['output']}/MOSCA_Protein_Report.xlsx",
         f"{config['output']}/MOSCA_Entry_Report.xlsx"] +
         (expand("{output}/Quantification/{sample}/condition_treated_results.tsv", output=config['output'],
-               sample=set(exps["Sample"])) if len(mt_exps) > 0 else [''])
+               sample=set(exps["Sample"])) if len(mt_exps) > 0 else [])
     output:
         f"{config['output']}/technical_report.tsv",
         f"{config['output']}/MOSCA_General_Report.xlsx",
@@ -347,6 +356,6 @@ rule report:
     run:
         shell("python {scripts_dir}/report.py -e {output}/exps.tsv -o {output} -ldir {reporter_lists} -if tsv{suffix} "
               "{no_de}",
-            output = config["output"], reporter_lists = f'{scripts_dir}/../resources',
-            suffix = f' -s {config["suffix"]}' if config["suffix"] != '' else '',
-            no_de = '' if len(mt_exps) > 0 else ' --no-differential-expression')
+              output = config["output"], reporter_lists = f'{scripts_dir}/../resources',
+              suffix = f' -s {config["suffix"]}' if config["suffix"] != '' else '',
+              no_de = '' if len(mt_exps) > 0 else ' --no-differential-expression')

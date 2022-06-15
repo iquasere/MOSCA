@@ -222,7 +222,6 @@ def normalize_readcounts(joined, columns, method='TMM'):
         f'Rscript {sys.path[0]}/normalization.R --readcounts {working_dir}/to_normalize.tsv '
         f'--output {working_dir}/normalization_factors.txt -m {method}')
     factors = open(f'{working_dir}/normalization_factors.txt').read().split('\n')[:-1]  # \n always last element
-
     for i in range(len(columns)):
         info[f'{columns[i]}_normalized'] = info[columns[i]] * float(factors[i])
     return info
