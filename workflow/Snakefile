@@ -196,7 +196,7 @@ rule recognizer:
         shell("recognizer.py -f {input} -t {threads} -o {output}/{sample} -rd {resources_directory}"
               "{download_cdd_resources} -dbs {recognizer_databases} -sd "
               "--tax-file {output}/{sample}/UPIMAPI_results.tsv --protein-id-col Entry "
-              "--tax-col 'Taxonomic lineage (SPECIES)' --species-taxids",
+              "--tax-col 'Taxonomic lineage IDs (SPECIES)' --species-taxids",
               output = f'{config["output"]}/Annotation', sample = set(exps["Sample"]),
               resources_directory = config["resources_directory"],
               recognizer_databases = config["recognizer_databases"],
