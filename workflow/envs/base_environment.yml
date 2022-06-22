@@ -30,7 +30,7 @@ dependencies:
   - r-optparse
   - r-pheatmap
   - r-rcolorbrewer
-  - recognizer=1.7
+  - recognizer>=1.8
   - requests
   - samtools
   - searchgui=4
@@ -43,6 +43,6 @@ dependencies:
   - subversion
   - trimmomatic
   - trinity
-  - upimapi=1.7
+  - upimapi>=1.7
   - xlrd
   - xlsxwriter

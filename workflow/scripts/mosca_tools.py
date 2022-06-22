@@ -296,7 +296,8 @@ def make_protein_report(out, exps):
         report = pd.read_csv(f'{out}/Annotation/{sample}/reCOGnizer_results.tsv', sep='\t')
         report = report.groupby('qseqid')[report.columns.tolist()[1:]].first().reset_index()
         report = report[report['DB ID'].str.startswith('COG')].rename(columns={'DB ID': 'COG ID'})
-        report = pd.merge(pd.read_csv(f'{out}/Annotation/{sample}/UPIMAPI_results.tsv', sep='\t'), report, on='qseqid')
+        report = pd.merge(
+            pd.read_csv(f'{out}/Annotation/{sample}/UPIMAPI_results.tsv', sep='\t'), report, on='qseqid', how='outer')
         report = report.rename(columns={**{f'{col}_x': f'{col} (UPIMAPI)' for col in blast_cols},
                                         **{f'{col}_y': f'{col} (reCOGnizer)' for col in blast_cols}})
         report['Contig'] = report['qseqid'].apply(lambda x: x.split('_')[1])
@@ -333,10 +334,12 @@ def make_entry_report(protein_report, out, exps):
         taxonomy_columns = [col for col in upimapi_res.columns if 'Taxonomic lineage (' in col]
         functional_columns = [
             'COG general functional category', 'COG functional category', 'Protein description', 'cog']
-        print(f'Finding consensus COG for each entry of sample: {sample}')
-        tqdm.pandas()
-        cogs_df = report.groupby('Entry')['cog'].progress_apply(
-            lambda x: x.value_counts().index[0] if len(x.value_counts().index) > 0 else np.nan).reset_index()
+        if report['cog'].notnull().sum() > 0:
+            tqdm.pandas(desc=f'Finding consensus COG for each entry of sample: {sample}')
+            cogs_df = report.groupby('Entry')['cog'].progress_apply(
+                lambda x: x.value_counts().index[0] if len(x.value_counts().index) > 0 else np.nan).reset_index()
+        else:
+            cogs_df = pd.DataFrame(columns=['Entry', 'cog'])
         cogs_categories = report[functional_columns].drop_duplicates()
         mg_names = exps[(exps["Data type"] == 'dna') & (exps["Sample"] == sample)]['Name'].tolist()
         mt_names = exps[(exps["Data type"] == 'mrna') & (exps["Sample"] == sample)]['Name'].tolist()
@@ -383,6 +386,8 @@ def make_entry_report(protein_report, out, exps):
                 f'{out}/{mg_name}_fun.tsv', sep='\t', index=False, header=False)
             run_command('ktImportText {0}/{1}_fun.tsv -o {0}/{1}_fun.html'.format(out, mg_name))
 
+
+#make_entry_report('mgmt_output/MOSCA_Protein_Report.xlsx', 'mgmt_output', pd.read_csv('mgmt_output/exps.tsv',sep='\t'))
 
 def fastqc_name(filename):
     return filename.replace("stdin:", "").replace(".gz", "").replace(".bz2", "").replace(".txt", "").replace(
