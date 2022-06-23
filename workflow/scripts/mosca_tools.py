@@ -333,13 +333,13 @@ def make_entry_report(protein_report, out, exps):
         uniprot_cols = [col for col in upimapi_res.columns if col not in blast_cols]
         taxonomy_columns = [col for col in upimapi_res.columns if 'Taxonomic lineage (' in col]
         functional_columns = [
-            'COG general functional category', 'COG functional category', 'Protein description', 'cog']
+            'General functional category', 'Functional category', 'Protein description', 'COG ID']
         if report['cog'].notnull().sum() > 0:
             tqdm.pandas(desc=f'Finding consensus COG for each entry of sample: {sample}')
-            cogs_df = report.groupby('Entry')['cog'].progress_apply(
+            cogs_df = report.groupby('Entry')['COG ID'].progress_apply(
                 lambda x: x.value_counts().index[0] if len(x.value_counts().index) > 0 else np.nan).reset_index()
         else:
-            cogs_df = pd.DataFrame(columns=['Entry', 'cog'])
+            cogs_df = pd.DataFrame(columns=['Entry', 'COG ID'])
         cogs_categories = report[functional_columns].drop_duplicates()
         mg_names = exps[(exps["Data type"] == 'dna') & (exps["Sample"] == sample)]['Name'].tolist()
         mt_names = exps[(exps["Data type"] == 'mrna') & (exps["Sample"] == sample)]['Name'].tolist()
@@ -350,7 +350,7 @@ def make_entry_report(protein_report, out, exps):
         report = report.groupby('Entry')[mg_names + mt_names].sum().reset_index()
         report = pd.merge(report, upimapi_res, on='Entry', how='left')
         report = pd.merge(report, cogs_df, on='Entry', how='left')
-        report = pd.merge(report, cogs_categories, on='cog', how='left')
+        report = pd.merge(report, cogs_categories, on='COG ID', how='left')
         report = report[uniprot_cols + functional_columns + mg_names + mt_names]
         # MG normalization by sample and protein abundance
         if len(mg_names) > 0:

@@ -53,7 +53,7 @@ class MetaproteomicsAnalyser:
         parser.add_argument(
             "-if", "--input-format", help="If experiments is in either TSV or excel format", choices=['tsv', 'excel'])
         parser.add_argument(
-            "-mmem", "--max-memory", default=4, help="Maximum memory to use for Peptide-to-Spectrum matching (in Gb)")
+            "-mmem", "--max-memory", default=4, help="Maximum memory (Gb) to use for Peptide-to-Spectrum matching [4]")
         parser.add_argument(
             "-rd", "--resources-directory", default=os.path.expanduser('~/resources'),
             help="Directory for storing databases and other important files")

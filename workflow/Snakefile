@@ -199,7 +199,7 @@ rule recognizer:
               "--tax-col 'Taxonomic lineage IDs (SPECIES)' --species-taxids",
               output = f'{config["output"]}/Annotation', sample = set(exps["Sample"]),
               resources_directory = config["resources_directory"],
-              recognizer_databases = config["recognizer_databases"],
+              recognizer_databases = ','.join(config["recognizer_databases"]),
               download_cdd_resources = '' if not config['download_cdd_resources'] else ' -dr')
 
 rule quantification_analysis:
