@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-'''
+"""
 General tools for support of MOSCA's functionalities
 
 By João Sequeira
 
 Jun 2017
-'''
+"""
 
 import glob
 from pathlib import Path
@@ -116,22 +116,20 @@ def build_gff_from_orfs(orfs, output):
     gff.to_csv(output, sep='\t', index=False, header=False)
 
 
-'''
-Input:
-    reference: name of contigs file from assembly
-    reads: list, [forward reads, reverse reads]
-    basename: basename of outputs
-    threads: number of threads to use
-    attribute: str - identifier to group quantification for
-    type_of_reference: str - 'contigs' or 'orfs'
-Output:
-    Will generate a bowtie2 index named contigs.replace(.fasta,_index), 
-    GFF annotation file named blast.replace(.blast,.gff)
-    SAM alignment and READCOUNTS files named output + .sam and .readcounts
-'''
-
-
 def perform_alignment(reference, reads, basename, threads=1):
+    """
+    Input:
+        reference: name of contigs file from assembly
+        reads: list, [forward reads, reverse reads]
+        basename: basename of outputs
+        threads: number of threads to use
+        attribute: str - identifier to group quantification for
+        type_of_reference: str - 'contigs' or 'orfs'
+    Output:
+        Will generate a bowtie2 index named contigs.replace(.fasta,_index),
+        GFF annotation file named blast.replace(.blast,.gff)
+        SAM alignment and READCOUNTS files named output + .sam and .readcounts
+    """
     ext = f".{reference.split('.')[-1]}"
     if not check_bowtie2_index(reference.replace(ext, '_index')):
         print('INDEX files not found. Generating new ones')
@@ -163,19 +161,17 @@ def normalize_mg_by_size(readcounts, contigs):
         output=readcounts.replace('.readcounts', '_normalized.readcounts'))
 
 
-'''
-Input: 
-    data: pd.DataFrame - Protein Report on the making
-    readcounts: readcounts file from quantification with htseq-count
-    origin_of_data: 'metagenomics', 'metatranscriptomics' defines column of joining
-    name: name of column to add to relation
-Output: 
-    'data' df will receive additional column with abundance/expression 
-    information. This column will be named 'name'
-'''
-
-
 def add_abundance(data, readcounts, name, origin_of_data='metagenomics'):
+    """
+    Input:
+        data: pd.DataFrame - Protein Report on the making
+        readcounts: readcounts file from quantification with htseq-count
+        origin_of_data: 'metagenomics', 'metatranscriptomics' defines column of joining
+        name: name of column to add to relation
+    Output:
+        'data' df will receive additional column with abundance/expression
+        information. This column will be named 'name'
+    """
     readcounts = pd.read_csv(readcounts, sep='\t', header=None, names=['qseqid', name])
     readcounts[name] = readcounts[name].fillna(value=0)
     if origin_of_data == 'metagenomics':
@@ -199,20 +195,18 @@ def multi_sheet_excel(output, data, sheet_name='Sheet', lines=1000000, index=Fal
     writer.save()
 
 
-'''
-Input:
-    joined: name of final TSV file outputed by MOSCA
-    columns: name of columns to normalize (don't put them all at once, one
-    normalization at a time!)
-    output: name of file to output
-Output:
-    A TXT file will be generated with a single column of numbers, each one
-    corresponding to the normalization factor of each sample by order of
-    column in the readcounts file
-'''
-
-
 def normalize_readcounts(joined, columns, method='TMM'):
+    """
+    Input:
+        joined: name of final TSV file outputed by MOSCA
+        columns: name of columns to normalize (don't put them all at once, one
+        normalization at a time!)
+        output: name of file to output
+    Output:
+        A TXT file will be generated with a single column of numbers, each one
+        corresponding to the normalization factor of each sample by order of
+        column in the readcounts file
+    """
     working_dir = '/'.join(joined.split('/')[:-1])
     info = pd.read_csv(joined, sep='\t')
     info[columns] = info[columns].fillna(value=0)
@@ -328,19 +322,22 @@ def make_protein_report(out, exps):
 
 def make_entry_report(protein_report, out, exps):
     for sample in set(exps['Sample']):
+        timed_message(f'Organizing Entry level information for sample: {sample}')
+        timed_message('Reading Protein Report')
         report = pd.read_excel(protein_report, sheet_name=sample)
+        timed_message('Reading UPIMAPI report')
         upimapi_res = pd.read_csv(f'{out}/Annotation/{sample}/UPIMAPI_results.tsv', sep='\t')
         uniprot_cols = [col for col in upimapi_res.columns if col not in blast_cols]
         taxonomy_columns = [col for col in upimapi_res.columns if 'Taxonomic lineage (' in col]
-        functional_columns = [
-            'General functional category', 'Functional category', 'Protein description', 'COG ID']
-        if report['cog'].notnull().sum() > 0:
-            tqdm.pandas(desc=f'Finding consensus COG for each entry of sample: {sample}')
+        functional_columns = ['General functional category', 'Functional category', 'Protein description', 'COG ID']
+        if report['COG ID'].notnull().sum() > 0:
+            tqdm.pandas(desc=timed_message(f'Finding consensus COG for each entry of sample: {sample}'))
             cogs_df = report.groupby('Entry')['COG ID'].progress_apply(
                 lambda x: x.value_counts().index[0] if len(x.value_counts().index) > 0 else np.nan).reset_index()
+            cogs_categories = report[functional_columns].drop_duplicates()
         else:
+            timed_message('No COG information available')
             cogs_df = pd.DataFrame(columns=['Entry', 'COG ID'])
-        cogs_categories = report[functional_columns].drop_duplicates()
         mg_names = exps[(exps["Data type"] == 'dna') & (exps["Sample"] == sample)]['Name'].tolist()
         mt_names = exps[(exps["Data type"] == 'mrna') & (exps["Sample"] == sample)]['Name'].tolist()
         # Aggregate information for each Entry, keep UniProt information, sum MG and MT or MP quantification
@@ -350,32 +347,36 @@ def make_entry_report(protein_report, out, exps):
         report = report.groupby('Entry')[mg_names + mt_names].sum().reset_index()
         report = pd.merge(report, upimapi_res, on='Entry', how='left')
         report = pd.merge(report, cogs_df, on='Entry', how='left')
-        report = pd.merge(report, cogs_categories, on='COG ID', how='left')
+        if report['COG ID'].notnull().sum() > 0:
+            report = pd.merge(report, cogs_categories, on='COG ID', how='left')
+        else:
+            report = pd.concat([report, pd.DataFrame(
+                columns=['General functional category', 'Functional category', 'Protein description'],
+                index=range(len(report)))], axis=1)
         report = report[uniprot_cols + functional_columns + mg_names + mt_names]
-        # MG normalization by sample and protein abundance
+        timed_message('MG normalization by sample and protein abundance')
         if len(mg_names) > 0:
             report[mg_names].to_csv(f'{out}/Quantification/mg_preprocessed_readcounts.tsv', sep='\t', index=False)
             report = pd.concat([report, normalize_readcounts(
                 f'{out}/Quantification/mg_preprocessed_readcounts.tsv', mg_names)[
                 [f'{col}_normalized' for col in mg_names]]], axis=1)
-        # MT normalization by sample and protein expression
+        timed_message('MT normalization by sample and protein expression')
         if len(mt_names) > 0:
             report[mt_names].to_csv(f'{out}/Quantification/expression_analysed_readcounts.tsv', sep='\t', index=False)
             report = pd.concat([report, normalize_readcounts(
                 f'{out}/Quantification/expression_analysed_readcounts.tsv', mt_names)[
                 [f'{col}_normalized' for col in mt_names]]], axis=1)
-        # For each sample, write an Entry Report
+        timed_message('Writing Entry Report')
         report = report.drop_duplicates()
-        timed_message('Writing Entry Report.')
         multi_sheet_excel(f'{out}/MOSCA_Entry_Report.xlsx', report, sheet_name=sample)
-        # Also make expression matrix for DE analysis
-        timed_message('Written expression matrix.')
+        timed_message('Writting expression matrix')
         if len(mt_names) > 0:
             Path(f'{out}/Quantification/{sample}').mkdir(parents=True, exist_ok=True)
             report[['Entry'] + mt_names].groupby('Entry')[mt_names].sum().reset_index().to_csv(
                 f'{out}/Quantification/{sample}/expression_matrix.tsv', sep='\t', index=False)
         if len(mg_names) == 0:
             mg_names = mt_names
+        timed_message('Generating krona plots')
         for mg_name in mg_names:
             # Draw the taxonomy krona plot
             report.groupby(taxonomy_columns)[mg_name].sum().reset_index()[[mg_name] + taxonomy_columns].to_csv(
@@ -386,8 +387,6 @@ def make_entry_report(protein_report, out, exps):
                 f'{out}/{mg_name}_fun.tsv', sep='\t', index=False, header=False)
             run_command('ktImportText {0}/{1}_fun.tsv -o {0}/{1}_fun.html'.format(out, mg_name))
 
-
-#make_entry_report('mgmt_output/MOSCA_Protein_Report.xlsx', 'mgmt_output', pd.read_csv('mgmt_output/exps.tsv',sep='\t'))
 
 def fastqc_name(filename):
     return filename.replace("stdin:", "").replace(".gz", "").replace(".bz2", "").replace(".txt", "").replace(
