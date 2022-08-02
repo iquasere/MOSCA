@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-'''
+"""
 General report construction and export
 
 By João Sequeira
 
 Oct 2019
-'''
+"""
 
 import argparse
 import glob
@@ -32,15 +32,14 @@ class Reporter:
         args.output = args.output.rstrip('/')
         return args
 
-    '''
-    Input:
-        output: str - filename to write tools and respective versions
-    Output:
-        a file named [output] will be written with information concerning
-        the softwares used by MOSCA and respective versions
-    '''
-
-    def write_technical_report(self, output):  # TODO - add proteomics software that cannot be installed with conda
+    def write_technical_report(self, output):
+        """
+        Input:
+            output: str - filename to write tools and respective versions
+        Output:
+            a file named [output] will be written with information concerning
+            the softwares used by MOSCA and respective versions
+        """
         conda_list = run_pipe_command('conda list', output='PIPE').split('\n')[2:]
         lines = [line.split() for line in conda_list]
         lines[0] = lines[0][1:]
@@ -51,19 +50,18 @@ class Reporter:
         print('Initializing Report')
         self.report = pd.DataFrame(columns=reporter_columns)
 
-    '''
-    Input: 
-        name: str - name of MG/MT sample
-        prefix: str - [Initial quality assessment], [Before quality trimming] or
-        [After quality trimming] - the step that concerns the FastQC report
-        performed_rrna_removal: bool - True if rRNA removal was performed, False
-        otherwise. Should be False for MG, and True for MT
-    Output:
-        self.report will be updated with information from the report, on the line
-        named 'name', and the columns that start with 'prefix'
-    '''
-
     def info_from_fastqc(self, output_dir, name, col_name, prefix, prefix2terms, fastq_columns):
+        """
+        Input:
+            name: str - name of MG/MT sample
+            prefix: str - [Initial quality assessment], [Before quality trimming] or
+            [After quality trimming] - the step that concerns the FastQC report
+            performed_rrna_removal: bool - True if rRNA removal was performed, False
+            otherwise. Should be False for MG, and True for MT
+        Output:
+            self.report will be updated with information from the report, on the line
+            named 'name', and the columns that start with 'prefix'
+        """
         reports = [parse_fastqc_report(f'{output_dir}/Preprocess/FastQC/{prefix2terms[prefix][0]}{name}_'
                                        f'{prefix2terms[prefix][i]}_fastqc/fastqc_data.txt') for i in [1, 2]]
         self.report.loc[col_name, f'{prefix} # of reads'] = reports[0]['Basic Statistics'][1].loc[

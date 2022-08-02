@@ -21,6 +21,7 @@ dependencies:
   - maxbin2
   - maxquant=2
   - megahit
+  - metaphlan>=3
   - numpy
   - pandas
   - peptide-shaker=2
@@ -35,7 +36,6 @@ dependencies:
   - samtools
   - searchgui=4
   - seqkit
-  - seqtk
   - snakemake
   - snakemake-minimal
   - sortmerna=4

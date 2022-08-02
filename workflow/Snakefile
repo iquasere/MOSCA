@@ -230,27 +230,43 @@ rule quantification_analysis:
 
 rule metaphlan:
     input:
-        expand("{output}/Preprocess/Trimmomatic/quality_trimmed_{name}{fr}.fq", output = config["output"],
-            name = mg_exps["Name"],
-            fr = (['_forward_paired', '_reverse_paired'] if exps["Files"].str.contains(',').tolist() else ''))
+        expand("{output}/Preprocess/{{wildcards.sample}}{fr}.fq", output = config["output"],
+            fr = (['_forward', '_reverse'] if exps["Files"].str.contains(',').tolist() else ''))
     output:
         expand("{output}/Taxonomy/{sample}_profiled_metagenome.txt", output = config["output"],
             sample = set(exps["Sample"]))
     threads: config["threads"]
     run:
         reads = ",".join(input)
-        shell("metaphlan {reads} --bowtie2out {output}/Taxonomy/{sample}_mg.bowtie2.bz2 --nproc {threads} --input_type "
-              "fastq",
+        shell("metaphlan {reads} --bowtie2out {output}/Taxonomy/{sample}_mg.bowtie2.bz2 --nproc {threads} "
+              "--input_type fastq",
               output = config["output"], sample = set(exps["Sample"]))
         shell("metaphlan {output}/Taxonomy/{sample}_mg.bowtie2.bz2 --nproc {threads} --input_type bowtie2out -o "
               "{output}/Taxonomy/{sample}_profiled_metagenome.txt",
               output = config["output"], sample = set(exps["Sample"]))
-'''
+
 rule metaproteomics:
     input:
-        exps[exps['Data type'] == 'protein']['Files'].tolist()
+        spectra_folders=[directory(folder) for folder in exps[exps['Data type'] == 'spectra_folder']['Files']],
+        profiled=expand("{output}/Taxonomy/{sample}_profiled_metagenome.txt", output = config["output"],
+            sample = set(exps["Sample"]))
     output:
-'''
+        expand("{output}/Metaproteomics/{sample}_metaproteomics.tsv", output = config["output"],
+            sample = set(exps["Sample"]))
+    threads: config["threads"]
+    run:
+        folders = ",".join(input.spectra_folders)
+        shell("python {scripts_dir}/metaproteomics_analyser.py -sf {folders} -t {threads} "
+              "-o {output}/Metaproteomics/{wildcards.sample} -w {worflow} "
+              "-db {output}/Annotation/{wildcards.sample}/fgs.faa -cdb {contaminants_database} "
+              "-mpar {output}/Taxonomy/{wildcards.sample}_profiled_metagenome.txt -exps {names} --protease {protease} "
+              "-mmem {max_memory} -rd {resources_directory}",
+              output = config["output"], sample = set(exps["Sample"]), workflow=config["proteomics_workflow"],
+              contaminants_database=config["proteomics_contaminants_database"],
+              names=",".join(exps[exps['Data type'] == 'protein_folder']['Name']),
+              protease=config["protease"] if config["protease_file"] == "" else config["protease_file"],
+              max_memory=config["max_memory"], resources_directory=config["resources_directory"])
+
 
 rule protein_report:
     input:
