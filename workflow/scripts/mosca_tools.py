@@ -8,6 +8,7 @@ Jun 2017
 """
 
 import glob
+from multiprocessing import Pool
 from pathlib import Path
 
 import numpy as np
@@ -391,3 +392,15 @@ def make_entry_report(protein_report, out, exps):
 def fastqc_name(filename):
     return filename.replace("stdin:", "").replace(".gz", "").replace(".bz2", "").replace(".txt", "").replace(
         ".fastq", "").replace(".fq", "").replace(".csfastq", "").replace(".sam", "").replace(".bam", "")
+
+
+def multiprocess_fun(fun, args, threads):
+    """
+    Run a function in parallel using multiprocessing
+    :param fun:
+    :param args: list of tuples
+    :param threads:
+    :return:
+    """
+    with Pool(processes=threads) as p:
+        p.starmap(fun, args)

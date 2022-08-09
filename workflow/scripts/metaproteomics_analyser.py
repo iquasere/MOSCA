@@ -11,17 +11,18 @@ from glob import glob
 import os
 import pathlib
 import shutil
+from os.path import abspath
+
 import pandas as pd
 import argparse
 from lxml import etree
-from share.MOSCA.scripts.mosca_tools import run_command, sort_alphanumeric, parse_blast, run_pipe_command
+from mosca_tools import run_command, sort_alphanumeric, parse_blast, run_pipe_command, multiprocess_fun
 from tqdm import tqdm
 import requests
 from time import sleep
 
 
 # TODO - integrate apt-get install -y libpwiz-tools poppler-utils
-
 
 class MetaproteomicsAnalyser:
 
@@ -136,31 +137,41 @@ class MetaproteomicsAnalyser:
         for file in ['database.fasta', 'predatabase.fasta', 'unique.fasta', 'ref_proteomes.fasta']:
             os.remove(f'{output}/{file}')
 
-    def convert_spectra_format(self, folder, out_dir, outfmt='mgf', peak_picking=False):
+    def spectra_in_proper_state(self, folder, out_dir, threads=1):
         """
-        Convert spectra files to mzML or mzXML
+        Convert raw spectra files to MGF, and put all spectra in out_dir
+        :param threads:
         :param folder:
+        :param out_dir:
+        :return:
+        """
+        already_mgfs, files2convert = [], []
+        for file in os.listdir(folder):
+            if os.path.isfile(f'{folder}/{file}'):
+                if file.endswith('.mgf'):
+                    already_mgfs.append(file)
+                else:
+                    files2convert.append(file)
+        if len(files2convert) > 0:
+            multiprocess_fun(self.raw_to_mgf, [(file, out_dir) for file in files2convert], threads=threads)
+        for file in already_mgfs:
+            os.copy(f'{folder}/{file}', f'{out_dir}/{file}')
+
+    def raw_to_mgf(self, file, out_dir):
+        """
+        Convert raw file to mgf
+        :param file:
         :param out_dir:
         :param outfmt:
         :param peak_picking:
         :return:
         """
-        files = glob(f'{folder}/*')
-        files2convert = []
-        for file in files:
-            if file.endswith('_0.mzML'):
-                continue
-            if not file.endswith('.mgf'):
-                files2convert.append(file)
-            else:
-                shutil.copy(file, out_dir)
-        # Conversion to Mascot Generic Format
-        if len(files2convert) > 0:
-            with open(f'{out_dir}/files2convert.txt', 'w') as f:
-                f.write('\n'.join(files2convert))
-            run_pipe_command(
-                f"""msconvert -f {out_dir}/files2convert.txt --{outfmt} -o {out_dir}
-                {' --filter "peakPicking cwt"' if peak_picking else ''}""")
+        folder, filename = os.path.split(file)
+        run_pipe_command(
+            f'docker run -it --rm -e WINEDEBUG=-all -v {abspath(folder)}:/data '
+            f'chambm/pwiz-skyline-i-agree-to-the-vendor-licenses wine msconvert '
+            f'-f data/{filename} --mgf --filter "peakPicking cwt"')
+        os.rename(f'{folder}/{file}', f'{out_dir}/{file}')
 
     def verify_crap_db(self, contaminants_database='MOSCA/Databases/metaproteomics/crap.fasta'):
         """
@@ -245,7 +256,7 @@ class MetaproteomicsAnalyser:
         except:
             print('Producing Peptide-Shaker result failed! Maybe no identifications were obtained?')
 
-    def generate_reports(self, peptideshaker_output, reports_folder, reports_list=[str(n) for n in range(12)]):
+    def generate_reports(self, peptideshaker_output, reports_folder, reports_list=[10]):
         """
         input:
             peptideshaker_output: peptideshaker output filename
