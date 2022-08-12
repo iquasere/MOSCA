@@ -22,8 +22,6 @@ import requests
 from time import sleep
 
 
-# TODO - integrate apt-get install -y libpwiz-tools poppler-utils
-
 class MetaproteomicsAnalyser:
 
     def __init__(self, **kwargs):
@@ -32,6 +30,7 @@ class MetaproteomicsAnalyser:
     def get_arguments(self):
         parser = argparse.ArgumentParser(description="MOSCA's metaproteomics analysis")
         parser.add_argument("-sfs", "--spectra-folders", help="List of folders with spectra to be analysed")
+        parser.add_argument("-ns", "--names", help="List of names for datasets")
         parser.add_argument("-t", "--threads", help="Number of threads to use.")
         parser.add_argument("-o", "--output", help="Project directory. Output goes to {output}/Metaproteomics")
         parser.add_argument("-w", "--workflow", help="Workflow to use", choices=['maxquant', 'compomics'])
@@ -167,11 +166,13 @@ class MetaproteomicsAnalyser:
         :return:
         """
         folder, filename = os.path.split(file)
+        pathlib.Path('msconvert_mockup_dir').mkdir(parents=True, exist_ok=True)
+        os.rename(f'{folder}/{file}', f'msconvert_mockup_dir/{file}')
         run_pipe_command(
-            f'docker run -it --rm -e WINEDEBUG=-all -v {abspath(folder)}:/data '
-            f'chambm/pwiz-skyline-i-agree-to-the-vendor-licenses wine msconvert '
-            f'-f data/{filename} --mgf --filter "peakPicking cwt"')
-        os.rename(f'{folder}/{file}', f'{out_dir}/{file}')
+            f'docker run -it --rm -e WINEDEBUG=-all -v msconvert_mockup_dir:/data -v msconvert_mockup_dir:/data '
+            f'chambm/pwiz-skyline-i-agree-to-the-vendor-licenses wine msconvert data/{filename} --mgf '
+            f'--filter "peakPicking cwt"')
+        os.rename(f'msconvert_mockup_dir/{file}', f'{out_dir}/{file}')
 
     def verify_crap_db(self, contaminants_database='MOSCA/Databases/metaproteomics/crap.fasta'):
         """
@@ -232,8 +233,7 @@ class MetaproteomicsAnalyser:
             f"{' '.join([f'-{engine} 1' for engine in search_engines])}")
 
     def browse_identification_results(
-            self, spectra_folder, parameters_file, searchcli_output, peptideshaker_output, experiment_name='experiment',
-            sample_name='sample', replicate_number='1', max_memory=4096):
+            self, spectra_folder, fasta_file, searchcli_output, peptideshaker_output, name, max_memory=4096):
         """
         input:
             spectra_folder: folder containing the raw spectra files
@@ -251,8 +251,8 @@ class MetaproteomicsAnalyser:
         try:
             run_command(
                 f'peptide-shaker -Xmx{max_memory}M eu.isas.peptideshaker.cmd.PeptideShakerCLI -spectrum_files '
-                f'{spectra_folder} -experiment {experiment_name} -sample {sample_name} -replicate {replicate_number} '
-                f'-identification_files {searchcli_output} -out {peptideshaker_output}')
+                f'{spectra_folder} -reference {name} '
+                f'-identification_files {searchcli_output} -out {peptideshaker_output} -fasta_file {fasta_file}')
         except:
             print('Producing Peptide-Shaker result failed! Maybe no identifications were obtained?')
 

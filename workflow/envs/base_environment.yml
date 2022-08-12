@@ -43,6 +43,6 @@ dependencies:
   - subversion
   - trimmomatic
   - trinity
-  - upimapi>=1.8
+  - upimapi>=1.8.4
   - xlrd
   - xlsxwriter

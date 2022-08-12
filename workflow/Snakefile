@@ -40,7 +40,9 @@ def all_input(wildcards):
             expand("{output}/MOSCA_results.zip", output=config["output"]) +
             expand("{output}/Binning/{sample}/checkm.tsv", output=config["output"], sample=set(exps['Sample'])) +
             expand("{output}/KEGG_maps/{sample}/KEGGCharter_results.tsv", output=config["output"],
-                sample=set(exps['Sample']))
+                sample=set(exps['Sample'])) +
+            expand("{output}/Metaproteomics/{sample}_metaproteomics.tsv", output=config["output"],
+                sample=set(exps["Sample"]))
         )
     else:
         return f"{config['output']}/MOSCA_Entry_Counts_Report.xlsx"
@@ -247,7 +249,7 @@ rule metaphlan:
 
 rule metaproteomics:
     input:
-        spectra_folders=[directory(folder) for folder in exps[exps['Data type'] == 'spectra_folder']['Files']],
+        spectra_folders=[directory(folder) for folder in exps[exps['Data type'] == 'protein']['Files']],
         profiled=expand("{output}/Taxonomy/{sample}_profiled_metagenome.txt", output = config["output"],
             sample = set(exps["Sample"]))
     output:
@@ -255,17 +257,19 @@ rule metaproteomics:
             sample = set(exps["Sample"]))
     threads: config["threads"]
     run:
-        folders = ",".join(input.spectra_folders)
-        shell("python {scripts_dir}/metaproteomics_analyser.py -sf {folders} -t {threads} "
-              "-o {output}/Metaproteomics/{wildcards.sample} -w {worflow} "
-              "-db {output}/Annotation/{wildcards.sample}/fgs.faa -cdb {contaminants_database} "
-              "-mpar {output}/Taxonomy/{wildcards.sample}_profiled_metagenome.txt -exps {names} --protease {protease} "
-              "-mmem {max_memory} -rd {resources_directory}",
-              output = config["output"], sample = set(exps["Sample"]), workflow=config["proteomics_workflow"],
-              contaminants_database=config["proteomics_contaminants_database"],
-              names=",".join(exps[exps['Data type'] == 'protein_folder']['Name']),
-              protease=config["protease"] if config["protease_file"] == "" else config["protease_file"],
-              max_memory=config["max_memory"], resources_directory=config["resources_directory"])
+        prot_samples = exps[exps['Data type'] == 'protein']['Samples'].tolist()
+        for sample in prot_samples:
+            sample_exps = exps[exps['Sample'].isin(sample)]
+            folders = ','.join(sample_exps[sample_exps['Data type'] == 'protein']['Files'].tolist())
+            names = ','.join(sample_exps[sample_exps['Data type'] == 'protein']['Name'].tolist())
+            shell("python {scripts_dir}/metaproteomics_analyser.py -sf {folders} -ns {names} -t {threads} "
+                  "-o {output}/Metaproteomics/{sample} -w {workflow} -db {output}/Annotation/{sample}/fgs.faa "
+                  "-cdb {contaminants_database} -mpar {output}/Taxonomy/{sample}_profiled_metagenome.txt "
+                  "--protease {protease} -mmem {max_memory} -rd {resources_directory}",
+                output = config["output"], workflow=config["proteomics_workflow"],
+                contaminants_database=config["proteomics_contaminants_database"],
+                protease=config["protease"] if config["protease_file"] == "" else config["protease_file"],
+                max_memory=config["max_memory"], resources_directory=config["resources_directory"])
 
 
 rule protein_report:
