@@ -11,7 +11,6 @@ from glob import glob
 import os
 import pathlib
 import shutil
-from os.path import abspath
 
 import pandas as pd
 import argparse
@@ -32,7 +31,7 @@ class MetaproteomicsAnalyser:
         parser.add_argument("-sfs", "--spectra-folders", help="List of folders with spectra to be analysed")
         parser.add_argument("-ns", "--names", help="List of names for datasets")
         parser.add_argument("-t", "--threads", help="Number of threads to use.")
-        parser.add_argument("-o", "--output", help="Project directory. Output goes to {output}/Metaproteomics")
+        parser.add_argument("-o", "--output", help="Output directory, where results are stored.")
         parser.add_argument("-w", "--workflow", help="Workflow to use", choices=['maxquant', 'compomics'])
         parser.add_argument(
             "-db", "--database", help="Database file (FASTA format) from metagenomics for protein identification")
@@ -47,11 +46,7 @@ class MetaproteomicsAnalyser:
         parser.add_argument(
             "-bs", "--batch-size", type=int, default=5000, help="How many IDs to submit per request to NCBI")
         parser.add_argument("-ma", "--max-attempts", default=3, help="Maximum attempts to access NCBI")
-        parser.add_argument("-exps", "--experiment-names", help="Names of experiences (comma-separated)")
         parser.add_argument("--protease", help="Filename in fasta format of protease sequence", default='Trypsin')
-        parser.add_argument("-e", "--experiments", help="Experiments file")
-        parser.add_argument(
-            "-if", "--input-format", help="If experiments is in either TSV or excel format", choices=['tsv', 'excel'])
         parser.add_argument(
             "-mmem", "--max-memory", default=4, help="Maximum memory (Gb) to use for Peptide-to-Spectrum matching [4]")
         parser.add_argument(
@@ -60,7 +55,11 @@ class MetaproteomicsAnalyser:
 
         args = parser.parse_args()
         args.output = args.output.rstrip('/')
-        args.memory *= 1024
+        args.spectra_folders = args.spectra_folders.split(',')
+        args.names = args.names.split(',')
+        if len(args.names) != len(args.spectra_folders):
+            exit('Length of names and spectra_folders must be equal.')
+        args.max_memory *= 1024
         return args
 
     def get_proteome_uniprot(self, taxid, max_tries=3):
@@ -136,26 +135,6 @@ class MetaproteomicsAnalyser:
         for file in ['database.fasta', 'predatabase.fasta', 'unique.fasta', 'ref_proteomes.fasta']:
             os.remove(f'{output}/{file}')
 
-    def spectra_in_proper_state(self, folder, out_dir, threads=1):
-        """
-        Convert raw spectra files to MGF, and put all spectra in out_dir
-        :param threads:
-        :param folder:
-        :param out_dir:
-        :return:
-        """
-        already_mgfs, files2convert = [], []
-        for file in os.listdir(folder):
-            if os.path.isfile(f'{folder}/{file}'):
-                if file.endswith('.mgf'):
-                    already_mgfs.append(file)
-                else:
-                    files2convert.append(file)
-        if len(files2convert) > 0:
-            multiprocess_fun(self.raw_to_mgf, [(file, out_dir) for file in files2convert], threads=threads)
-        for file in already_mgfs:
-            os.copy(f'{folder}/{file}', f'{out_dir}/{file}')
-
     def raw_to_mgf(self, file, out_dir):
         """
         Convert raw file to mgf
@@ -166,13 +145,38 @@ class MetaproteomicsAnalyser:
         :return:
         """
         folder, filename = os.path.split(file)
-        pathlib.Path('msconvert_mockup_dir').mkdir(parents=True, exist_ok=True)
-        os.rename(f'{folder}/{file}', f'msconvert_mockup_dir/{file}')
+        print(folder, filename)
+        pathlib.Path('named_volume').mkdir(parents=True, exist_ok=True)
+        print(f'{folder}/{filename}', f'named_volume/{filename}')
+        shutil.copyfile(f'{folder}/{filename}', f'named_volume/{filename}')
         run_pipe_command(
-            f'docker run -it --rm -e WINEDEBUG=-all -v msconvert_mockup_dir:/data -v msconvert_mockup_dir:/data '
+            f'docker run -it --rm -e WINEDEBUG=-all -v named_volume:/data '
             f'chambm/pwiz-skyline-i-agree-to-the-vendor-licenses wine msconvert data/{filename} --mgf '
             f'--filter "peakPicking cwt"')
-        os.rename(f'msconvert_mockup_dir/{file}', f'{out_dir}/{file}')
+        shutil.copyfile(f'named_volume/{filename}', f'{out_dir}/{filename}')
+
+    def spectra_in_proper_state(self, folder, out_dir, threads=1):
+        """
+        Convert raw spectra files to MGF, and put all spectra in out_dir
+        :param threads:
+        :param folder:
+        :param out_dir:
+        :return:
+        """
+        print(folder)
+        already_mgfs, files2convert = [], []
+        for file in glob(f'{folder}/*'):
+            if os.path.isfile(file):
+                if file.endswith('.mgf'):
+                    already_mgfs.append(file)
+                else:
+                    files2convert.append(file)
+        print(already_mgfs)
+        print(files2convert)
+        if len(files2convert) > 0:
+            multiprocess_fun(self.raw_to_mgf, [(file, out_dir) for file in files2convert], threads=threads)
+        for file in already_mgfs:
+            os.copy(f'{folder}/{file}', f'{out_dir}/{file}')
 
     def verify_crap_db(self, contaminants_database='MOSCA/Databases/metaproteomics/crap.fasta'):
         """
@@ -470,20 +474,17 @@ class MetaproteomicsAnalyser:
 
     def run(self):
         args = self.get_arguments()
-        experiments = (pd.read_csv(args.experiments, sep='\t') if args.input_format == 'tsv' else
-                       pd.read_excel(args.experiments))
-        experiments = experiments[experiments['Data type'] == 'protein']
-
-        for sample in set(experiments['Sample']):
-            partial_sample = experiments[experiments['Sample'] == sample].reset_index(drop=True)
-
+        '''
+        self.database_generation(
+            args.database, args.output, args.metaphlan_result,
+            contaminants_database=args.contaminants_database, protease=args.protease,
+            references_taxa_level=args.references_taxa_level, max_attempts=args.max_attemps)
+        '''
+        for i in range(len(args.names)):
+            out = f'{args.output}/{args.names[i]}'
+            print(out)
             for foldername in ['spectra', '1st_search', '2nd_search']:
-                pathlib.Path(f'{args.output}/Metaproteomics/{sample}/{foldername}').mkdir(parents=True, exist_ok=True)
-
-            self.database_generation(
-                args.database, f'{args.output}/Metaproteomics/{sample}', args.metaphlan_result,
-                contaminants_database=args.contaminants_database, protease=args.protease,
-                references_taxa_level=args.references_taxa_level, max_attempts=args.max_attemps)
+                pathlib.Path(f'{out}/{foldername}').mkdir(parents=True, exist_ok=True)
 
             if args.workflow == 'maxquant':
                 self.maxquant_workflow(
@@ -492,47 +493,31 @@ class MetaproteomicsAnalyser:
                     protein_fdr=1)
 
             elif args.workflow == 'compomics':
-                for i in range(len(partial_sample)):
-                    name = partial_sample.iloc[i]['Name']
-                    if os.path.isfile(
-                            '{0}/Metaproteomics/{1}/1st_search/{2}/reports/{1}_{2}_1_Default_Protein_Report_'
-                            'with_non-validated_matches.txt'.format(args.output, sample, name)):
-                        print(f'[{name}] already analysed!')
-                        continue
-
-                    for foldername in ['spectra', '1st_search', '2nd_search']:
-                        pathlib.Path(f'{args.output}/Metaproteomics/{sample}/{name}/{foldername}').mkdir(
-                            parents=True, exist_ok=True)
-
-                    self.convert_spectra_format(
-                        partial_sample.iloc[i]['Files'],
-                        f'{args.output}/Metaproteomics/{sample}/{name}/spectra')
-
-                    self.compomics_workflow(
-                        f'{args.output}/Metaproteomics/{sample}/1st_search_database.fasta',
-                        f'{args.output}/Metaproteomics/{sample}/1st_search/{name}',
-                        f'{args.output}/Metaproteomics/{sample}/spectra/{name}',
-                        threads=args.threads, protein_fdr=100, max_memory=args.max_memory,
-                        experiment_name=sample, sample_name=name)
-                self.select_proteins_for_second_search(
-                    f'{args.output}/Metaproteomics/{sample}/1st_search_database.fasta',
-                    f'{args.output}/Metaproteomics/{sample}',
-                    glob(f'{args.output}/Metaproteomics/{sample}/1st_search/*/reports/'
-                         '*_Protein_Report_with_non-validated_matches.txt'), column='Main Accession')
-                for name in set(partial_sample['Name']):
-                    self.compomics_workflow(
-                        f'{args.output}/Metaproteomics/{sample}/2nd_search_database.fasta',
-                        f'{args.output}/Metaproteomics/{sample}/2nd_search/{name}',
-                        f'{args.output}/Metaproteomics/{sample}/spectra/{name}',
-                        threads=args.threads, protein_fdr=1, max_memory=args.max_memory,
-                        experiment_name=sample, sample_name=name)
-                self.join_ps_reports(
-                    ['{0}/Metaproteomics/{1}/2nd_search/{2}/reports/{1}_{2}_1_Default_Protein_Report.txt'.format(
-                        args.output, sample, name) for name in set(partial_sample['Name'])],
-                    local_fdr=5, validation=False
-                ).to_csv(f'{args.output}/Metaproteomics/{sample}/quantification_table.tsv', sep='\t')
-            else:
-                print('Not a valid workflow option!')
+                self.spectra_in_proper_state(args.spectra_folders[i], f'{out}/spectra')
+                '''
+                self.compomics_workflow(
+                    f'{args.output}/1st_search_database.fasta', f'{out}/1st_search', f'{out}/spectra',
+                    threads=args.threads, protein_fdr=100, max_memory=args.max_memory, sample_name=name)
+            self.select_proteins_for_second_search(
+                f'{args.output}/Metaproteomics/{sample}/1st_search_database.fasta',
+                f'{args.output}/Metaproteomics/{sample}',
+                glob(f'{args.output}/Metaproteomics/{sample}/1st_search/*/reports/'
+                     '*_Protein_Report_with_non-validated_matches.txt'), column='Main Accession')
+            for name in set(partial_sample['Name']):
+                self.compomics_workflow(
+                    f'{args.output}/Metaproteomics/{sample}/2nd_search_database.fasta',
+                    f'{args.output}/Metaproteomics/{sample}/2nd_search/{name}',
+                    f'{args.output}/Metaproteomics/{sample}/spectra/{name}',
+                    threads=args.threads, protein_fdr=1, max_memory=args.max_memory,
+                    experiment_name=sample, sample_name=name)
+            self.join_ps_reports(
+                ['{0}/Metaproteomics/{1}/2nd_search/{2}/reports/{1}_{2}_1_Default_Protein_Report.txt'.format(
+                    args.output, sample, name) for name in set(partial_sample['Name'])],
+                local_fdr=5, validation=False
+            ).to_csv(f'{args.output}/Metaproteomics/{sample}/quantification_table.tsv', sep='\t')
+            '''
+        else:
+            print('Not a valid workflow option!')
 
 
 if __name__ == '__main__':
