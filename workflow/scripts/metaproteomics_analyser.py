@@ -145,15 +145,13 @@ class MetaproteomicsAnalyser:
         :return:
         """
         folder, filename = os.path.split(file)
-        print(folder, filename)
         pathlib.Path('named_volume').mkdir(parents=True, exist_ok=True)
-        print(f'{folder}/{filename}', f'named_volume/{filename}')
-        shutil.copyfile(f'{folder}/{filename}', f'named_volume/{filename}')
+        shutil.copyfile(f'{folder}/{filename}', f'/data/{filename}')
         run_pipe_command(
-            f'docker run -it --rm -e WINEDEBUG=-all -v named_volume:/data '
-            f'chambm/pwiz-skyline-i-agree-to-the-vendor-licenses wine msconvert data/{filename} --mgf '
+            f'docker run --rm -e WINEDEBUG=-all -v named_volume:/data '
+            f'chambm/pwiz-skyline-i-agree-to-the-vendor-licenses wine msconvert /data/{filename} --mgf '
             f'--filter "peakPicking cwt"')
-        shutil.copyfile(f'named_volume/{filename}', f'{out_dir}/{filename}')
+        shutil.copyfile(f'/data/{".".join(filename.split(".")[:-1])}.mgf', f'{out_dir}/{filename}')
 
     def spectra_in_proper_state(self, folder, out_dir, threads=1):
         """
