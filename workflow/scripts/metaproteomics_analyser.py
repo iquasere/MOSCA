@@ -15,7 +15,7 @@ import shutil
 import pandas as pd
 import argparse
 from lxml import etree
-from mosca_tools import run_command, sort_alphanumeric, parse_blast, run_pipe_command, multiprocess_fun
+from mosca_tools import run_command, sort_alphanumeric, parse_blast, run_pipe_command, multiprocess_fun, count_on_file
 from tqdm import tqdm
 import requests
 from time import sleep
@@ -48,7 +48,7 @@ class MetaproteomicsAnalyser:
         parser.add_argument("-ma", "--max-attempts", default=3, help="Maximum attempts to access NCBI")
         parser.add_argument("--protease", help="Filename in fasta format of protease sequence", default='Trypsin')
         parser.add_argument(
-            "-mmem", "--max-memory", default=4, help="Maximum memory (Gb) to use for Peptide-to-Spectrum matching [4]")
+            "-mmem", "--max-memory", type=int, default=4, help="Maximum memory (Gb) to use for Peptide-to-Spectrum matching [4]")
         parser.add_argument(
             "-rd", "--resources-directory", default=os.path.expanduser('~/resources'),
             help="Directory for storing databases and other important files")
@@ -130,8 +130,9 @@ class MetaproteomicsAnalyser:
         # Remove asterisks (non identified aminoacids) and plicas
         run_pipe_command(f"""sed -i "s/[*\']//g" {output}/predatabase.fasta""")
         # Remove duplicate sequences
-        run_command(f'seqkit rmdup -s -i -w 0 -o {output}/mg_database.fasta -D {output}/seqkit_duplicated.detail.txt '
-                    f'-j {threads} {output}/predatabase.fasta')
+        run_command(
+            f'seqkit rmdup -s -i -w 0 -o {output}/1st_search_database.fasta -D {output}/seqkit_duplicated.detail.txt '
+            f'-j {threads} {output}/predatabase.fasta')
         for file in ['database.fasta', 'predatabase.fasta', 'unique.fasta', 'ref_proteomes.fasta']:
             os.remove(f'{output}/{file}')
 
@@ -151,7 +152,7 @@ class MetaproteomicsAnalyser:
             f'docker run --rm -e WINEDEBUG=-all -v named_volume:/data '
             f'chambm/pwiz-skyline-i-agree-to-the-vendor-licenses wine msconvert /data/{filename} --mgf '
             f'--filter "peakPicking cwt"')
-        shutil.copyfile(f'/data/{".".join(filename.split(".")[:-1])}.mgf', f'{out_dir}/{filename}')
+        shutil.copyfile(f'/data/{".".join(filename.split(".")[:-1])}.mgf', out_dir)
 
     def spectra_in_proper_state(self, folder, out_dir, threads=1):
         """
@@ -161,7 +162,6 @@ class MetaproteomicsAnalyser:
         :param out_dir:
         :return:
         """
-        print(folder)
         already_mgfs, files2convert = [], []
         for file in glob(f'{folder}/*'):
             if os.path.isfile(file):
@@ -169,8 +169,6 @@ class MetaproteomicsAnalyser:
                     already_mgfs.append(file)
                 else:
                     files2convert.append(file)
-        print(already_mgfs)
-        print(files2convert)
         if len(files2convert) > 0:
             multiprocess_fun(self.raw_to_mgf, [(file, out_dir) for file in files2convert], threads=threads)
         for file in already_mgfs:
@@ -216,6 +214,15 @@ class MetaproteomicsAnalyser:
             f'searchgui eu.isas.searchgui.cmd.IdentificationParametersCLI -out {output} -prec_tol 10 '
             f'-frag_tol 0.02 -enzyme Trypsin -fixed_mods "Carbamidomethylation of C" -variable_mods '
             f'"Oxidation of M, Acetylation of protein N-term" -mc 2 -protein_fdr {protein_fdr}')
+
+    def split_database(self, database, n_proteins=5000000):
+        """
+        Split database into smaller files
+        :param database:
+        :param n_proteins:
+        :return:
+        """
+        run_command(f'seqkit split -s {n_proteins} {database} -O {os.path.dirname(database)}')
 
     def peptide_spectrum_matching(
             self, spectra_folder, output, parameters_file, database, threads=12, max_memory=4096,
@@ -323,40 +330,41 @@ class MetaproteomicsAnalyser:
         spectra_count[samples_names] = spectra_count[samples_names].fillna(value=0).astype(int)
         spectra_count.to_csv(output, sep='\t', index=False)
 
-    def compomics_workflow(
-            self, mg_db, output, spectra_folders, threads=1, sample_name='sample', experiment_name='experiment',
-            replicate_number='1', protein_fdr=1, max_memory=4096):
+    def compomics_workflow(self, mg_db, output, spectra_folders, name, threads=1, protein_fdr=1, max_memory=4096):
         """
-        Input:
-            database: str - filename of database for protein identification
-            output: str - name of folder to store results
-            spectra_folder: str - name of folder with input spectra
-            threads: int - number of threads to use
-            sample_name: str
-            experiment_name: str
-            replicate_number: str
-            protein_fdr: int - FDR at the protein level in percent
+        Run compomics workflow on the given spectra folders
+        :param mg_db:
+        :param output:
+        :param spectra_folders:
+        :param name:
+        :param threads:
+        :param protein_fdr:
+        :param max_memory:
+        :return:
+        """
         """
         self.create_decoy_database(mg_db)
         try:  # try/except - https://github.com/compomics/searchgui/issues/217
             self.generate_parameters_file(f'{output}/params.par', protein_fdr=protein_fdr)
         except:
             print('An illegal reflective access operation has occurred. But MOSCA can handle it.')
-        self.peptide_spectrum_matching(
-            spectra_folders, output, f'{output}/params.par',
-            mg_db.replace('.fasta', '_concatenated_target_decoy.fasta'),
-            threads=threads, max_memory=max_memory)
-        self.browse_identification_results(
-            spectra_folders, f'{output}/params.par', f'{output}/searchgui_out.zip', f'{output}/ps_output.cpsx',
-            max_memory=max_memory, sample_name=sample_name, experiment_name=experiment_name,
-            replicate_number=replicate_number)
-        try:  # try/except - if no identifications are present, will throw an error
-            self.generate_reports(f'{output}/ps_output.cpsx', f'{output}/reports')
-        except:
-            print('No identifications?')
-        self.spectra_counting(
-            f'{output}/reports/{experiment_name}_{sample_name}_{replicate_number}_Default_Protein_Report.txt',
-            self.blast, f'{self.output}/Spectra_counting.tsv')
+        """
+        self.split_database(mg_db.replace('.fasta', '_concatenated_target_decoy.fasta'), n_proteins=5000000)
+        for database in glob(f'{os.path.dirname(mg_db)}.part_*.fasta'):
+            self.peptide_spectrum_matching(
+                spectra_folders, output, f'{output}/params.par', database, threads=threads, max_memory=max_memory)
+            '''
+            self.browse_identification_results(
+                spectra_folders, f'{output}/params.par', f'{output}/searchgui_out.zip', f'{output}/ps_output.cpsx', 
+                name, max_memory=max_memory)
+            try:  # try/except - if no identifications are present, will throw an error
+                self.generate_reports(f'{output}/ps_output.cpsx', f'{output}/reports')
+            except:
+                print('No identifications?')
+            self.spectra_counting(
+                f'{output}/reports/{experiment_name}_{sample_name}_{replicate_number}_Default_Protein_Report.txt',
+                self.blast, f'{self.output}/Spectra_counting.tsv')
+            '''
 
     """
     Metaproteomics with MaxQuant
@@ -486,16 +494,18 @@ class MetaproteomicsAnalyser:
 
             if args.workflow == 'maxquant':
                 self.maxquant_workflow(
-                    f'{args.output}/mqpar.xml', f'{args.output}/mg_database.fasta', args.spectra_folders.split(','),
-                    args.experiment_names.split(','), args.output, threads=args.threads, spectra_format='RAW',
-                    protein_fdr=1)
+                    f'{args.output}/mqpar.xml', f'{args.output}/1st_search_database.fasta',
+                    args.spectra_folders.split(','), args.experiment_names.split(','), args.output,
+                    threads=args.threads, spectra_format='RAW', protein_fdr=1)
 
             elif args.workflow == 'compomics':
+                '''
                 self.spectra_in_proper_state(args.spectra_folders[i], f'{out}/spectra')
                 '''
                 self.compomics_workflow(
-                    f'{args.output}/1st_search_database.fasta', f'{out}/1st_search', f'{out}/spectra',
-                    threads=args.threads, protein_fdr=100, max_memory=args.max_memory, sample_name=name)
+                    f'{args.output}/1st_search_database.fasta', f'{out}/1st_search', f'{out}/spectra', args.names[i],
+                    threads=args.threads, protein_fdr=100, max_memory=args.max_memory)
+            '''
             self.select_proteins_for_second_search(
                 f'{args.output}/Metaproteomics/{sample}/1st_search_database.fasta',
                 f'{args.output}/Metaproteomics/{sample}',
