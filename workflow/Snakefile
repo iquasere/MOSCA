@@ -272,7 +272,6 @@ rule metaproteomics:
                 max_memory=config["max_memory"], resources_directory=config["resources_directory"],
                 ref_taxa_level=config["reference_proteomes_taxa_level"])
 
-
 rule protein_report:
     input:
         expand("{output}/Annotation/{sample}/UPIMAPI_results.tsv", output = config["output"],

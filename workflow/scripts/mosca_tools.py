@@ -309,12 +309,12 @@ def make_protein_report(out, exps):
                 names=['Contig', f'{mg_name} (Normalized by contig size)'])
             for counts in [readcounts, norm_by_size]:
                 counts['Contig'] = counts['Contig'].apply(lambda x: x.split('_')[1])
-            report = pd.merge(report, readcounts, on='Contig', how='left')
+            report = pd.merge(report, readcounts, on='Contig', how='outer')
             report = pd.merge(report, norm_by_size, on='Contig', how='left')
         for mt_name in mt_names:
             readcounts = pd.read_csv(f'{out}/Quantification/{mt_name}.readcounts', sep='\t', header=None,
                                      names=['qseqid', mt_name])
-            report = pd.merge(report, readcounts, on='qseqid', how='left')
+            report = pd.merge(report, readcounts, on='qseqid', how='outer')
         report[mg_names + mt_names] = report[mg_names + mt_names].fillna(value=0).astype(int)
         report[[f'{name} (Normalized by contig size)' for name in mg_names]] = report[
             [f'{name} (Normalized by contig size)' for name in mg_names]].fillna(value=0)
