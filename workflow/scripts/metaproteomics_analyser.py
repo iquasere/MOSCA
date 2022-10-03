@@ -298,68 +298,30 @@ class MetaproteomicsAnalyser:
                 result = pd.merge(result, data, on='Main Accession', how='outer')
         return result
 
-    def spectra_counting(self, protein_reports, output, blast=None, uniprot_ids=False, samples_names=None):
-        """
-        input:
-            protein_report: name of file containing protein report from PeptideShaker
-            output: name of file to output
-            blast: name of blast file with UniProt annotations - only needed if uniprot_ids = False
-            uniprot_ids: boolean, True if protein sequences already are named with UniProt IDs
-                If False, will need blast file to retrieve the UniProt IDs from
-            samples_names: names of samples respective to protein_reports
-        output:
-            A tab separated spectra count file named "output", with UniProt IDs
-            and corresponding spectra quantification
-        """
-        protein_reports = sort_alphanumeric(protein_reports)
-        if samples_names is None:
-            # samples names are the folder containing the reports folder
-            samples_names = [filename.split('/')[-3] for filename in protein_reports]
-        spectra_count = pd.DataFrame(columns=['Main Accession'])
-        for i in range(len(protein_reports)):
-            report = pd.read_csv(protein_reports[i], sep='\t', index_col=0)
-            if not uniprot_ids:
-                blast = parse_blast(blast)
-                blast['sseqid'] = [ide.split('|')[-1] for ide in blast.sseqid]
-                report = pd.merge(report, blast[['qseqid', 'sseqid']], left_on='Main Accession', right_on='qseqid')
-                report = report[['sseqid', '#PSMs']]
-            else:
-                report = report[['Main Accession', '#PSMs']]
-            report.columns = ['Main Accession', samples_names[i]]
-            report = report.groupby('Main Accession')[samples_names[i]].sum().reset_index()
-            spectra_count = pd.merge(spectra_count, report, on='Main Accession', how='outer')
-        spectra_count[samples_names] = spectra_count[samples_names].fillna(value=0).astype(int)
-        spectra_count.to_csv(output, sep='\t', index=False)
-
-    def compomics_workflow(self, mg_db, output, spectra_folders, name, params, threads=1, max_memory=4096):
+    def compomics_run(
+            self, database, output, spectra_folders, name, params, threads=1, max_memory=4096, reports=['10']):
         """
         Run compomics workflow on the given spectra folders
         :param params:
-        :param mg_db:
+        :param database:
         :param output:
         :param spectra_folders:
         :param name:
         :param threads:
-        :param protein_fdr:
         :param max_memory:
+        :param reports:
         :return:
         """
-        i, proteins_for_second_search = 0, []
-        for database in sorted(glob(f'{os.path.dirname(mg_db)}/*.part_*.fasta')):
-            i += 1
-            pathlib.Path(f'{output}_{i}').mkdir(parents=True, exist_ok=True)
-            self.peptide_spectrum_matching(
-                spectra_folders, f'{output}_{i}', params, database, threads=threads, max_memory=max_memory)
-            self.browse_identification_results(
-                spectra_folders, f'{output}_{i}/ps_output.psdb', params, database, f'{output}_{i}/searchgui_out.zip',
-                name, max_memory=max_memory)
+        self.peptide_spectrum_matching(
+            spectra_folders, output, params, database, threads=threads, max_memory=max_memory)
+        self.browse_identification_results(
+            spectra_folders, f'{output}/ps_output.psdb', params, database, f'{output}/searchgui_out.zip',
+            name, max_memory=max_memory)
+        try:
             self.generate_reports(
-                f'{output}_{i}/ps_output.psdb', f'{output}_{i}/reports', max_memory=max_memory, reports=['4'])
-            df = pd.read_csv(
-                f'{output}_{i}/reports/{name}_Default_PSM_Report_with_non-validated_matches.txt', sep='\t', index_col=0)
-            for protein_group in df['Protein(s)'].str.split(','):
-                proteins_for_second_search += protein_group
-        return proteins_for_second_search
+                f'{output}/ps_output.psdb', f'{output}/reports', max_memory=max_memory, reports=reports)
+        except Exception as e:
+            print(f'Reporter generation sent an error: {e}\nBut likely worked!')
 
     """
     Metaproteomics with MaxQuant
@@ -463,31 +425,24 @@ class MetaproteomicsAnalyser:
             f"seqkit grep {original_db} -w 0 --id-regexp '\|(.*)\|' -f {output}/2nd_search_ids.txt",
             output=f'{output}/2nd_search_database.fasta')
 
-    def background_inputation(self, df):
-        return df.fillna(value=df.min().min())
-
-    def censored_inputation(self, df, replicates):
-        for replicate in replicates:
-            for line in df.index:
-                if df.loc[df.index[0]][replicates[0]].isnull().sum() > 1:
-                    df.loc[df.index[0]][replicates[0]] = (
-                        self.background_inputation(df.loc[df.index[0]][replicates[0]]))
-
     def run(self):
         args = self.get_arguments()
+        '''
         self.database_generation(
             args.database, args.output, args.metaphlan_result,
             contaminants_database=args.contaminants_database, protease=args.protease,
             references_taxa_level=args.references_taxa_level, max_attempts=args.max_attemps)
+        '''
 
-        proteins4secondsearch = []
+        proteins_for_second_search, spectracounts = [], pd.DataFrame(columns=['Main Accession'])
         if args.workflow == 'maxquant':
             self.maxquant_workflow(
                 f'{args.output}/mqpar.xml', f'{args.output}/1st_search_database.fasta',
                 args.spectra_folders.split(','), args.experiment_names.split(','), args.output,
                 threads=args.threads, spectra_format='RAW', protein_fdr=1)
-
+        '''
         elif args.workflow == 'compomics':
+            pass
             self.create_decoy_database(f'{args.output}/1st_search_database.fasta')
             self.split_database(
                 f'{args.output}/1st_search_database_concatenated_target_decoy.fasta', n_proteins=5000000)
@@ -500,51 +455,53 @@ class MetaproteomicsAnalyser:
                 for foldername in ['spectra', '2nd_search']:
                     pathlib.Path(f'{out}/{foldername}').mkdir(parents=True, exist_ok=True)
                 self.spectra_in_proper_state(args.spectra_folders[i], f'{out}/spectra')
-                proteins4secondsearch += self.compomics_workflow(
-                    f'{args.output}/1st_search_database.fasta', f'{out}/1st_search', f'{out}/spectra', args.names[i],
-                    f'{args.output}/1s_params.par', threads=args.threads, protein_fdr=100, max_memory=args.max_memory)
+                i = 0
+                for database in sorted(glob(f'{os.path.dirname(args.output)}/1st_search_database_*.part_*.fasta')):
+                    i += 1
+                    pathlib.Path(f'{out}_{i}').mkdir(parents=True, exist_ok=True)
+                    self.compomics_run(
+                        database, f'{out}_{i}/1st_search', f'{out}/spectra', args.names[i],
+                        f'{args.output}/1s_params.par', threads=args.threads, protein_fdr=100,
+                        max_memory=args.max_memory, reports=['4'])
+                    df = pd.read_csv(
+                        f'{out}_{i}/reports/{args.names[i]}_Default_PSM_Report_with_non-validated_matches.txt', 
+                        sep='\t', index_col=0)
+                    for protein_group in df['Protein(s)'].str.split(','):
+                        proteins_for_second_search += protein_group
         else:
             exit('Not a valid workflow option!')
+        '''
+        '''
         with open(f'{args.output}/2nd_search_proteins.txt', 'w') as f:
-            f.write('\n'.join(set(proteins4secondsearch)))
+            f.write('\n'.join(set(proteins_for_second_search)))
         run_command(
             f'seqkit grep -f {args.output}/2nd_search_proteins.txt -o {args.output}/2nd_search_database.fasta '
             f'{args.output}/1st_search_database.fasta')
+        '''
         if args.workflow == 'maxquant':
             pass
         elif args.workflow == 'compomics':
+            '''
             self.create_decoy_database(f'{args.output}/2nd_search_database.fasta')
             self.generate_parameters_file(f'{args.output}/2nd_params.par', protein_fdr=1)
-            for i in range(len(args.names)):
-                out = f'{args.output}/{args.names[i]}'
-                # TODO - check if will be necessary to split the database
-                #self.split_database(
-                #    f'{args.output}/2nd_search_database_concatenated_target_decoy.fasta', n_proteins=5000000)
-                self.compomics_workflow(
-                    f'{args.output}/2nd_search_database.fasta', f'{out}/2nd_search', f'{out}/spectra', args.names[i],
-                    f'{args.output}/2nd_params.par', threads=args.threads, max_memory=args.max_memory)
-        self.spectra_counting(
-            f'{output}_{i}/{name}_Default_Protein_Report.txt',
-            self.blast, f'{self.output}_{i}/Spectra_counting.tsv')
-        '''
-        self.select_proteins_for_second_search(
-            f'{args.output}/Metaproteomics/{sample}/1st_search_database.fasta',
-            f'{args.output}/Metaproteomics/{sample}',
-            glob(f'{args.output}/Metaproteomics/{sample}/1st_search/*/reports/'
-                 '*_Protein_Report_with_non-validated_matches.txt'), column='Main Accession')
-        for name in set(partial_sample['Name']):
-            self.compomics_workflow(
-                f'{args.output}/Metaproteomics/{sample}/2nd_search_database.fasta',
-                f'{args.output}/Metaproteomics/{sample}/2nd_search/{name}',
-                f'{args.output}/Metaproteomics/{sample}/spectra/{name}',
-                threads=args.threads, protein_fdr=1, max_memory=args.max_memory,
-                experiment_name=sample, sample_name=name)
-        self.join_ps_reports(
-            ['{0}/Metaproteomics/{1}/2nd_search/{2}/reports/{1}_{2}_1_Default_Protein_Report.txt'.format(
-                args.output, sample, name) for name in set(partial_sample['Name'])],
-            local_fdr=5, validation=False
-        ).to_csv(f'{args.output}/Metaproteomics/{sample}/quantification_table.tsv', sep='\t')
-        '''
+            '''
+            # TODO - check if will be necessary to split the database
+            # self.split_database(
+            #    f'{args.output}/2nd_search_database_concatenated_target_decoy.fasta', n_proteins=5000000)
+            for name in args.names:
+                out = f'{args.output}/{name}'
+                '''
+                self.compomics_run(
+                    f'{args.output}/2nd_search_database.fasta', f'{out}/2nd_search', f'{out}/spectra', name,
+                    f'{args.output}/2nd_params.par', threads=args.threads, max_memory=args.max_memory,
+                    reports=['9', '10'])
+                spectracounts = pd.merge(spectracounts, pd.read_csv(
+                    f'{out}/2nd_search/reports/{name}_Default_Protein_Report.txt', sep='\t', index_col=0
+                )[['Main Accession', '#PSMs']].rename(columns={'#PSMs': name}), how='outer', on='Main Accession')
+                '''
+        #spectracounts.groupby('Main Accession')[args.names].sum().reset_index().fillna(value=0.0).to_csv(
+        # f'{args.output}/spectracounts.tsv', sep='\t', index=False)
+
 
 
 if __name__ == '__main__':

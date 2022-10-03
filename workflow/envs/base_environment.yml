@@ -7,7 +7,9 @@ channels:
 dependencies:
   - bioconductor-deseq2
   - bioconductor-edger
+  - bioconductor-pcamethods
   - bioconductor-rots
+  - bioconductor-vsn
   - biopython
   - blast>=2.12
   - bowtie2
