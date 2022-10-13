@@ -6,7 +6,8 @@
 packages <- c("optparse",
               "vsn",
               "pcaMethods", # llsImpute
-              "ROTS")
+              "ROTS",
+              "progress")   # progressbar
 
 for (package in packages){
     eval(bquote(library(.(package))))
@@ -40,8 +41,7 @@ remove_nas_by_condition <- function (data, conditions) {
         rows_to_keep = rows_to_keep[rows_to_keep != row]
       }
       pb$tick()
-    }
-  }
+    }}
   return(data[rows_to_keep,])
 }
 
@@ -55,6 +55,7 @@ print("Normalization done.")
 
 filtered = remove_nas_by_condition(exprs(norm), opt$conditions)  # remove rows with more than 1 NA per sample
 #normalized = normalized[rowSums(is.na(normalized)) < 2, , drop=FALSE]   # love R's insanity
+print("Filtered rows with too many NAs.")
 
 # local least squares imputation - TODO - check when this works
 #allVariables = TRUE
@@ -69,16 +70,16 @@ write.table(filtered, file = paste0(opt$output, '/quantification.tsv'), sep='\t'
 print("Results exported.")
 
 # Reproducibility-Optimized Test Statistic
-de = ROTS(data=filtered, groups=conditions, progress=TRUE)
+de = ROTS(data=filtered, groups=opt$conditions, progress=TRUE)
 for (col in c("B", "a1", "a2", "k", "R", "Z")){
   write(sprintf("%s%s: %s", col, strrep(" ", 3-nchar(col)), de[col]), file= paste0(opt$output, '/report.txt'),
         append=TRUE)
 }
 print("Differential analysis done.")
 
-summary(de, fdr = 0.05)
+#summary(de, fdr = 0.05)
 for (ptype in c('volcano', 'heatmap', 'ma', 'reproducibility', 'pvalue', 'pca')){
   jpeg(paste0(opt$output, "/", ptype, ".jpeg"))
-  plot(de, ptype=ptype, fdr=opt$fdr)
+  plot(de, type=ptype, fdr=opt$fdr)
   dev.off()
 }

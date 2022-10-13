@@ -232,7 +232,7 @@ rule quantification_analysis:
 
 rule metaphlan:
     input:
-        expand("{output}/Preprocess/{{wildcards.sample}}{fr}.fq", output = config["output"],
+        expand("{output}/Preprocess/{{wildcards.sample}}{fr}.fastq", output = config["output"],
             fr = (['_forward', '_reverse'] if exps["Files"].str.contains(',').tolist() else ''))
     output:
         expand("{output}/Taxonomy/{sample}_profiled_metagenome.txt", output = config["output"],
