@@ -105,7 +105,6 @@ rule join_reads:
     threads: 1
     run:
         for file in input:
-            print(file)
             if 'forward' in file:
                 shell("touch {output}/Preprocess/{wildcards.sample}_forward.fastq; cat {file} >> "
                       "{output}/Preprocess/{wildcards.sample}_forward.fastq", output = config["output"])
@@ -118,38 +117,40 @@ rule join_reads:
 
 rule assembly:
     input:
-        expand("{output}/Preprocess/{sample}{fr}.fastq", output = config["output"], sample = set(exps['Sample']),
+        expand("{output}/Preprocess/{{sample}}{fr}.fastq", output = config["output"],
             fr = (['_forward', '_reverse'] if exps["Files"].str.contains(',').tolist() else ''))
     output:
-        expand("{output}/Assembly/{sample}/contigs.fasta", output = config["output"],
+        expand("{output}/Assembly/{{sample}}/contigs.fasta", output = config["output"],
             sample = set(exps['Sample'])),
-        expand("{output}/Assembly/{sample}/scaffolds.fasta", output = config["output"],
+        expand("{output}/Assembly/{{sample}}/scaffolds.fasta", output = config["output"],
             sample = set(exps['Sample']))
     threads:
         config["threads"]
-    run:
-        reads = ",".join(input)
-        shell("python {scripts_dir}/assembly.py -r {reads} -t {threads} -o {output}/Assembly/{sample} -a {assembler} "
-              "-m {max_memory}",
-            output = config["output"], sample = set(exps['Sample']), assembler = config["assembler"],
-            max_memory = config["max_memory"])
+    params:
+        assembler = config["assembler"],
+        reads = ",".join(expand("{output}/Preprocess/{{sample}}{fr}.fastq", output = config["output"],
+            fr = (['_forward', '_reverse'] if exps["Files"].str.contains(',').tolist() else ''))),
+        max_memory = config["max_memory"],
+        output = config["output"]
+    shell:
+        "python {scripts_dir}/assembly.py -r {params.reads} -t {threads} -a {params.assembler} -m {params.max_memory} "
+        "-o {params.output}/Assembly/{wildcards.sample}"
+
 
 rule binning:
     input:
-        reads = expand("{output}/Preprocess/{sample}{fr}.fastq", output = config["output"],
-            sample = set(exps['Sample']),
+        reads = expand("{output}/Preprocess/{{sample}}{fr}.fastq", output = config["output"],
             fr = (['_forward', '_reverse'] if exps["Files"].str.contains(',').tolist() else '')),
-        contigs = expand("{output}/Assembly/{sample}/scaffolds.fasta", output = config["output"],
-            sample = set(exps['Sample']))
+        contigs = expand("{output}/Assembly/{{sample}}/scaffolds.fasta", output = config["output"])
     output:
-        expand("{output}/Binning/{sample}/checkm.tsv", output = config["output"], sample = set(exps['Sample']))
+        expand("{output}/Binning/{{sample}}/checkm.tsv", output = config["output"], sample = set(exps['Sample']))
     threads:
         config["threads"]
     run:
         reads = ",".join(input.reads)
-        shell("python {scripts_dir}/binning.py -c {input.contigs} -t {threads} -o {output}/Binning/{sample} -r {reads} "
+        shell("python {scripts_dir}/binning.py -c {input.contigs} -t {threads} -o {output}/Binning/{wildcards.sample} -r {reads} "
               "-mset {markerset}{iterative_binning}",
-              output = config["output"], markerset = config["markerset"], sample = set(exps['Sample']),
+              output = config["output"], markerset = config["markerset"],
               iterative_binning = ' --iterative-binning' if config['do_iterative_binning'] else '')
 
 rule fastq2fasta:
