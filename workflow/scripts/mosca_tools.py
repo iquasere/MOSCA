@@ -298,6 +298,7 @@ def make_protein_report(out, exps):
         report['Contig'] = report['qseqid'].apply(lambda x: x.split('_')[1])
         mg_names = exps[(exps['Sample'] == sample) & (exps['Data type'] == 'dna')]['Name'].tolist()
         mt_names = exps[(exps['Sample'] == sample) & (exps['Data type'] == 'mrna')]['Name'].tolist()
+        mp_names = exps[(exps['Sample'] == sample) & (exps['Data type'] == 'protein')]['Name'].tolist()
         for mg_name in mg_names:
             readcounts = pd.read_csv(
                 f'{out}/Quantification/{mg_name}.readcounts', sep='\t', header=None,
@@ -315,7 +316,11 @@ def make_protein_report(out, exps):
             readcounts = pd.read_csv(f'{out}/Quantification/{mt_name}.readcounts', sep='\t', header=None,
                                      names=['qseqid', mt_name])
             report = pd.merge(report, readcounts, on='qseqid', how='outer')
-        report[mg_names + mt_names] = report[mg_names + mt_names].fillna(value=0).astype(int)
+        if len(mp_names) > 0:
+            spectracounts = pd.read_csv(f'{out}/Metaproteomics/{sample}/spectracounts.tsv', sep='\t', header=None)
+            report = pd.merge(report, readcounts, on='qseqid', how='outer')
+        report[mg_names + mt_names + mp_names if len(mp_names) > 0 else []] = report[
+            mg_names + mt_names + mp_names if len(mp_names) > 0 else []].fillna(value=0).astype(int)
         report[[f'{name} (Normalized by contig size)' for name in mg_names]] = report[
             [f'{name} (Normalized by contig size)' for name in mg_names]].fillna(value=0)
         multi_sheet_excel(f'{out}/MOSCA_Protein_Report.xlsx', report, sheet_name=sample)
