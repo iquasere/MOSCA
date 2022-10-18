@@ -136,7 +136,6 @@ rule assembly:
         "python {scripts_dir}/assembly.py -r {params.reads} -t {threads} -a {params.assembler} -m {params.max_memory} "
         "-o {params.output}/Assembly/{wildcards.sample}"
 
-
 rule binning:
     input:
         reads = expand("{output}/Preprocess/{{sample}}{fr}.fastq", output = config["output"],
@@ -255,7 +254,8 @@ rule metaproteomics:
             sample = set(exps["Sample"]))
     output:
         expand("{output}/Metaproteomics/{sample}_metaproteomics.tsv", output = config["output"],
-            sample = set(exps["Sample"]))
+            sample = set(exps["Sample"])),
+        "{{output}}/Metaproteomics/{{sample}}/spectracounts.tsv"
     threads: config["threads"]
     run:
         prot_samples = exps[exps['Data type'] == 'protein']['Samples'].tolist()
@@ -273,6 +273,18 @@ rule metaproteomics:
                 max_memory=config["max_memory"], resources_directory=config["resources_directory"],
                 ref_taxa_level=config["reference_proteomes_taxa_level"])
 
+rule mp_differential_expression:
+    input:
+        "{{output}}/Metaproteomics/{{sample}}/spectracounts.tsv"
+    output:
+        "{{output}}/Metaproteomics/{{sample}}/quantification.tsv"
+    threads: 1
+    params:
+        outdir = "{{output}}/Metaproteomics/{{sample}}",
+        conditions = ','.join(exps[exps['Data type'] == 'protein']['Conditions'].tolist())
+    shell:
+        "Rscript {scripts_dir}/proteomics_postprocessing.R -m {input} -o {params.outdir} -c {params.conditions}"
+
 rule protein_report:
     input:
         expand("{output}/Annotation/{sample}/UPIMAPI_results.tsv", output = config["output"],
@@ -280,7 +292,8 @@ rule protein_report:
         expand("{output}/Annotation/{sample}/reCOGnizer_results.xlsx", output = config["output"],
             sample = set(exps["Sample"])),
         expand("{output}/Quantification/{name}.readcounts", output = config["output"],
-            name = set(not_mp_exps['Name']))
+            name = set(not_mp_exps['Name'])),
+        "{{output}}/Metaproteomics/{{sample}}/quantification.tsv"
     output:
         f"{config['output']}/MOSCA_Protein_Report.xlsx"
     threads: 1
