@@ -30,7 +30,7 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           context: .
-          file: ./ci/Dockerfile
+          file: ./Dockerfile_CI
           tags: mosca:latest
           outputs: type=docker,dest=/tmp/mosca.tar
 
@@ -79,17 +79,17 @@ jobs:
 
       - name: MGMT workflow
         run: >
-          docker run mosca /bin/bash -c "mkdir resources_directory; mv MOSCA/ci/cdd.tar.gz resources_directory;
-          mosca.py -c MOSCA/ci/mg_and_mt_config.json"
+          docker run mosca /bin/bash -c "mkdir resources_directory; mv MOSCARDO/data/cdd.tar.gz resources_directory;
+          mosca.py -c MOSCARDO/mg_and_mt_config.json"
 
       - name: MG only workflow
         run: >
-          docker run mosca /bin/bash -c "mkdir resources_directory; mv MOSCA/ci/cdd.tar.gz resources_directory;
-          cp MOSCA/ci/mg_R1.fastq.gz MOSCA/ci/mg_R1_001.fastq.gz;
-          cp MOSCA/ci/mg_R2.fastq.gz MOSCA/ci/mg_R2_001.fastq.gz;
-          mosca.py -c MOSCA/ci/mg_only_config.json"
+          docker run mosca /bin/bash -c "mkdir resources_directory; mv MOSCARDO/data/cdd.tar.gz resources_directory;
+          cp MOSCARDO/data/mg_R1.fastq.gz MOSCARDO/data/mg_R1_001.fastq.gz;
+          cp MOSCARDO/data/mg_R2.fastq.gz MOSCARDO/data/mg_R2_001.fastq.gz;
+          mosca.py -c MOSCARDO/mg_only_config.json"
 
       - name: MT only workflow
         run: >
-          docker run mosca /bin/bash -c "mkdir resources_directory; mv MOSCA/ci/cdd.tar.gz resources_directory;
-          mosca.py -c MOSCA/ci/mt_only_config.json"
+          docker run mosca /bin/bash -c "mkdir resources_directory; mv MOSCARDO/data/cdd.tar.gz resources_directory;
+          mosca.py -c MOSCARDO/mt_only_config.json"

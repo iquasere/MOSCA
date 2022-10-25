@@ -26,6 +26,7 @@ exps.to_csv(f"{config['output']}/exps.tsv", sep = '\t', index = False)
 
 mg_exps = exps[exps["Data type"] == 'dna']
 mt_exps = exps[exps["Data type"] == 'mrna']
+mp_exps = exps[exps["Data type"] == 'protein']
 if len(mg_exps) == 0 and len(mt_exps) != 0:
     mg_exps = mt_exps
 not_mp_exps = exps[exps["Data type"] != 'protein']
@@ -39,10 +40,9 @@ def all_input(wildcards):
             expand("{output}/MOSCA_General_Report.xlsx", output=config["output"]) +
             expand("{output}/MOSCA_results.zip", output=config["output"]) +
             expand("{output}/Binning/{sample}/checkm.tsv", output=config["output"], sample=set(exps['Sample'])) +
-            expand("{output}/KEGG_maps/{sample}/KEGGCharter_results.tsv", output=config["output"],
-                sample=set(exps['Sample'])) +
+            expand("{output}/KEGG_maps/KEGGCharter_results.tsv", output=config["output"]) +
             expand("{output}/Metaproteomics/{sample}_metaproteomics.tsv", output=config["output"],
-                sample=set(exps["Sample"]))
+                sample=set(mp_exps["Sample"]))
         )
     else:
         return f"{config['output']}/MOSCA_Entry_Counts_Report.xlsx"
@@ -72,10 +72,8 @@ def annotation_input(wildcards):
 
 def upimapi_input(wildcards):
     if config['do_assembly']:
-        return expand(
-            "{output}/Annotation/{sample}/aligned.blast", output=config["output"], sample=set(exps['Sample']))
-    return expand(
-        "{output}/Annotation/{name}/aligned.blast", output=config["output"], name=set(exps['Name']))
+        return expand("{output}/Annotation/{sample}/aligned.blast", output=config["output"], sample=set(exps['Sample']))
+    return expand("{output}/Annotation/{name}/aligned.blast", output=config["output"], name=set(exps['Name']))
 
 rule all:
     input:
@@ -249,51 +247,57 @@ rule metaphlan:
 
 rule metaproteomics:
     input:
-        spectra_folders=[directory(folder) for folder in exps[exps['Data type'] == 'protein']['Files']],
-        profiled=expand("{output}/Taxonomy/{sample}_profiled_metagenome.txt", output = config["output"],
-            sample = set(exps["Sample"]))
+        spectra_folders=[directory(folder) for folder in mp_exps[mp_exps['Sample'] == (
+            lambda wildcards: wildcards.sample)]['Files']],
+        profiled="{{output}}/Taxonomy/{{sample}}_profiled_metagenome.txt"
     output:
         expand("{output}/Metaproteomics/{sample}_metaproteomics.tsv", output = config["output"],
             sample = set(exps["Sample"])),
-        "{{output}}/Metaproteomics/{{sample}}/spectracounts.tsv"
+        expand("{output}/Metaproteomics/{sample}/spectracounts.tsv", output = config["output"],
+            sample = set(exps["Sample"]))
     threads: config["threads"]
-    run:
-        prot_samples = exps[exps['Data type'] == 'protein']['Samples'].tolist()
-        for sample in prot_samples:
-            sample_exps = exps[exps['Sample'].isin(sample)]
-            folders = ','.join(sample_exps[sample_exps['Data type'] == 'protein']['Files'].tolist())
-            names = ','.join(sample_exps[sample_exps['Data type'] == 'protein']['Name'].tolist())
-            shell("python {scripts_dir}/metaproteomics_analyser.py -sf {folders} -ns {names} -t {threads} "
-                  "-o {output}/Metaproteomics/{sample} -w {workflow} -db {output}/Annotation/{sample}/fgs.faa "
-                  "-cdb {contaminants_database} -mpar {output}/Taxonomy/{sample}_profiled_metagenome.txt "
-                  "--protease {protease} -mmem {max_memory} -rd {resources_directory} -rtl {ref_taxa_level}",
-                output = config["output"], workflow=config["proteomics_workflow"],
-                contaminants_database=config["proteomics_contaminants_database"],
-                protease=config["protease"] if config["protease_file"] == "" else config["protease_file"],
-                max_memory=config["max_memory"], resources_directory=config["resources_directory"],
-                ref_taxa_level=config["reference_proteomes_taxa_level"])
+    params:
+        folders = ','.join(mp_exps[mp_exps['Sample'] == (
+            lambda wildcards: wildcards.spectra_folders)]['Files'].tolist()),
+        names = ','.join(mp_exps[mp_exps['Sample'] == (
+            lambda wildcards: wildcards.spectra_folders)]['Name'].tolist()),
+        workflow=config["proteomics_workflow"],
+        contaminants_database=config["proteomics_contaminants_database"],
+        protease=config["protease"] if config["protease_file"] == "" else config["protease_file"],
+        max_memory=config["max_memory"],
+        resources_directory=config["resources_directory"],
+        ref_taxa_level=config["reference_proteomes_taxa_level"],
+        output=config["output"]
+    shell:
+        "python {scripts_dir}/metaproteomics_analyser.py -sf {params.folders} -ns {params.names} -t {threads} "
+        "-o {output}/Metaproteomics/{wildcards.sample} -w {params.workflow} "
+        "-db {params.output}/Annotation/{wildcards.sample}/fgs.faa -cdb {params.contaminants_database} "
+        "-mpar {output}/Taxonomy/{wildcards.sample}_profiled_metagenome.txt --protease {params.protease} "
+        "-mmem {params.max_memory} -rd {params.resources_directory} -rtl {params.ref_taxa_level}"
 
 rule mp_differential_expression:
     input:
         "{{output}}/Metaproteomics/{{sample}}/spectracounts.tsv"
     output:
-        "{{output}}/Metaproteomics/{{sample}}/quantification.tsv"
+        expand("{output}/Metaproteomics/{sample}/quantification.tsv", output = config["output"],
+            sample = set(not_mp_exps['Name']))
     threads: 1
     params:
         outdir = "{{output}}/Metaproteomics/{{sample}}",
-        conditions = ','.join(exps[exps['Data type'] == 'protein']['Conditions'].tolist())
+        conditions = ','.join(exps[exps['Data type'] == 'protein']['Condition'].tolist())
     shell:
         "Rscript {scripts_dir}/proteomics_postprocessing.R -m {input} -o {params.outdir} -c {params.conditions}"
 
 rule protein_report:
     input:
         expand("{output}/Annotation/{sample}/UPIMAPI_results.tsv", output = config["output"],
-            sample = set(exps['Sample'])),
+            sample = set(exps['Sample'])) +
         expand("{output}/Annotation/{sample}/reCOGnizer_results.xlsx", output = config["output"],
-            sample = set(exps["Sample"])),
+            sample = set(exps["Sample"])) +
         expand("{output}/Quantification/{name}.readcounts", output = config["output"],
-            name = set(not_mp_exps['Name'])),
-        "{{output}}/Metaproteomics/{{sample}}/quantification.tsv"
+            name = set(not_mp_exps['Name'])) +
+        expand("{output}/Metaproteomics/{sample}/quantification.tsv", output = config["output"],
+            sample = set(not_mp_exps['Name'])) if len(mp_exps) > 0 else []
     output:
         f"{config['output']}/MOSCA_Protein_Report.xlsx"
     threads: 1
@@ -303,12 +307,12 @@ rule entry_report:
     input:
         f"{config['output']}/MOSCA_Protein_Report.xlsx"
     output:
-        [f"{config['output']}/MOSCA_Entry_Report.xlsx"] +
-        (expand("{output}/Quantification/{sample}/expression_matrix.tsv", output=config["output"],
-            sample=set(exps["Sample"])) if len(mt_exps) > 0 else [])
+        f"{config['output']}/MOSCA_Entry_Report.xlsx",
+        f"{config['output']}/Quantification/expression_matrix.tsv"
     threads: 1
     run:
-        make_entry_report(f"{config['output']}/MOSCA_Protein_Report.xlsx", config["output"], exps)
+        print(wildcards)
+        make_entry_report(f"{wildcards.output}/MOSCA_Protein_Report.xlsx", wildcards.output, exps)
 
 '''
 rule entry_count:
@@ -344,10 +348,9 @@ rule entry_count:
 
 rule differential_expression:
     input:
-        expand("{output}/Quantification/{sample}/expression_matrix.tsv", output=config['output'],
-               sample=set(exps["Sample"]))
+        f"{config['output']}/Quantification/expression_matrix.tsv"
     output:
-        expand("{output}/Quantification/{{sample}}/condition_treated_results.tsv", output=config['output'])
+        f"{config['output']}/Quantification/condition_treated_results.tsv"
     threads:
         1
     run:
@@ -360,12 +363,12 @@ rule differential_expression:
 rule keggcharter:
     input:
         f"{config['output']}/MOSCA_Entry_Report.xlsx"
-    params:
-        outdir="{output}/KEGG_maps/{sample}"
     output:
-        "{output}/KEGG_maps/{sample}/KEGGCharter_results.tsv"
+        f"{config['output']}/KEGG_maps/KEGGCharter_results.tsv"
     threads:
         1
+    params:
+        outdir=f"{config['output']}/KEGG_maps"
     run:
         shell("keggcharter.py -f {input} -o {params.outdir} -gcol {mg_cols}{exp_cols} -tc "
               "'Taxonomic lineage ({taxa_level})' -not {number_of_taxa} -keggc 'Cross-reference (KEGG)' "
@@ -377,10 +380,9 @@ rule keggcharter:
 
 rule report:
     input:
-        [f"{config['output']}/MOSCA_Protein_Report.xlsx",
-        f"{config['output']}/MOSCA_Entry_Report.xlsx"] +
-        (expand("{output}/Quantification/{sample}/condition_treated_results.tsv", output=config['output'],
-               sample=set(exps["Sample"])) if len(mt_exps) > 0 else [])
+        f"{config['output']}/MOSCA_Protein_Report.xlsx",
+        f"{config['output']}/MOSCA_Entry_Report.xlsx",
+        f"{config['output']}/Quantification/condition_treated_results.tsv" if len(mt_exps) > 0 else []
     output:
         f"{config['output']}/technical_report.tsv",
         f"{config['output']}/MOSCA_General_Report.xlsx",
