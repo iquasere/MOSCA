@@ -69,7 +69,8 @@ class Annotater:
             f"upimapi.py -i {query} -o {output} -rd {rd} -db {database} --threads {threads} -mts {max_target_seqs} "
             f"--evalue {evalue}{f' --taxids {taxids}' if taxids is not None else ''}"
             f"{f' -b {b}' if b is not None else ''}{f' -c {c}' if c is not None else ''}"
-            f"{f' --cols {cols}' if cols is not None else ''}{f' --dbs {dbs}' if dbs is not None else ''}")
+            f"{f' --cols {cols}' if cols is not None else ''}{f' --dbs {dbs}' if dbs is not None else ''}"
+            f" --skip-db-check" if os.path.isfile(f'{rd}/uniprot.dmnd') and database == 'uniprot' else '')
 
     def run(self):
         args = self.get_arguments()
