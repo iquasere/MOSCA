@@ -62,6 +62,8 @@ class Annotater:
             f'{file} -out={output} -complete=1 -train=./complete' if assembled else
             f'{file} -out={output} -complete=0 -train=./{error_model}'}""")
 
+    # For files with 1500000, disk space usage is intolerable. Seems to work fine for 1000000 sequences, though.
+    # TODO - Implement division of FASTA input, and multiple UPIMAPI runs.
     def run_upimapi(
             self, query, output, rd='resources_directory', database='uniprot', evalue=0.001, threads=12,
             max_target_seqs=50, b=None, c=None, taxids=None, cols=None, dbs=None):

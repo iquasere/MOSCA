@@ -61,27 +61,6 @@ jobs:
       - name: Check base entrypoint
         run: docker run mosca /bin/bash -c "ls"
 
-      - name: Preprocess
-        run: >
-          docker run mosca /bin/bash -c "python /share/MOSCA/scripts/preprocess.py
-          -i MOSCA/ci/mt4_R1.fastq.gz,MOSCA/ci/mt4_R2.fastq.gz -t 15 -d mrna -rd resources_directory -n mt_name1
-          -o output_pp"
-
-      - name: Assembly
-        run: >
-          docker run mosca /bin/bash -c "python /share/MOSCA/scripts/assembly.py
-          -r MOSCA/ci/mg_R1.fastq.gz,MOSCA/ci/mg_R2.fastq.gz -t 15 -o output_ass --max-ref-number 0"
-
-      - name: Annotation
-        run: >
-          docker run mosca /bin/bash -c "python /share/MOSCA/scripts/annotation.py -i MOSCA/ci/contigs.fasta -t 16
-          -o output_ann -db MOSCA/ci/ad_uniprot.fasta"
-
-      - name: MGMT workflow
-        run: >
-          docker run mosca /bin/bash -c "mkdir resources_directory; mv MOSCARDO/data/cdd.tar.gz resources_directory;
-          mosca.py -c MOSCARDO/mg_and_mt_config.json"
-
       - name: MG only workflow
         run: >
           docker run mosca /bin/bash -c "mkdir resources_directory; mv MOSCARDO/data/cdd.tar.gz resources_directory;
@@ -89,7 +68,17 @@ jobs:
           cp MOSCARDO/data/mg_R2.fastq.gz MOSCARDO/data/mg_R2_001.fastq.gz;
           mosca.py -c MOSCARDO/mg_only_config.json"
 
+      - name: MGMT workflow
+        run: >
+          docker run mosca /bin/bash -c "mkdir resources_directory; mv MOSCARDO/data/cdd.tar.gz resources_directory;
+          mosca.py -c MOSCARDO/mgmt_config.json"
+
       - name: MT only workflow
         run: >
           docker run mosca /bin/bash -c "mkdir resources_directory; mv MOSCARDO/data/cdd.tar.gz resources_directory;
-          mosca.py -c MOSCARDO/mt_only_config.json"
+          mosca.py -c MOSCARDO/mt_config.json"
+
+      - name: MGMP workflow
+        run: >
+          docker run mosca /bin/bash -c "mkdir resources_directory; mv MOSCARDO/data/cdd.tar.gz resources_directory;
+          mosca.py -c MOSCARDO/mgmp_config.json"
