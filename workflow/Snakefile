@@ -1,9 +1,11 @@
 import pathlib
+from glob import glob
+
 import pandas as pd
 import sys
-from mosca_tools import perform_alignment, make_entry_report, make_protein_report
+from mosca_tools import perform_alignment, make_entry_report, make_protein_report, count_on_file
 
-scripts_dir = sys.path[0]
+SCRIPTS_DIR = sys.path[0]
 OUTPUT = config["output"]
 EXPS = pd.DataFrame(config["experiments"])
 
@@ -91,7 +93,7 @@ rule preprocess:
     threads:
         config["threads"]
     run:
-        shell("python {scripts_dir}/preprocess.py -i {reads} -t {threads} -o {output}/Preprocess "
+        shell("python {SCRIPTS_DIR}/preprocess.py -i {reads} -t {threads} -o {output}/Preprocess "
               "-d {data_type} -rd {resources_directory} -n {wildcards.name} --minlen {minlen} --avgqual {avgqual}",
             output = OUTPUT, reads = ",".join(input), resources_directory = config["resources_directory"],
             data_type = EXPS.loc[EXPS['Name'] == wildcards.name]["Data type"].iloc[0],
@@ -132,10 +134,9 @@ rule assembly:
         reads = ",".join(expand("{output}/Preprocess/{{sample}}{fr}.fastq", output = OUTPUT,
             fr = (['_forward', '_reverse'] if EXPS["Files"].str.contains(',').tolist() else ''))),
         max_memory = config["max_memory"],
-        output = OUTPUT
     shell:
-        "python {scripts_dir}/assembly.py -r {params.reads} -t {threads} -a {params.assembler} -m {params.max_memory} "
-        "-o {params.output}/Assembly/{wildcards.sample}"
+        "python {SCRIPTS_DIR}/assembly.py -r {params.reads} -t {threads} -a {params.assembler} -m {params.max_memory} "
+        "-o {OUTPUT}/Assembly/{wildcards.sample}"
 
 rule binning:
     input:
@@ -147,12 +148,11 @@ rule binning:
     threads:
         config["threads"]
     params:
-        output = OUTPUT,
         markerset = config["markerset"],
         iterative_binning = ' --iterative-binning' if config['do_iterative_binning'] else '',
         reads = lambda wildcards, input: input.reads[0] if len(input.reads) == 1 else ",".join(input.reads)
     shell:
-        "python {scripts_dir}/binning.py -c {input.contigs} -t {threads} -o {params.output}/Binning/{wildcards.sample} "
+        "python {SCRIPTS_DIR}/binning.py -c {input.contigs} -t {threads} -o {OUTPUT}/Binning/{wildcards.sample} "
         "-r {params.reads} -mset {params.markerset}{params.iterative_binning}"
 
 rule fastq2fasta:
@@ -174,12 +174,26 @@ rule gene_calling:
     threads:
         config["threads"]
     params:
-        output = OUTPUT,
         error_model = "complete" if config['do_assembly'] else config["error_model"],
         complete = '1' if config['do_assembly'] else '0'
     shell:
-        'run_FragGeneScan.pl -thread={threads} -genome={input} -out={params.output}/Annotation/{wildcards.sample}/fgs '
+        'run_FragGeneScan.pl -thread={threads} -genome={input} -out={OUTPUT}/Annotation/{wildcards.sample}/fgs '
         '-complete={params.complete} -train=./{params.error_model}'
+
+# TODO - finish linking this rule to the workflow, if needed.
+rule split_gene_calling:
+    input:
+        expand("{output}/Annotation/{{sample}}/fgs.faa", output=OUTPUT)
+    output:
+        directory(expand("{output}/Annotation/{{sample}}/fgs.faa.split", output = OUTPUT))
+    threads:
+        config["threads"]
+    params:
+        # of parts to split the gene calling into so upimapi can digest it.
+        # UPIMAPI failed with 1500000 sequences once, filling the disk storage.
+        parts = config["split_gene_calling_parts"]
+    shell:
+        'seqkit split --by-part {params.parts} -j {threads} {input}'
 
 rule upimapi:
     input:
@@ -210,14 +224,13 @@ rule recognizer:
     threads:
         config["threads"]
     params:
-        output = f'{OUTPUT}/Annotation',
         resources_directory = config["resources_directory"],
         recognizer_databases = ','.join(config["recognizer_databases"]),
         download_cdd_resources = '' if not config['download_cdd_resources'] else ' -dr'
     shell:
-        "recognizer.py -f {input} -t {threads} -o {params.output}/{wildcards.sample} -rd {params.resources_directory}"
-        "{params.download_cdd_resources} -dbs {params.recognizer_databases} -sd "
-        "--tax-file {params.output}/{wildcards.sample}/UPIMAPI_results.tsv --protein-id-col Entry "
+        "recognizer.py -f {input} -t {threads} -o {OUTPUT}/Annotation/{wildcards.sample} "
+        "-rd {params.resources_directory}{params.download_cdd_resources} -dbs {params.recognizer_databases} -sd "
+        "--tax-file {OUTPUT}/Annotation/{wildcards.sample}/UPIMAPI_results.tsv --protein-id-col Entry "
         "--tax-col 'Taxonomic lineage IDs (SPECIES)' --species-taxids"
 
 rule quantification_analysis:
@@ -255,14 +268,13 @@ rule metaphlan:
     threads: config["threads"]
     params:
         reads = lambda wildcards, input: input,
-        output= OUTPUT
     shell:
         # the double quotes allow to have two commands here
         """
-        metaphlan {params.reads} --bowtie2out {params.output}/Taxonomy/{wildcards.sample}_mg.bowtie2.bz2 \
+        metaphlan {params.reads} --bowtie2out {OUTPUT}/Taxonomy/{wildcards.sample}_mg.bowtie2.bz2 \
         --nproc {threads} --input_type fastq
-        metaphlan {params.output}/Taxonomy/{wildcards.sample}_mg.bowtie2.bz2 --nproc {threads} --input_type bowtie2out \
-        -o {params.output}/Taxonomy/{wildcards.sample}_profiled_metagenome.txt
+        metaphlan {OUTPUT}/Taxonomy/{wildcards.sample}_mg.bowtie2.bz2 --nproc {threads} --input_type bowtie2out \
+        -o {OUTPUT}/Taxonomy/{wildcards.sample}_profiled_metagenome.txt
         """
 
 rule metaproteomics:
@@ -287,11 +299,10 @@ rule metaproteomics:
         max_memory=config["max_memory"],
         resources_directory=config["resources_directory"],
         ref_taxa_level=config["reference_proteomes_taxa_level"],
-        output=OUTPUT
     shell:
-        "python {scripts_dir}/metaproteomics_analyser.py -sf {params.folders} -ns {params.names} -t {threads} "
+        "python {SCRIPTS_DIR}/metaproteomics_analyser.py -sf {params.folders} -ns {params.names} -t {threads} "
         "-o {output}/Metaproteomics/{wildcards.sample} -w {params.workflow} "
-        "-db {params.output}/Annotation/{wildcards.sample}/fgs.faa -cdb {params.contaminants_database} "
+        "-db {OUTPUT}/Annotation/{wildcards.sample}/fgs.faa -cdb {params.contaminants_database} "
         "-mpar {output}/Taxonomy/{wildcards.sample}_profiled_metagenome.txt --protease {params.protease} "
         "-mmem {params.max_memory} -rd {params.resources_directory} -rtl {params.ref_taxa_level}"
 
@@ -306,7 +317,7 @@ rule mp_differential_expression:
         outdir = "{{output}}/Metaproteomics/{{sample}}",
         conditions = ','.join(EXPS[EXPS['Data type'] == 'protein']['Condition'].tolist())
     shell:
-        "Rscript {scripts_dir}/proteomics_postprocessing.R -m {input} -o {params.outdir} -c {params.conditions}"
+        "Rscript {SCRIPTS_DIR}/proteomics_postprocessing.R -m {input} -o {params.outdir} -c {params.conditions}"
 
 rule protein_report:
     input:
@@ -375,11 +386,10 @@ rule differential_expression:
         1
     params:
         conditions = ",".join(mt_exps['Condition'].tolist()),
-        output= OUTPUT,
         minimum_fold_change=config["minimum_differential_expression"]
     shell:
-        "Rscript {scripts_dir}/de_analysis.R --readcounts {input} --conditions {params.conditions} "
-        "--output {params.output}/Quantification --foldchange {params.minimum_fold_change}"
+        "Rscript {SCRIPTS_DIR}/de_analysis.R --readcounts {input} --conditions {params.conditions} "
+        "--output {OUTPUT}/Quantification --foldchange {params.minimum_fold_change}"
 
 rule keggcharter:
     input:
@@ -398,7 +408,7 @@ rule keggcharter:
         number_of_taxa=config["keggcharter_number_of_taxa"]
     shell:
         "keggcharter.py -f {input} -o {params.outdir} -gcol {params.mg_cols}{params.exp_cols} "
-        "-tc 'Taxonomic lineage ({params.taxa_level})' -not {prams.number_of_taxa} -keggc 'Cross-reference (KEGG)' "
+        "-tc 'Taxonomic lineage ({params.taxa_level})' -not {params.number_of_taxa} -keggc 'Cross-reference (KEGG)' "
         "-rd {params.resources_directory}{params.metabolic_maps} || true"
 
 
@@ -414,11 +424,9 @@ rule report:
     threads:
         1
     params:
-        output = OUTPUT,
-        reporter_lists = f'{scripts_dir}/../resources',
+        reporter_lists = f'{SCRIPTS_DIR}/../resources',
         suffix = f' -s {config["suffix"]}' if config["suffix"] != '' else '',
         no_de = '' if len(mt_exps) > 0 else ' --no-differential-expression'
     shell:
-        "python {scripts_dir}/report.py -e {params.output}/exps.tsv -o {params.output} -ldir {params.reporter_lists} "
+        "python {SCRIPTS_DIR}/report.py -e {OUTPUT}/exps.tsv -o {OUTPUT} -ldir {params.reporter_lists} "
         "-if tsv{params.suffix}{params.no_de}"
-
