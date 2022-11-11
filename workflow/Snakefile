@@ -54,8 +54,6 @@ def all_input(wildcards):
 
 def preprocess_input(wildcards):
     # get first value (in case multiple) and split on commas
-    print(wildcards)
-    print(EXPS.loc[EXPS['Name'] == wildcards.name, 'Files'].iloc[0].split(','))
     return EXPS.loc[EXPS['Name'] == wildcards.name, 'Files'].iloc[0].split(',')
 
 def join_reads_input(wildcards):
@@ -180,26 +178,25 @@ rule gene_calling:
         'run_FragGeneScan.pl -thread={threads} -genome={input} -out={OUTPUT}/Annotation/{wildcards.sample}/fgs '
         '-complete={params.complete} -train=./{params.error_model}'
 
-# TODO - finish linking this rule to the workflow, if needed.
 rule split_gene_calling:
     input:
         expand("{output}/Annotation/{{sample}}/fgs.faa", output=OUTPUT)
     output:
-        directory(expand("{output}/Annotation/{{sample}}/fgs.faa.split", output = OUTPUT))
+        expand("{output}/Annotation/{{sample}}/fgs.faa.split/fgs.part_{part}.faa", output = OUTPUT,
+            part=[f'{"0" * (3 - len(str(i + 1)))}{i + 1}' for i in range(config["split_gene_calling"])])
     threads:
         config["threads"]
     params:
-        # of parts to split the gene calling into so upimapi can digest it.
-        # UPIMAPI failed with 1500000 sequences once, filling the disk storage.
-        parts = config["split_gene_calling_parts"]
+        parts = config["split_gene_calling"]
     shell:
         'seqkit split --by-part {params.parts} -j {threads} {input}'
 
 rule upimapi:
     input:
-        expand("{output}/Annotation/{{sample}}/fgs.faa",output=OUTPUT)
+        expand("{output}/Annotation/{{sample}}/fgs.faa.split/fgs.part_{{part}}.faa",output=OUTPUT)
     output:
-        expand("{output}/Annotation/{{sample}}/UPIMAPI_results.tsv", output = OUTPUT)
+        expand("{output}/Annotation/{{sample}}/{{part}}/UPIMAPI_results.tsv", output = OUTPUT,
+            part=[f'{"0" * (3 - len(str(i + 1)))}{i + 1}' for i in range(config["split_gene_calling"])])
     threads:
         config["threads"]
     params:
@@ -211,9 +208,18 @@ rule upimapi:
         cols = '&'.join(config['uniprot_columns']), dbs = '&'.join(config['uniprot_databases']),
         input = lambda wildcards, input: input
     shell:
-        'upimapi.py -i {input} -t {threads} -o {params.output}/Annotation/{wildcards.sample} -rd {params.rd} '
-        '-db {params.upimapi_database} -mts {params.max_target_seqs}{params.taxids} '
+        'upimapi.py -i {input} -t {threads} -o {params.output}/Annotation/{wildcards.sample}/{wildcards.part} '
+        '-rd {params.rd} -db {params.upimapi_database} -mts {params.max_target_seqs}{params.taxids} '
         '-cols "{params.cols}" --skip-db-check'
+
+rule join_upimapi:
+    input:
+        expand("{output}/Annotation/{{sample}}/{part}/UPIMAPI_results.tsv", output = OUTPUT,
+            part=[f'{"0" * (3 - len(str(i + 1)))}{i + 1}' for i in range(config["split_gene_calling"])])
+    output:
+        expand("{output}/Annotation/{{sample}}/UPIMAPI_results.tsv", output = OUTPUT)
+    shell:
+        'cat {input} > {output}'
 
 rule recognizer:
     input:
