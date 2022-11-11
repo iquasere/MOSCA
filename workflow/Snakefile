@@ -3,6 +3,9 @@ from glob import glob
 
 import pandas as pd
 import sys
+
+from tqdm import tqdm
+
 from mosca_tools import perform_alignment, make_entry_report, make_protein_report, count_on_file
 
 SCRIPTS_DIR = sys.path[0]
@@ -57,6 +60,8 @@ def preprocess_input(wildcards):
     return EXPS.loc[EXPS['Name'] == wildcards.name, 'Files'].iloc[0].split(',')
 
 def join_reads_input(wildcards):
+    print('at join reads input')
+    print(wildcards)
     df = mg_exps[mg_exps['Sample'] == wildcards.sample].reset_index()
     return [f'{OUTPUT}/Preprocess/Trimmomatic/quality_trimmed_{df.iloc[i]["Name"]}{fr}.fq'
            for i in range(len(df))
@@ -182,8 +187,7 @@ rule split_gene_calling:
     input:
         expand("{output}/Annotation/{{sample}}/fgs.faa", output=OUTPUT)
     output:
-        expand("{output}/Annotation/{{sample}}/fgs.faa.split/fgs.part_{part}.faa", output = OUTPUT,
-            part=[f'{"0" * (3 - len(str(i + 1)))}{i + 1}' for i in range(config["split_gene_calling"])])
+        expand("{output}/Annotation/{{sample}}/fgs.faa.split/fgs.part_{{part}}.faa", output=OUTPUT)
     threads:
         config["threads"]
     params:
@@ -193,10 +197,9 @@ rule split_gene_calling:
 
 rule upimapi:
     input:
-        expand("{output}/Annotation/{{sample}}/fgs.faa.split/fgs.part_{{part}}.faa",output=OUTPUT)
+        expand("{output}/Annotation/{{sample}}/fgs.faa.split/fgs.part_{{part}}.faa", output=OUTPUT)
     output:
-        expand("{output}/Annotation/{{sample}}/{{part}}/UPIMAPI_results.tsv", output = OUTPUT,
-            part=[f'{"0" * (3 - len(str(i + 1)))}{i + 1}' for i in range(config["split_gene_calling"])])
+        expand("{output}/Annotation/{{sample}}/{{part}}/UPIMAPI_results.tsv", output = OUTPUT)
     threads:
         config["threads"]
     params:
@@ -214,10 +217,12 @@ rule upimapi:
 
 rule join_upimapi:
     input:
-        expand("{output}/Annotation/{{sample}}/{part}/UPIMAPI_results.tsv", output = OUTPUT,
-            part=[f'{"0" * (3 - len(str(i + 1)))}{i + 1}' for i in range(config["split_gene_calling"])])
+        expand("{output}/Annotation/{sample}/{part}/UPIMAPI_results.tsv", output = OUTPUT,
+            part=[f'{"0" * (3 - len(str(i + 1)))}{i + 1}' for i in range(config["split_gene_calling"])],
+            sample = set(EXPS["Sample"]))
     output:
-        expand("{output}/Annotation/{{sample}}/UPIMAPI_results.tsv", output = OUTPUT)
+        expand("{output}/Annotation/{sample}/UPIMAPI_results.tsv", output = OUTPUT,
+            sample = set(EXPS["Sample"]))
     shell:
         'cat {input} > {output}'
 
