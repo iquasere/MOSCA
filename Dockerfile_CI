@@ -5,10 +5,7 @@ RUN buildDeps='build-essential zlib1g-dev' \
 && apt-get install -y $buildDeps --no-install-recommends \
 # Set up CI files
 && git clone https://github.com/iquasere/MOSCARDO.git \
-&& tar -xzvf MOSCARDO/input/mp1/mp1.RAW.tar.gz -C MOSCARDO/input/mp1/ \
-&& tar -xzvf MOSCARDO/input/mp2/mp2.RAW.tar.gz -C MOSCARDO/input/mp2/ \
-&& tar -xzvf MOSCARDO/input/mp3/mp3.RAW.tar.gz -C MOSCARDO/input/mp3/ \
-&& tar -xzvf MOSCARDO/input/mp4/mp4.RAW.tar.gz -C MOSCARDO/input/mp4/ \
+&& gunzip -v MOSCARDO/input/*/mp*.RAW.gz \
 && mkdir resources_directory \
 && mv MOSCARDO/data/cdd.tar.gz MOSCARDO/data/uniprot.fasta resources_directory \
 # Install MOSCA
