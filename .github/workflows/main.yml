@@ -61,24 +61,24 @@ jobs:
       - name: Check base entrypoint
         run: docker run mosca /bin/bash -c "ls"
 
-      - name: MG only workflow
-        run: >
-          docker run mosca /bin/bash -c "mkdir resources_directory; mv MOSCARDO/data/cdd.tar.gz resources_directory;
-          cp MOSCARDO/data/mg_R1.fastq.gz MOSCARDO/data/mg_R1_001.fastq.gz;
-          cp MOSCARDO/data/mg_R2.fastq.gz MOSCARDO/data/mg_R2_001.fastq.gz;
-          mosca.py -c MOSCARDO/mg_only_config.json"
+      #- name: MG only workflow
+      #  run: >
+      #    docker run mosca /bin/bash -c "mkdir resources_directory; mv MOSCARDO/data/cdd.tar.gz resources_directory;
+      #    cp MOSCARDO/data/mg_R1.fastq.gz MOSCARDO/data/mg_R1_001.fastq.gz;
+      #    cp MOSCARDO/data/mg_R2.fastq.gz MOSCARDO/data/mg_R2_001.fastq.gz;
+      #    mosca.py -c MOSCARDO/configs/mg_only_config.json"
 
       - name: MGMT workflow
         run: >
           docker run mosca /bin/bash -c "mkdir resources_directory; mv MOSCARDO/data/cdd.tar.gz resources_directory;
-          mosca.py -c MOSCARDO/mgmt_config.json"
+          mosca.py -c MOSCARDO/configs/mgmt_config.json"
 
-      - name: MT only workflow
-        run: >
-          docker run mosca /bin/bash -c "mkdir resources_directory; mv MOSCARDO/data/cdd.tar.gz resources_directory;
-          mosca.py -c MOSCARDO/mt_config.json"
+      #- name: MT only workflow
+      #  run: >
+      #    docker run mosca /bin/bash -c "mkdir resources_directory; mv MOSCARDO/data/cdd.tar.gz resources_directory;
+      #    mosca.py -c MOSCARDO/configs/mt_config.json"
 
       - name: MGMP workflow
         run: >
           docker run mosca /bin/bash -c "mkdir resources_directory; mv MOSCARDO/data/cdd.tar.gz resources_directory;
-          mosca.py -c MOSCARDO/mgmp_config.json"
+          mosca.py -c MOSCARDO/configs/mgmp_config.json"
