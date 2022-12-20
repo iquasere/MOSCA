@@ -156,7 +156,7 @@ rule binning:
         reads = lambda wildcards, input: input.reads[0] if len(input.reads) == 1 else ",".join(input.reads)
     shell:
         "python {SCRIPTS_DIR}/binning.py -c {input.contigs} -t {threads} -o {OUTPUT}/Binning/{wildcards.sample} "
-        "-r {params.reads} -mset {params.markerset}{params.iterative_binning}"
+        "-r {params.reads} -mset {params.markerset}{params.iterative_binning} || true"
 
 rule fastq2fasta:
     input:
