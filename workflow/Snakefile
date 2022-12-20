@@ -209,11 +209,12 @@ rule upimapi:
         taxids = f' --taxids {config["upimapi_taxids"]}' if config["upimapi_database"] == 'taxids' else '',
         max_target_seqs = config["upimapi_max_target_seqs"],
         cols = '&'.join(config['uniprot_columns']), dbs = '&'.join(config['uniprot_databases']),
-        input = lambda wildcards, input: input
+        input = lambda wildcards, input: input,
+        check_db = ' --skip-db-check' if config['upimapi_check_db'] else ''
     shell:
         'upimapi.py -i {input} -t {threads} -o {params.output}/Annotation/{wildcards.sample}/{wildcards.part} '
         '-rd {params.rd} -db {params.upimapi_database} -mts {params.max_target_seqs}{params.taxids} '
-        '-cols "{params.cols}" --skip-db-check'
+        '-cols "{params.cols}"{params.check_db}'
 
 rule join_upimapi:
     input:
@@ -338,8 +339,8 @@ rule protein_report:
             sample = set(EXPS["Sample"])) +
         expand("{output}/Quantification/{name}.readcounts", output = OUTPUT,
             name = set(not_mp_exps['Name'])) +
-        expand("{output}/Metaproteomics/{sample}/quantification.tsv", output = OUTPUT,
-            sample = set(not_mp_exps['Name'])) if len(mp_exps) > 0 else []
+        (expand("{output}/Metaproteomics/{sample}/quantification.tsv", output = OUTPUT,
+            sample = set(not_mp_exps['Name'])) if len(mp_exps) > 0 else [])
     output:
         f"{OUTPUT}/MOSCA_Protein_Report.xlsx"
     threads: 1

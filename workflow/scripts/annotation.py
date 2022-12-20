@@ -52,7 +52,6 @@ class Annotater:
             "-rd", "--resources-directory", default=os.path.expanduser('~/resources'),
             help="Output directory for storing databases and other resources [~/resources]")
 
-
         args = parser.parse_args()
         args.output = args.output.rstrip('/')
         return args
