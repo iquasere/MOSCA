@@ -427,20 +427,18 @@ class MetaproteomicsAnalyser:
 
     def run(self):
         args = self.get_arguments()
-        '''
         self.database_generation(
             args.database, args.output, args.metaphlan_result,
             contaminants_database=args.contaminants_database, protease=args.protease,
             references_taxa_level=args.references_taxa_level, max_attempts=args.max_attemps)
-        '''
-
         proteins_for_second_search, spectracounts = [], pd.DataFrame(columns=['Main Accession'])
+
         if args.workflow == 'maxquant':
             self.maxquant_workflow(
                 f'{args.output}/mqpar.xml', f'{args.output}/1st_search_database.fasta',
                 args.spectra_folders.split(','), args.experiment_names.split(','), args.output,
                 threads=args.threads, spectra_format='RAW', protein_fdr=1)
-        '''
+
         elif args.workflow == 'compomics':
             pass
             self.create_decoy_database(f'{args.output}/1st_search_database.fasta')
@@ -470,27 +468,25 @@ class MetaproteomicsAnalyser:
                         proteins_for_second_search += protein_group
         else:
             exit('Not a valid workflow option!')
-        '''
-        '''
+
         with open(f'{args.output}/2nd_search_proteins.txt', 'w') as f:
             f.write('\n'.join(set(proteins_for_second_search)))
         run_command(
             f'seqkit grep -f {args.output}/2nd_search_proteins.txt -o {args.output}/2nd_search_database.fasta '
             f'{args.output}/1st_search_database.fasta')
-        '''
+
         if args.workflow == 'maxquant':
             pass
+
         elif args.workflow == 'compomics':
-            '''
             self.create_decoy_database(f'{args.output}/2nd_search_database.fasta')
             self.generate_parameters_file(f'{args.output}/2nd_params.par', protein_fdr=1)
-            '''
+
             # TODO - check if will be necessary to split the database
             # self.split_database(
             #    f'{args.output}/2nd_search_database_concatenated_target_decoy.fasta', n_proteins=5000000)
             for name in args.names:
                 out = f'{args.output}/{name}'
-                '''
                 self.compomics_run(
                     f'{args.output}/2nd_search_database.fasta', f'{out}/2nd_search', f'{out}/spectra', name,
                     f'{args.output}/2nd_params.par', threads=args.threads, max_memory=args.max_memory,
@@ -498,10 +494,8 @@ class MetaproteomicsAnalyser:
                 spectracounts = pd.merge(spectracounts, pd.read_csv(
                     f'{out}/2nd_search/reports/{name}_Default_Protein_Report.txt', sep='\t', index_col=0
                 )[['Main Accession', '#PSMs']].rename(columns={'#PSMs': name}), how='outer', on='Main Accession')
-                '''
-        #spectracounts.groupby('Main Accession')[args.names].sum().reset_index().fillna(value=0.0).to_csv(
-        # f'{args.output}/spectracounts.tsv', sep='\t', index=False)
-
+        spectracounts.groupby('Main Accession')[args.names].sum().reset_index().fillna(value=0.0).to_csv(
+            f'{args.output}/spectracounts.tsv', sep='\t', index=False)
 
 
 if __name__ == '__main__':

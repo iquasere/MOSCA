@@ -10,6 +10,10 @@ Logo by [Sérgio A. Silva](https://www.ceb.uminho.pt/People/Details/64888072-5cd
 
 [![Development CI](https://github.com/iquasere/MOSCA/actions/workflows/main.yml/badge.svg?branch=development)](https://github.com/iquasere/MOSCA/actions/workflows/main.yml)
 
+[![GitHub release](https://img.shields.io/github/release/iquasere/MOSCA.svg)](https://github.com/iquasere/MOSCA/releases/latest)
+
+[![Latest Release](https://img.shields.io/github/release-date/iquasere/MOSCA.svg)](https://github.com/iquasere/MOSCA/releases)
+
 ## MOSCA's wiki
 
 Information about MOSCA is primarily available through the [wiki](https://github.com/iquasere/MOSCA/wiki), where detailed information about the pipeline can be found.
