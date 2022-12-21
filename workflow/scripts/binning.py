@@ -32,7 +32,7 @@ class Binner:
             help="Set of marker genes to use (40 - all taxa; 107 - only bacteria)")
         parser.add_argument("-s", "--sample", default='Sample', help="Name of sample analysed")
         parser.add_argument("-r", "--reads", help="Filenames of reads")
-        parser.add_argument("-ib", "--iterative-binning", action='store_true', default=False, help="Output directory")
+        parser.add_argument("-i", "--iterative", action='store_true', default=False, help="Output directory")
 
         args = parser.parse_args()
         args.output = args.output.rstrip('/')
@@ -132,7 +132,7 @@ class Binner:
 
         sample = args.output.split('/')[-1]
 
-        if args.iterative_binning:
+        if args.iterative:
             self.iterative_binning(
                 args.contigs, args.output, threads=args.threads, reads=reads, reads2=reads2, markerset=args.markerset)
         else:

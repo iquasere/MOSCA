@@ -152,11 +152,11 @@ rule binning:
         config["threads"]
     params:
         markerset = config["markerset"],
-        iterative_binning = ' --iterative-binning' if config['do_iterative_binning'] else '',
+        iterative_binning = ' --iterative' if config['do_iterative_binning'] else '',
         reads = lambda wildcards, input: input.reads[0] if len(input.reads) == 1 else ",".join(input.reads)
     shell:
         "python {SCRIPTS_DIR}/binning.py -c {input.contigs} -t {threads} -o {OUTPUT}/Binning/{wildcards.sample} "
-        "-r {params.reads} -mset {params.markerset}{params.iterative_binning} || true"
+        "-r {params.reads} -mset {params.markerset}{params.iterative_binning}"
 
 rule fastq2fasta:
     input:
@@ -227,8 +227,8 @@ rule join_upimapi:
 
 rule recognizer:
     input:
-        expand("{output}/Annotation/{{sample}}/fgs.faa", output = OUTPUT),
-        expand("{output}/Annotation/{{sample}}/UPIMAPI_results.tsv", output = OUTPUT)
+        orfs=expand("{output}/Annotation/{{sample}}/fgs.faa", output = OUTPUT),
+        upimapi_results=expand("{output}/Annotation/{{sample}}/UPIMAPI_results.tsv", output = OUTPUT)
     output:
         expand("{output}/Annotation/{{sample}}/reCOGnizer_results.xlsx", output = OUTPUT)
     threads:
@@ -238,10 +238,10 @@ rule recognizer:
         recognizer_databases = ','.join(config["recognizer_databases"]),
         download_cdd_resources = '' if not config['download_cdd_resources'] else ' -dr'
     shell:
-        "recognizer.py -f {input} -t {threads} -o {OUTPUT}/Annotation/{wildcards.sample} "
-        "-rd {params.resources_directory}{params.download_cdd_resources} -dbs {params.recognizer_databases} -sd "
-        "--tax-file {OUTPUT}/Annotation/{wildcards.sample}/UPIMAPI_results.tsv --protein-id-col Entry "
-        "--tax-col 'Taxonomic lineage IDs (SPECIES)' --species-taxids"
+        "recognizer.py -f {input.orfs} -t {threads} -o {OUTPUT}/Annotation/{wildcards.sample} "
+        "-rd {params.resources_directory} -dbs {params.recognizer_databases} -sd "
+        "--tax-file {input.upimapi_results} --protein-id-col Entry --tax-col 'Taxonomic lineage IDs (SPECIES)' "
+        "--species-taxids --quiet{params.download_cdd_resources}"
 
 rule quantification_analysis:
     input:
