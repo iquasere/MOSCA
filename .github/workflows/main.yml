@@ -70,15 +70,12 @@ jobs:
 
       - name: MGMT workflow
         run: >
-          docker run mosca /bin/bash -c "mkdir resources_directory; mv MOSCARDO/data/cdd.tar.gz resources_directory;
-          mosca.py -c MOSCARDO/configs/mgmt_config.json"
+          docker run mosca /bin/bash -c "mosca.py -c MOSCARDO/configs/mgmt_config.json"
 
       #- name: MT only workflow
       #  run: >
-      #    docker run mosca /bin/bash -c "mkdir resources_directory; mv MOSCARDO/data/cdd.tar.gz resources_directory;
-      #    mosca.py -c MOSCARDO/configs/mt_config.json"
+      #    docker run mosca /bin/bash -c "mosca.py -c MOSCARDO/configs/mt_config.json"
 
       - name: MGMP workflow
         run: >
-          docker run mosca /bin/bash -c "mkdir resources_directory; mv MOSCARDO/data/cdd.tar.gz resources_directory;
-          mosca.py -c MOSCARDO/configs/mgmp_config.json"
+          docker run mosca /bin/bash -c "mosca.py -c MOSCARDO/configs/mgmp_config.json"
