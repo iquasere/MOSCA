@@ -13,7 +13,10 @@ RUN buildDeps='build-essential zlib1g-dev' \
 && conda install -c conda-forge -y mamba \
 && mamba env update --file MOSCA/workflow/envs/base_environment.yml --name base \
 && bash MOSCA/workflow/envs/ci_build.sh \
+&& apt-get install -y packagekit-gtk3-module libasound2 libdbus-glib-1-2 libx11-xcb1 \
 && conda clean --all \
+# might be required for AttributeError: module 'lib' has no attribute 'X509_V_FLAG_CB_ISSUER_CHECK'
+#&& pip install pyopenssl --upgrade \
 && apt-get purge -y --auto-remove $buildDeps
 
 CMD [ "python", "bin/mosca.py" ]

@@ -19,9 +19,8 @@ opt = parse_args(opt_parser);
 
 df <- read.table(opt$readcounts, header = TRUE, sep = "\t")
 
-if(sapply(df, class)[1] != "numeric" & sapply(df, class)[1] != "integer"){
-        df[colnames(df)[1]] <- NULL
-        }
+# This is a comment that should explain what happens in this next line
+if(sapply(df, class)[1] != "numeric" & sapply(df, class)[1] != "integer"){df[colnames(df)[1]] <- NULL}
 
 normalization_factors = calcNormFactors(df, method = opt$method)
 

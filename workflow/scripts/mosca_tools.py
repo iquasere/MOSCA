@@ -10,7 +10,6 @@ Jun 2017
 import glob
 from multiprocessing import Pool
 from pathlib import Path
-
 import numpy as np
 import os
 import pandas as pd
