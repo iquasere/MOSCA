@@ -1,7 +1,7 @@
 # Meta-Omics Software for Community Analysis
 
 <p align="center" href="https://github.com/iquasere/MOSCA">
-  <img width="30%" src="mosca_logo.png" alt="Logo" title="Logo by Sérgio A. Silva">
+  <img width="30%" src="resources/mosca_logo.png" alt="Logo" title="Logo by Sérgio A. Silva">
 </p>
 
 Welcome to the Meta-Omics Software for Community Analysis (MOSCA) Pipeline! :fly:

@@ -30,7 +30,7 @@ class Assembler:
             "-t", "--threads", default=multiprocessing.cpu_count() - 2,
             help="Number of threads to use [max available - 2]")
         parser.add_argument(
-            "-a", "--assembler", choices=["metaspades", "megahit", "rnaspades", "trinity"],
+            "-a", "--assembler", choices=["metaspades", "megahit", "trinity"],
             help="Tool for assembling the reads [metaspades]", default="metaspades")
         parser.add_argument(
             "-m", "--memory", default=psutil.virtual_memory().available / (1024.0 ** 3) / 3, type=float,
