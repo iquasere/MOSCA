@@ -52,15 +52,7 @@ def all_input(wildcards):
     else:
         return f"{OUTPUT}/MOSCA_Entry_Counts_Report.xlsx"
 
-def preprocess_input(wildcards):
-    # get first value (in case multiple) and split on commas
-    print('got here')
-    print(wildcards)
-    return EXPS.loc[EXPS['Name'] == wildcards.name, 'Files'].iloc[0].split(',')
-
 def join_reads_input(wildcards):
-    print('at join reads input')
-    print(wildcards)
     df = mg_exps[mg_exps['Sample'] == wildcards.sample].reset_index()
     return [f'{OUTPUT}/Preprocess/Trimmomatic/quality_trimmed_{df.iloc[i]["Name"]}{fr}.fq'
            for i in range(len(df))
@@ -185,7 +177,7 @@ rule gene_calling:
     params:
         error_model = "complete" if config['do_assembly'] else config["error_model"],
         complete = '1' if config['do_assembly'] else '0'
-    conda: "envs/mosca_gencallyaml"
+    conda: "envs/mosca_gencall.yaml"
     shell:
         'run_FragGeneScan.pl -thread={threads} -genome={input} -out={OUTPUT}/Annotation/{wildcards.sample}/fgs '
         '-complete={params.complete} -train=./{params.error_model}'
@@ -429,7 +421,7 @@ rule keggcharter:
         exp_cols=f" -tcol {','.join(mt_exps['Name'].tolist())}" if len(mt_exps) > 0 else '',
         taxa_level=config["keggcharter_taxa_level"],
         number_of_taxa=config["keggcharter_number_of_taxa"]
-    conda: "envs/mosca_keggcharter.yaml"
+    conda: "envs/mosca_kegg.yaml"
     shell:
         "keggcharter.py -f {input} -o {params.outdir} -gcol {params.mg_cols}{params.exp_cols} "
         "-tc 'Taxonomic lineage ({params.taxa_level})' -not {params.number_of_taxa} -keggc 'Cross-reference (KEGG)' "
