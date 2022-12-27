@@ -10,7 +10,6 @@ RUN buildDeps='build-essential zlib1g-dev' \
 && mv MOSCARDO/data/cdd.tar.gz MOSCARDO/data/uniprot.fasta resources_directory \
 # Install MOSCA
 && git clone https://github.com/iquasere/MOSCA.git -b development \
-&& conda install -c conda-forge -y mamba \
 && bash MOSCA/install.bash --mosca_dir "$(conda info --base)" \
 && apt-get install -y packagekit-gtk3-module libasound2 libdbus-glib-1-2 libx11-xcb1 \
 && conda clean --all \

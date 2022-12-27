@@ -2,8 +2,7 @@ import pathlib
 import pandas as pd
 import sys
 
-
-from mosca_tools import perform_alignment, make_entry_report, make_protein_report, count_on_file
+from mosca_tools import perform_alignment, make_entry_report, make_protein_report
 
 SCRIPTS_DIR = sys.path[0]
 OUTPUT = config["output"]
@@ -92,7 +91,8 @@ rule preprocess:
         data_type = lambda wildcards: EXPS.loc[EXPS['Name'] == wildcards.name, 'Data type'].iloc[0],
         minlen = config["minimum_read_length"],
         avgqual = config["minimum_read_average_quality"]
-    conda: "envs/mosca_pp.yaml"
+    conda:
+        "envs/mosca_pp.yaml"
     shell:
         "python {SCRIPTS_DIR}/preprocess.py -i {params.reads} -t {threads} -o {OUTPUT}/Preprocess "
         "-d {params.data_type} -rd {params.resources_directory} -n {wildcards.name} --minlen {params.minlen} "
@@ -104,7 +104,8 @@ rule join_reads:
     output:
         expand("{output}/Preprocess/{{sample}}{fr}.fastq", output = OUTPUT,
             fr = (['_forward', '_reverse'] if EXPS["Files"].str.contains(',').tolist() else ''))
-    threads: 1
+    threads:
+        1
     run:
         for file in input:
             if 'forward' in file:
@@ -133,7 +134,8 @@ rule assembly:
         reads = ",".join(expand("{output}/Preprocess/{{sample}}{fr}.fastq", output = OUTPUT,
             fr = (['_forward', '_reverse'] if EXPS["Files"].str.contains(',').tolist() else ''))),
         max_memory = config["max_memory"]
-    conda: "envs/mosca_ass.yaml"
+    conda:
+        "envs/mosca_ass.yaml"
     shell:
         "python {SCRIPTS_DIR}/assembly.py -r {params.reads} -t {threads} -a {params.assembler} -m {params.max_memory} "
         "-o {OUTPUT}/Assembly/{wildcards.sample}"
@@ -151,7 +153,8 @@ rule binning:
         markerset = config["markerset"],
         iterative_binning = ' --iterative' if config['do_iterative_binning'] else '',
         reads = lambda wildcards, input: input.reads[0] if len(input.reads) == 1 else ",".join(input.reads)
-    conda: "envs/mosca_bin.yaml"
+    conda:
+        "envs/mosca_bin.yaml"
     shell:
         "python {SCRIPTS_DIR}/binning.py -c {input.contigs} -t {threads} -o {OUTPUT}/Binning/{wildcards.sample} "
         "-r {params.reads} -mset {params.markerset}{params.iterative_binning}"
@@ -177,7 +180,8 @@ rule gene_calling:
     params:
         error_model = "complete" if config['do_assembly'] else config["error_model"],
         complete = '1' if config['do_assembly'] else '0'
-    conda: "envs/mosca_gencall.yaml"
+    conda:
+        "envs/mosca_gencall.yaml"
     shell:
         'run_FragGeneScan.pl -thread={threads} -genome={input} -out={OUTPUT}/Annotation/{wildcards.sample}/fgs '
         '-complete={params.complete} -train=./{params.error_model}'
@@ -191,7 +195,8 @@ rule split_gene_calling:
         config["threads"]
     params:
         parts = config["split_gene_calling"]
-    conda: "envs/mosca_seqkit.yaml"
+    conda:
+        "envs/mosca_seqkit.yaml"
     shell:
         'seqkit split --by-part {params.parts} -j {threads} {input}'
 
@@ -209,7 +214,8 @@ rule upimapi:
         max_target_seqs = config["upimapi_max_target_seqs"],
         cols = '&'.join(config['uniprot_columns']),
         check_db = '' if config['upimapi_check_db'] else ' --skip-db-check'
-    conda: "envs/mosca_upimapi.yaml"
+    conda:
+        "envs/mosca_upimapi.yaml"
     shell:
         'upimapi.py -i {input} -t {threads} -o {OUTPUT}/Annotation/{wildcards.sample}/{wildcards.part} '
         '-rd {params.rd} -db {params.upimapi_database} -mts {params.max_target_seqs}{params.taxids} '
@@ -238,7 +244,8 @@ rule recognizer:
         resources_directory = config["resources_directory"],
         recognizer_databases = ','.join(config["recognizer_databases"]),
         download_cdd_resources = '' if not config['download_cdd_resources'] else ' -dr'
-    conda: "envs/mosca_recog.yaml"
+    conda:
+        "envs/mosca_recog.yaml"
     shell:
         "recognizer.py -f {input.orfs} -t {threads} -o {OUTPUT}/Annotation/{wildcards.sample} "
         "-rd {params.resources_directory} -dbs {params.recognizer_databases} -sd "
@@ -257,7 +264,8 @@ rule quantification_analysis:
     output:
         expand("{output}/Quantification/{name}.readcounts", output = OUTPUT,
             name = set(not_mp_exps['Name']))
-    threads: config["threads"]
+    threads:
+        config["threads"]
     run:
         for i in EXPS.index:
             if EXPS.iloc[i]['Data type'] == 'mrna':
@@ -277,10 +285,12 @@ rule metaphlan:
             fr = (['_forward', '_reverse'] if EXPS["Files"].str.contains(',').tolist() else ''))
     output:
         expand("{output}/Taxonomy/{{sample}}_profiled_metagenome.txt", output = OUTPUT)
-    threads: config["threads"]
+    threads:
+        config["threads"]
     params:
         reads = lambda wildcards, input: input
-    conda: "envs/mosca_mpa.yaml"
+    conda:
+        "envs/mosca_mpa.yaml"
     shell:
         # the double quotes allow to have two commands here
         """
@@ -300,7 +310,8 @@ rule metaproteomics:
             sample = set(EXPS["Sample"])),
         expand("{output}/Metaproteomics/{sample}/spectracounts.tsv", output = OUTPUT,
             sample = set(EXPS["Sample"]))
-    threads: config["threads"]
+    threads:
+        config["threads"]
     params:
         folders = ','.join(mp_exps[mp_exps['Sample'] == (
             lambda wildcards: wildcards.spectra_folders)]['Files'].tolist()),
@@ -312,7 +323,8 @@ rule metaproteomics:
         max_memory=config["max_memory"],
         resources_directory=config["resources_directory"],
         ref_taxa_level=config["reference_proteomes_taxa_level"]
-    conda: "envs/mosca_mp.yaml"
+    conda:
+        "envs/mosca_mp.yaml"
     shell:
         "python {SCRIPTS_DIR}/metaproteomics_analyser.py -sf {params.folders} -ns {params.names} -t {threads} "
         "-o {output}/Metaproteomics/{wildcards.sample} -w {params.workflow} "
@@ -325,11 +337,13 @@ rule mp_differential_expression:
         "{{output}}/Metaproteomics/{{sample}}/spectracounts.tsv"
     output:
         expand("{output}/Metaproteomics/{sample}/quantification.tsv", output=OUTPUT, sample=set(not_mp_exps['Name']))
-    threads: 1
+    threads:
+        1
     params:
         outdir = "{{output}}/Metaproteomics/{{sample}}",
         conditions = ','.join(EXPS[EXPS['Data type'] == 'protein']['Condition'].tolist())
-    conda: "envs/mosca_mp_de.yaml"
+    conda:
+        "envs/mosca_mp_de.yaml"
     shell:
         "Rscript {SCRIPTS_DIR}/proteomics_postprocessing.R -m {input} -o {params.outdir} -c {params.conditions}"
 
@@ -345,7 +359,8 @@ rule protein_report:
             sample = set(not_mp_exps['Name'])) if len(mp_exps) > 0 else [])
     output:
         f"{OUTPUT}/MOSCA_Protein_Report.xlsx"
-    threads: 1
+    threads:
+        1
     run:
         make_protein_report(OUTPUT, EXPS)
 
@@ -355,7 +370,8 @@ rule entry_report:
     output:
         f"{OUTPUT}/MOSCA_Entry_Report.xlsx",
         expand("{output}/Quantification/{sample}/expression_matrix.tsv", sample=set(mt_exps['Sample']), output = OUTPUT)
-    threads: 1
+    threads:
+        1
     run:
         make_entry_report(f"{OUTPUT}/MOSCA_Protein_Report.xlsx", OUTPUT, EXPS)
 
@@ -401,7 +417,8 @@ rule differential_expression:
     params:
         conditions = ",".join(mt_exps['Condition'].tolist()),
         minimum_fold_change=config["minimum_differential_expression"]
-    conda: "envs/mosca_mt_de.yaml"
+    conda:
+        "envs/mosca_mt_de.yaml"
     shell:
         "Rscript {SCRIPTS_DIR}/de_analysis.R --readcounts {input} --conditions {params.conditions} "
         "--output {OUTPUT}/Quantification/{wildcards.sample} --foldchange {params.minimum_fold_change}"
@@ -421,7 +438,8 @@ rule keggcharter:
         exp_cols=f" -tcol {','.join(mt_exps['Name'].tolist())}" if len(mt_exps) > 0 else '',
         taxa_level=config["keggcharter_taxa_level"],
         number_of_taxa=config["keggcharter_number_of_taxa"]
-    conda: "envs/mosca_kegg.yaml"
+    conda:
+        "envs/mosca_kegg.yaml"
     shell:
         "keggcharter.py -f {input} -o {params.outdir} -gcol {params.mg_cols}{params.exp_cols} "
         "-tc 'Taxonomic lineage ({params.taxa_level})' -not {params.number_of_taxa} -keggc 'Cross-reference (KEGG)' "
