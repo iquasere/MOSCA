@@ -1,0 +1,14 @@
+name: my_env
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - _libgcc_mutex=0.1=conda_forge
+  - _openmp_mutex=4.5=2_gnu
+  - fraggenescan=1.31=hec16e2b_4
+  - libgcc-ng=12.2.0=h65d4601_19
+  - libgomp=12.2.0=h65d4601_19
+  - libnsl=2.0.0=h7f98852_0
+  - perl=5.32.1=2_h7f98852_perl5
+prefix: /opt/conda/envs/my_env

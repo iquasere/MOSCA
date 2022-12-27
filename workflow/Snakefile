@@ -1,10 +1,7 @@
 import pathlib
-from glob import glob
-
 import pandas as pd
 import sys
 
-from tqdm import tqdm
 
 from mosca_tools import perform_alignment, make_entry_report, make_protein_report, count_on_file
 
@@ -57,6 +54,8 @@ def all_input(wildcards):
 
 def preprocess_input(wildcards):
     # get first value (in case multiple) and split on commas
+    print('got here')
+    print(wildcards)
     return EXPS.loc[EXPS['Name'] == wildcards.name, 'Files'].iloc[0].split(',')
 
 def join_reads_input(wildcards):
@@ -89,18 +88,23 @@ rule all:
 
 rule preprocess:
     input:
-        preprocess_input
+        lambda wildcards: EXPS.loc[EXPS['Name'] == wildcards.name, 'Files'].iloc[0].split(',')
     output:
-        expand("{output}/Preprocess/Trimmomatic/quality_trimmed_{{name}}{fr}.fq", output = OUTPUT,
-            fr = (['_forward_paired', '_reverse_paired'] if EXPS["Files"].str.contains(',').tolist() else ''))
+        expand("{output}/Preprocess/Trimmomatic/quality_trimmed_{{name}}{fr}.fq", output=OUTPUT,
+            fr=(['_forward_paired', '_reverse_paired'] if EXPS["Files"].str.contains(',').tolist() else ''))
     threads:
         config["threads"]
-    run:
-        shell("python {SCRIPTS_DIR}/preprocess.py -i {reads} -t {threads} -o {output}/Preprocess "
-              "-d {data_type} -rd {resources_directory} -n {wildcards.name} --minlen {minlen} --avgqual {avgqual}",
-            output = OUTPUT, reads = ",".join(input), resources_directory = config["resources_directory"],
-            data_type = EXPS.loc[EXPS['Name'] == wildcards.name]["Data type"].iloc[0],
-            minlen = config["minimum_read_length"], avgqual = config["minimum_read_average_quality"])
+    params:
+        reads=lambda wildcards: EXPS.loc[EXPS['Name'] == wildcards.name, 'Files'].iloc[0],
+        resources_directory = config["resources_directory"],
+        data_type = lambda wildcards: EXPS.loc[EXPS['Name'] == wildcards.name, 'Data type'].iloc[0],
+        minlen = config["minimum_read_length"],
+        avgqual = config["minimum_read_average_quality"]
+    conda: "envs/mosca_pp.yaml"
+    shell:
+        "python {SCRIPTS_DIR}/preprocess.py -i {params.reads} -t {threads} -o {OUTPUT}/Preprocess "
+        "-d {params.data_type} -rd {params.resources_directory} -n {wildcards.name} --minlen {params.minlen} "
+        "--avgqual {params.avgqual}"
 
 rule join_reads:
     input:
@@ -136,7 +140,8 @@ rule assembly:
         assembler = config["assembler"],
         reads = ",".join(expand("{output}/Preprocess/{{sample}}{fr}.fastq", output = OUTPUT,
             fr = (['_forward', '_reverse'] if EXPS["Files"].str.contains(',').tolist() else ''))),
-        max_memory = config["max_memory"],
+        max_memory = config["max_memory"]
+    conda: "envs/mosca_ass.yaml"
     shell:
         "python {SCRIPTS_DIR}/assembly.py -r {params.reads} -t {threads} -a {params.assembler} -m {params.max_memory} "
         "-o {OUTPUT}/Assembly/{wildcards.sample}"
@@ -154,6 +159,7 @@ rule binning:
         markerset = config["markerset"],
         iterative_binning = ' --iterative' if config['do_iterative_binning'] else '',
         reads = lambda wildcards, input: input.reads[0] if len(input.reads) == 1 else ",".join(input.reads)
+    conda: "envs/mosca_bin.yaml"
     shell:
         "python {SCRIPTS_DIR}/binning.py -c {input.contigs} -t {threads} -o {OUTPUT}/Binning/{wildcards.sample} "
         "-r {params.reads} -mset {params.markerset}{params.iterative_binning}"
@@ -179,6 +185,7 @@ rule gene_calling:
     params:
         error_model = "complete" if config['do_assembly'] else config["error_model"],
         complete = '1' if config['do_assembly'] else '0'
+    conda: "envs/mosca_gencallyaml"
     shell:
         'run_FragGeneScan.pl -thread={threads} -genome={input} -out={OUTPUT}/Annotation/{wildcards.sample}/fgs '
         '-complete={params.complete} -train=./{params.error_model}'
@@ -192,6 +199,7 @@ rule split_gene_calling:
         config["threads"]
     params:
         parts = config["split_gene_calling"]
+    conda: "envs/mosca_seqkit.yaml"
     shell:
         'seqkit split --by-part {params.parts} -j {threads} {input}'
 
@@ -207,8 +215,9 @@ rule upimapi:
         upimapi_database = config["upimapi_database"],
         taxids = f' --taxids {config["upimapi_taxids"]}' if config["upimapi_database"] == 'taxids' else '',
         max_target_seqs = config["upimapi_max_target_seqs"],
-        cols = '&'.join(config['uniprot_columns']), dbs = '&'.join(config['uniprot_databases']),
+        cols = '&'.join(config['uniprot_columns']),
         check_db = '' if config['upimapi_check_db'] else ' --skip-db-check'
+    conda: "envs/mosca_upimapi.yaml"
     shell:
         'upimapi.py -i {input} -t {threads} -o {OUTPUT}/Annotation/{wildcards.sample}/{wildcards.part} '
         '-rd {params.rd} -db {params.upimapi_database} -mts {params.max_target_seqs}{params.taxids} '
@@ -237,6 +246,7 @@ rule recognizer:
         resources_directory = config["resources_directory"],
         recognizer_databases = ','.join(config["recognizer_databases"]),
         download_cdd_resources = '' if not config['download_cdd_resources'] else ' -dr'
+    conda: "envs/mosca_recog.yaml"
     shell:
         "recognizer.py -f {input.orfs} -t {threads} -o {OUTPUT}/Annotation/{wildcards.sample} "
         "-rd {params.resources_directory} -dbs {params.recognizer_databases} -sd "
@@ -277,7 +287,8 @@ rule metaphlan:
         expand("{output}/Taxonomy/{{sample}}_profiled_metagenome.txt", output = OUTPUT)
     threads: config["threads"]
     params:
-        reads = lambda wildcards, input: input,
+        reads = lambda wildcards, input: input
+    conda: "envs/mosca_mpa.yaml"
     shell:
         # the double quotes allow to have two commands here
         """
@@ -308,7 +319,8 @@ rule metaproteomics:
         protease=config["protease"] if config["protease_file"] == "" else config["protease_file"],
         max_memory=config["max_memory"],
         resources_directory=config["resources_directory"],
-        ref_taxa_level=config["reference_proteomes_taxa_level"],
+        ref_taxa_level=config["reference_proteomes_taxa_level"]
+    conda: "envs/mosca_mp.yaml"
     shell:
         "python {SCRIPTS_DIR}/metaproteomics_analyser.py -sf {params.folders} -ns {params.names} -t {threads} "
         "-o {output}/Metaproteomics/{wildcards.sample} -w {params.workflow} "
@@ -325,6 +337,7 @@ rule mp_differential_expression:
     params:
         outdir = "{{output}}/Metaproteomics/{{sample}}",
         conditions = ','.join(EXPS[EXPS['Data type'] == 'protein']['Condition'].tolist())
+    conda: "envs/mosca_mp_de.yaml"
     shell:
         "Rscript {SCRIPTS_DIR}/proteomics_postprocessing.R -m {input} -o {params.outdir} -c {params.conditions}"
 
@@ -392,10 +405,11 @@ rule differential_expression:
     output:
         expand("{output}/Quantification/{{sample}}/condition_treated_results.tsv", output=OUTPUT)
     threads:
-        1
+        15
     params:
         conditions = ",".join(mt_exps['Condition'].tolist()),
         minimum_fold_change=config["minimum_differential_expression"]
+    conda: "envs/mosca_mt_de.yaml"
     shell:
         "Rscript {SCRIPTS_DIR}/de_analysis.R --readcounts {input} --conditions {params.conditions} "
         "--output {OUTPUT}/Quantification/{wildcards.sample} --foldchange {params.minimum_fold_change}"
@@ -406,7 +420,7 @@ rule keggcharter:
     output:
         f"{OUTPUT}/KEGG_maps/KEGGCharter_results.tsv"
     threads:
-        1
+        15
     params:
         outdir=f"{OUTPUT}/KEGG_maps",
         mg_cols= ','.join(mg_exps['Name'].tolist()),
@@ -415,6 +429,7 @@ rule keggcharter:
         exp_cols=f" -tcol {','.join(mt_exps['Name'].tolist())}" if len(mt_exps) > 0 else '',
         taxa_level=config["keggcharter_taxa_level"],
         number_of_taxa=config["keggcharter_number_of_taxa"]
+    conda: "envs/mosca_keggcharter.yaml"
     shell:
         "keggcharter.py -f {input} -o {params.outdir} -gcol {params.mg_cols}{params.exp_cols} "
         "-tc 'Taxonomic lineage ({params.taxa_level})' -not {params.number_of_taxa} -keggc 'Cross-reference (KEGG)' "
@@ -432,7 +447,7 @@ rule report:
         f"{OUTPUT}/MOSCA_General_Report.xlsx",
         f"{OUTPUT}/MOSCA_results.zip"
     threads:
-        1
+        15
     params:
         reporter_lists = f'{SCRIPTS_DIR}/../resources',
         suffix = f' -s {config["suffix"]}' if config["suffix"] != '' else '',

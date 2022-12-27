@@ -12,7 +12,6 @@ import multiprocessing
 import os
 import pathlib
 import shutil
-from glob import glob
 
 from mosca_tools import run_command, run_pipe_command, perform_alignment
 import psutil

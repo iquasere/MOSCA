@@ -34,7 +34,7 @@ paste("Minimum fold change:", opt$foldchange, sep=' ')
 opt$conditions <- strsplit(opt$conditions, ",")[[1]]
 
 total <- read.table(opt$readcounts, h=T, row.names=1, sep = '\t')
-condition <- factor(opt$conditions)
+conditions <- factor(opt$conditions)
 total <- total[ rowSums(total) > 1, ]
 cd <- data.frame(opt$conditions)
 colnames(cd)[1] <- "condition"
