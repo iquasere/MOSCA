@@ -1,7 +1,0 @@
-name: my_env
-channels:
-  - bioconda
-  - defaults
-dependencies:
-  - seqkit=2.3.1=h9ee0642_0
-prefix: /opt/conda/envs/my_env

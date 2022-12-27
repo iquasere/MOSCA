@@ -196,7 +196,7 @@ rule split_gene_calling:
     params:
         parts = config["split_gene_calling"]
     conda:
-        "envs/mosca_seqkit.yaml"
+        "envs/mosca_utils.yaml"
     shell:
         'seqkit split --by-part {params.parts} -j {threads} {input}'
 
@@ -347,7 +347,7 @@ rule mp_differential_expression:
     shell:
         "Rscript {SCRIPTS_DIR}/proteomics_postprocessing.R -m {input} -o {params.outdir} -c {params.conditions}"
 
-rule protein_report:
+rule main_reports:
     input:
         expand("{output}/Annotation/{sample}/UPIMAPI_results.tsv", output = OUTPUT,
             sample = set(EXPS['Sample'])) +
@@ -358,22 +358,15 @@ rule protein_report:
         (expand("{output}/Metaproteomics/{sample}/quantification.tsv", output = OUTPUT,
             sample = set(not_mp_exps['Name'])) if len(mp_exps) > 0 else [])
     output:
-        f"{OUTPUT}/MOSCA_Protein_Report.xlsx"
-    threads:
-        1
-    run:
-        make_protein_report(OUTPUT, EXPS)
-
-rule entry_report:
-    input:
-        expand("{output}/MOSCA_Protein_Report.xlsx", output = OUTPUT)
-    output:
+        f"{OUTPUT}/MOSCA_Protein_Report.xlsx",
         f"{OUTPUT}/MOSCA_Entry_Report.xlsx",
         expand("{output}/Quantification/{sample}/expression_matrix.tsv", sample=set(mt_exps['Sample']), output = OUTPUT)
     threads:
         1
-    run:
-        make_entry_report(f"{OUTPUT}/MOSCA_Protein_Report.xlsx", OUTPUT, EXPS)
+    conda:
+        "envs/mosca_utils.yaml"
+    shell:
+        "python {SCRIPTS_DIR}/main_reports.py -o {OUTPUT} -e {OUTPUT}/exps.tsv"
 
 '''
 rule entry_count:
