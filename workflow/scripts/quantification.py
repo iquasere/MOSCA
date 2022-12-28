@@ -19,8 +19,7 @@ def get_arguments():
     parser.add_argument("-o", "--output", help="Output directory (and input!).")
     parser.add_argument("-e", "--experiments", help="Filename of exps.")
     parser.add_argument(
-        "-t", "--threads", default=multiprocessing.cpu_count() - 2,
-        help="Number of threads to use [max available - 2]")
+        "-t", "--threads", default=multiprocessing.cpu_count() - 2, help="Number of threads to use [max available - 2]")
     args = parser.parse_args()
     args.output = args.output.rstrip('/')
     return args
@@ -39,8 +38,9 @@ def run():
         else:
             continue
         perform_alignment(
-            reference, [f"{args.output}/Preprocess/Trimmomatic/"
-                        f"quality_trimmed_{exps.iloc[i]['Name']}_{fr}_paired.fq" for fr in ['forward', 'reverse']],
+            reference,
+            [f"{args.output}/Preprocess/Trimmomatic/quality_trimmed_{exps.iloc[i]['Name']}_{fr}_paired.fq"
+             for fr in ['forward', 'reverse']],
             f"{args.output}/Quantification/{exps.iloc[i]['Name']}", threads=args.threads)
 
 

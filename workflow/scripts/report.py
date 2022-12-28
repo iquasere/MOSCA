@@ -82,14 +82,15 @@ class Reporter:
                                 suffix=''):
         print(f'Retrieving preprocessing information for dataset: {name}')
         if name not in self.report.index:
-            self.report = self.report.append(pd.Series(name=name, dtype='object'))
+            # add a new line to the report, with the name of the dataset
+            self.report.loc[name] = [None] * len(self.report.columns)
         self.report.loc[name] = self.report.loc[name].fillna(value='')
 
         adapter_files = open(f'{output_dir}/Preprocess/Trimmomatic/{name}_adapters.txt').read().split('\n')
         if len(adapter_files[0]) > 0 and not adapter_files[0] in ['None', 'Fail']:
             adapter = adapter_files[0].split('/')[-1].split('.fa')[0]
         else:
-            adapter_files = list()
+            adapter_files = []
             adapter = None
 
         # For each preprocessing step, a tuple of (prefix, suffix for forward, suffix for reverse)

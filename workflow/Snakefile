@@ -230,7 +230,7 @@ rule join_upimapi:
         expand("{output}/Annotation/{sample}/UPIMAPI_results.tsv", output = OUTPUT,
             sample = set(EXPS["Sample"]))
     shell:
-        'cat {input} > {output}'
+        "awk 'FNR==1{{if(NR!=1)next;}}{{print}}' {input} > {output}"
 
 rule recognizer:
     input:
@@ -252,7 +252,7 @@ rule recognizer:
         "--tax-file {input.upimapi_results} --protein-id-col Entry --tax-col 'Taxonomic lineage IDs (SPECIES)' "
         "--species-taxids --quiet{params.download_cdd_resources}"
 
-rule quantification_analysis:
+rule quantification:
     input:
         expand("{output}/Preprocess/Trimmomatic/quality_trimmed_{name}{fr}.fq", output = OUTPUT,
             name = not_mp_exps["Name"],
@@ -414,7 +414,7 @@ rule keggcharter:
     output:
         f"{OUTPUT}/KEGG_maps/KEGGCharter_results.tsv"
     threads:
-        15
+        1
     params:
         outdir=f"{OUTPUT}/KEGG_maps",
         mg_cols= ','.join(mg_exps['Name'].tolist()),
@@ -427,8 +427,8 @@ rule keggcharter:
         "envs/mosca_kegg.yaml"
     shell:
         "keggcharter.py -f {input} -o {params.outdir} -gcol {params.mg_cols}{params.exp_cols} "
-        "-tc 'Taxonomic lineage ({params.taxa_level})' -not {params.number_of_taxa} -keggc 'Cross-reference (KEGG)' "
-        "-rd {params.resources_directory}{params.metabolic_maps} || true"
+        "-tc 'Taxonomic lineage ({params.taxa_level})' -not {params.number_of_taxa} -keggc KEGG "
+        "-rd {params.resources_directory}{params.metabolic_maps}"
 
 
 rule report:
@@ -442,11 +442,13 @@ rule report:
         f"{OUTPUT}/MOSCA_General_Report.xlsx",
         f"{OUTPUT}/MOSCA_results.zip"
     threads:
-        15
+        1
     params:
         reporter_lists = f'{SCRIPTS_DIR}/../resources',
         suffix = f' -s {config["suffix"]}' if config["suffix"] != '' else '',
         no_de = '' if len(mt_exps) > 0 else ' --no-differential-expression'
+    conda:
+        "envs/mosca_final.yaml"
     shell:
         "python {SCRIPTS_DIR}/report.py -e {OUTPUT}/exps.tsv -o {OUTPUT} -ldir {params.reporter_lists} "
         "-if tsv{params.suffix}{params.no_de}"

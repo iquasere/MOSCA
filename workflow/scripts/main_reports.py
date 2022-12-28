@@ -30,14 +30,20 @@ def get_arguments():
 def make_protein_report(out, exps):
     for sample in set(exps['Sample']):
         timed_message(f'Joining data for sample: {sample}')
-        report = pd.read_csv(f'{out}/Annotation/{sample}/reCOGnizer_results.tsv', sep='\t')
+        with open(f'{out}/Annotation/{sample}/fgs.faa') as f:
+            lines = f.readlines()
+        headers = [line.strip()[1:] for line in lines if line.startswith(">")]
+        report = pd.DataFrame(headers, columns=["qseqid"])
+        report = pd.merge(report, pd.read_csv(f'{out}/Annotation/{sample}/reCOGnizer_results.tsv', sep='\t'),
+                          on='qseqid', how='left')
         report = report.groupby('qseqid')[report.columns.tolist()[1:]].first().reset_index()
-        report = report[report['DB ID'].str.startswith('COG')].rename(columns={'DB ID': 'COG ID'})
+        report = report[report['DB ID'].str.startswith('COG') == True].rename(columns={'DB ID': 'COG ID'})
         report = pd.merge(
             pd.read_csv(f'{out}/Annotation/{sample}/UPIMAPI_results.tsv', sep='\t'), report, on='qseqid',
             how='outer')
-        report = report.rename(columns={**{f'{col}_x': f'{col} (UPIMAPI)' for col in blast_cols},
-                                        **{f'{col}_y': f'{col} (reCOGnizer)' for col in blast_cols}})
+        rename_cols = blast_cols + ['EC number']
+        report = report.rename(columns={**{f'{col}_x': f'{col} (UPIMAPI)' for col in rename_cols},
+                                        **{f'{col}_y': f'{col} (reCOGnizer)' for col in rename_cols}})
         report['Contig'] = report['qseqid'].apply(lambda x: x.split('_')[1])
         mg_names = exps[(exps['Sample'] == sample) & (exps['Data type'] == 'dna')]['Name'].tolist()
         mt_names = exps[(exps['Sample'] == sample) & (exps['Data type'] == 'mrna')]['Name'].tolist()
@@ -53,19 +59,18 @@ def make_protein_report(out, exps):
                 names=['Contig', f'{mg_name} (Normalized by contig size)'])
             for counts in [readcounts, norm_by_size]:
                 counts['Contig'] = counts['Contig'].apply(lambda x: x.split('_')[1])
-            report = pd.merge(report, readcounts, on='Contig', how='outer')
+            report = pd.merge(report, readcounts, on='Contig', how='left')
             report = pd.merge(report, norm_by_size, on='Contig', how='left')
         for mt_name in mt_names:
             readcounts = pd.read_csv(f'{out}/Quantification/{mt_name}.readcounts', sep='\t', header=None,
                                      names=['qseqid', mt_name])
-            report = pd.merge(report, readcounts, on='qseqid', how='outer')
+            report = pd.merge(report, readcounts, on='qseqid', how='left')
         if len(mp_names) > 0:
             spectracounts = pd.read_csv(f'{out}/Metaproteomics/{sample}/spectracounts.tsv', sep='\t', header=None)
-            report = pd.merge(report, readcounts, on='qseqid', how='outer')
+            report = pd.merge(report, spectracounts, on='qseqid', how='left')
         report[mg_names + mt_names + mp_names if len(mp_names) > 0 else []] = report[
             mg_names + mt_names + mp_names if len(mp_names) > 0 else []].fillna(value=0).astype(int)
-        report[[f'{name} (Normalized by contig size)' for name in mg_names]] = report[
-            [f'{name} (Normalized by contig size)' for name in mg_names]].fillna(value=0)
+        report[[f'{name} (Normalized by contig size)' for name in mg_names]].fillna(value=0, inplace=True)
         multi_sheet_excel(f'{out}/MOSCA_Protein_Report.xlsx', report, sheet_name=sample)
         report.to_csv(f'{out}/MOSCA_{sample}_Protein_Report.tsv', sep='\t', index=False)
 
