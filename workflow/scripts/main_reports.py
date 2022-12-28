@@ -67,6 +67,7 @@ def make_protein_report(out, exps):
         report[[f'{name} (Normalized by contig size)' for name in mg_names]] = report[
             [f'{name} (Normalized by contig size)' for name in mg_names]].fillna(value=0)
         multi_sheet_excel(f'{out}/MOSCA_Protein_Report.xlsx', report, sheet_name=sample)
+        report.to_csv(f'{out}/MOSCA_{sample}_Protein_Report.tsv', sep='\t', index=False)
 
 
 def make_entry_report(protein_report, out, exps):
@@ -119,6 +120,7 @@ def make_entry_report(protein_report, out, exps):
         timed_message('Writing Entry Report')
         report = report.drop_duplicates()
         multi_sheet_excel(f'{out}/MOSCA_Entry_Report.xlsx', report, sheet_name=sample)
+        report.to_csv(f'{out}/MOSCA_{sample}_Entry_Report.tsv', sep='\t', index=False)
         timed_message('Writting expression matrix')
         if len(mt_names) > 0:
             Path(f'{out}/Quantification/{sample}').mkdir(parents=True, exist_ok=True)
