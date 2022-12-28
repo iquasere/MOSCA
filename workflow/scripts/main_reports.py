@@ -7,20 +7,17 @@ By João Sequeira
 Dec 2022
 """
 
-import multiprocessing
 from pathlib import Path
-
 from tqdm import tqdm
-
-from mosca_tools import run_command, timed_message, multi_sheet_excel, normalize_mg_by_size, blast_cols, \
-    normalize_readcounts
 import argparse
 import pandas as pd
 import numpy as np
+from mosca_tools import run_command, timed_message, multi_sheet_excel, normalize_mg_by_size, blast_cols, \
+    normalize_readcounts
 
 
 def get_arguments():
-    parser = argparse.ArgumentParser(description="MOSCA binning")
+    parser = argparse.ArgumentParser(description="MOSCA main reports")
 
     parser.add_argument("-o", "--output", help="Output directory (and input!).")
     parser.add_argument("-e", "--experiments", help="Filename of exps.")
@@ -145,7 +142,7 @@ def run():
     args = get_arguments()
     exps = pd.read_csv(args.experiments, sep='\t')
     make_protein_report(args.output, exps),
-    make_entry_report(f"{args.experiments}/MOSCA_Protein_Report.xlsx", args.output, exps)
+    make_entry_report(f"{args.output}/MOSCA_Protein_Report.xlsx", args.output, exps)
 
 
 if __name__ == '__main__':

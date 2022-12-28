@@ -196,7 +196,7 @@ rule split_gene_calling:
     params:
         parts = config["split_gene_calling"]
     conda:
-        "envs/mosca_utils.yaml"
+        "envs/mosca_seqkit.yaml"
     shell:
         'seqkit split --by-part {params.parts} -j {threads} {input}'
 
@@ -266,18 +266,10 @@ rule quantification_analysis:
             name = set(not_mp_exps['Name']))
     threads:
         config["threads"]
-    run:
-        for i in EXPS.index:
-            if EXPS.iloc[i]['Data type'] == 'mrna':
-                reference = f"{OUTPUT}/Annotation/{EXPS.iloc[i]['Sample']}/fgs.ffn"
-            elif EXPS.iloc[i]['Data type'] == 'dna':
-                reference = f"{OUTPUT}/Assembly/{EXPS.iloc[i]['Sample']}/contigs.fasta"
-            else:
-                continue
-            perform_alignment(
-                reference, [f"{OUTPUT}/Preprocess/Trimmomatic/"
-                f"quality_trimmed_{EXPS.iloc[i]['Name']}_{fr}_paired.fq" for fr in ['forward', 'reverse']],
-                f"{OUTPUT}/Quantification/{EXPS.iloc[i]['Name']}", threads=threads)
+    conda:
+        "envs/mosca_quant.yaml"
+    shell:
+        "python {SCRIPTS_DIR}/quantification.py -o {OUTPUT} -e {OUTPUT}/exps.tsv -t {threads}"
 
 rule metaphlan:
     input:
@@ -364,7 +356,7 @@ rule main_reports:
     threads:
         1
     conda:
-        "envs/mosca_utils.yaml"
+        "envs/mosca_reports.yaml"
     shell:
         "python {SCRIPTS_DIR}/main_reports.py -o {OUTPUT} -e {OUTPUT}/exps.tsv"
 
