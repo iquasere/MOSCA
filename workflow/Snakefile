@@ -269,41 +269,19 @@ rule quantification:
     shell:
         "python {SCRIPTS_DIR}/quantification.py -o {OUTPUT} -e {OUTPUT}/exps.tsv -t {threads}"
 
-rule metaphlan:
-    input:
-        expand("{{output}}/Preprocess/{{sample}}{fr}.fastq",
-            fr = (['_forward', '_reverse'] if EXPS["Files"].str.contains(',').tolist() else ''))
-    output:
-        "{{output}}/Taxonomy/{{sample}}_profiled_metagenome.txt"
-    threads:
-        config["threads"]
-    params:
-        reads = lambda wildcards, input: input
-    conda:
-        "envs/mosca_mpa.yaml"
-    shell:
-        # the double quotes allow to have two commands here
-        """
-        metaphlan {params.reads} --bowtie2out {OUTPUT}/Taxonomy/{wildcards.sample}_mg.bowtie2.bz2 \
-        --nproc {threads} --input_type fastq
-        metaphlan {OUTPUT}/Taxonomy/{wildcards.sample}_mg.bowtie2.bz2 --nproc {threads} --input_type bowtie2out \
-        -o {OUTPUT}/Taxonomy/{wildcards.sample}_profiled_metagenome.txt
-        """
-
 rule metaproteomics:
     input:
         spectra_folders=[directory(folder) for folder in mp_exps[mp_exps['Sample'] == (
-            lambda wildcards: wildcards.sample)]['Files']],
-        profiled="{{output}}/Taxonomy/{{sample}}_profiled_metagenome.txt"
+            lambda wildcards: wildcards.sample)]['Files']]
     output:
         "{{output}}/Metaproteomics/{{sample}}/spectracounts.tsv"
     threads:
         config["threads"]
     params:
         folders = ','.join(mp_exps[mp_exps['Sample'] == (
-            lambda wildcards: wildcards.spectra_folders)]['Files'].tolist()),
+            lambda wildcards: wildcards.sample)]['Files'].tolist()),
         names = ','.join(mp_exps[mp_exps['Sample'] == (
-            lambda wildcards: wildcards.spectra_folders)]['Name'].tolist()),
+            lambda wildcards: wildcards.sample)]['Name'].tolist()),
         workflow=config["proteomics_workflow"],
         contaminants_database=config["proteomics_contaminants_database"],
         protease=config["protease"] if config["protease_file"] == "" else config["protease_file"],
@@ -316,7 +294,7 @@ rule metaproteomics:
         "python {SCRIPTS_DIR}/metaproteomics_analyser.py -sf {params.folders} -ns {params.names} -t {threads} "
         "-o {output}/Metaproteomics/{wildcards.sample} -w {params.workflow} "
         "-db {OUTPUT}/Annotation/{wildcards.sample}/fgs.faa -cdb {params.contaminants_database} "
-        "-mpar {output}/Taxonomy/{wildcards.sample}_profiled_metagenome.txt --protease {params.protease} "
+        "--protease {params.protease} -ui {OUTPUT}/Annotation/{wildcards.sample}/UPIMAPI_results.tsv "
         "-mmem {params.max_memory} -rd {params.resources_directory} -rtl {params.ref_taxa_level}"
 
 rule mp_differential_expression:

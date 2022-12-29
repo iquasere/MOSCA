@@ -17,7 +17,7 @@ from lxml import etree
 from tqdm import tqdm
 import requests
 from time import sleep
-from mosca_tools import run_command, sort_alphanumeric, parse_blast, run_pipe_command, multiprocess_fun, count_on_file
+from mosca_tools import run_command, sort_alphanumeric, run_pipe_command, multiprocess_fun
 
 
 class MetaproteomicsAnalyser:
@@ -37,11 +37,7 @@ class MetaproteomicsAnalyser:
         parser.add_argument(
             "-cdb", "--contaminants-database", default=None,
             help="Database file (FASTA format) with contaminant sequences")
-        parser.add_argument("-mpar", "--metaphlan-result", help="Results from MetaPhlan taxonomic annotation")
-        parser.add_argument(
-            "-rtl", "--references-taxa-level", default='genus',
-            choices=['kingdom', 'phylum', 'class', 'order', 'family', 'genus', 'species'],
-            help="Taxonomic level to retrieve reference proteomes from")
+        parser.add_argument("-ur", "--upimapi-result", help="Results from UPIMAPI")
         parser.add_argument(
             "-bs", "--batch-size", type=int, default=5000, help="How many IDs to submit per request to NCBI")
         parser.add_argument("-ma", "--max-attempts", default=3, help="Maximum attempts to access NCBI")
@@ -75,7 +71,7 @@ class MetaproteomicsAnalyser:
                 sleep(10)
         return res.content.decode('utf8')
 
-    def add_reference_proteomes(self, mpa_result, output, references_taxa_level='genus'):
+    def add_reference_proteomes(self, upimapi_res, output):
         """
         Input:
             mpa_result: str - filename of MetaPhlan result
@@ -83,16 +79,13 @@ class MetaproteomicsAnalyser:
             references_taxa_level: str - one of 'kingdom', 'phylum', 'class', 'order', 'family', 'genus', 'species'
             max_attemps: int - number of requests failed before giving up
         """
-        taxa_levels = ['kingdom', 'phylum', 'class', 'order', 'family', 'genus', 'species']
-        mpa_data = pd.read_csv(mpa_result, sep='\t', skiprows=3)
-        mpa_data = mpa_data[mpa_data['NCBI_tax_id'].str.count('\|') == taxa_levels.index(references_taxa_level)]
-        taxids = [ide.split('|')[-1] for ide in mpa_data['NCBI_tax_id']]
+        taxids = pd.read_csv(upimapi_res, sep='\t')['Taxonomic lineage IDs (SPECIES)'].unique().tolist()
         with open(output, 'w') as f:
             for taxid in tqdm(taxids, desc=f'Retrieving reference proteomes for {len(taxids)} taxa from UniProt'):
                 f.write(self.get_proteome_uniprot(taxid))
 
     def database_generation(
-            self, mg_orfs, output, mpa_result, contaminants_database=None, protease='Trypsin',
+            self, mg_orfs, output, upimapi_res, contaminants_database=None, protease='Trypsin',
             references_taxa_level='genus', threads=1):
         """
         Build database from MG analysis
@@ -107,7 +100,7 @@ class MetaproteomicsAnalyser:
         print(f'Generating new database in {output}')
         # Get reference proteomes for the various taxa
         self.add_reference_proteomes(
-            mpa_result, f'{output}/ref_proteomes.fasta', references_taxa_level=references_taxa_level)
+            upimapi_res, f'{output}/ref_proteomes.fasta', references_taxa_level=references_taxa_level)
         # Add protease
         if protease == 'Trypsin':
             if not os.path.isfile(f'{output}/P00761.fasta'):
@@ -427,7 +420,7 @@ class MetaproteomicsAnalyser:
     def run(self):
         args = self.get_arguments()
         self.database_generation(
-            args.database, args.output, args.metaphlan_result,
+            args.database, args.output, args.upimapi_result,
             contaminants_database=args.contaminants_database, protease=args.protease,
             references_taxa_level=args.references_taxa_level, max_attempts=args.max_attemps)
         proteins_for_second_search, spectracounts = [], pd.DataFrame(columns=['Main Accession'])
