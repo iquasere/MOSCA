@@ -9,7 +9,7 @@ EXPS = pd.DataFrame(config["experiments"])
 def set_name(files, data_type):
     filename = files.split('/')[-1]
     if data_type == 'protein':
-        return '_'.join(filename.split('_')[:-1])
+        return filename # which is the foldername (e.g. input/mp1 -> mp1)
     if ',' in files:
         return filename.split(',')[0].split('_R')[0]
     return filename.split('.fa')[0]
@@ -27,6 +27,7 @@ EXPS.to_csv(f"{OUTPUT}/exps.tsv", sep = '\t', index = False)
 mg_exps = EXPS[EXPS["Data type"] == 'dna']
 mt_exps = EXPS[EXPS["Data type"] == 'mrna']
 mp_exps = EXPS[EXPS["Data type"] == 'protein']
+
 if len(mg_exps) == 0 and len(mt_exps) != 0:
     mg_exps = mt_exps
 not_mp_exps = EXPS[EXPS["Data type"] != 'protein']
@@ -271,37 +272,32 @@ rule quantification:
 
 rule metaproteomics:
     input:
-        spectra_folders=[directory(folder) for folder in mp_exps[mp_exps['Sample'] == (
-            lambda wildcards: wildcards.sample)]['Files']]
+        [directory(folder) for folder in mp_exps[mp_exps['Sample'] == (lambda wildcards: wildcards.sample)]['Files']]
     output:
-        "{{output}}/Metaproteomics/{{sample}}/spectracounts.tsv"
+        "{output}/Metaproteomics/{sample}/spectracounts.tsv"
     threads:
         config["threads"]
     params:
-        folders = ','.join(mp_exps[mp_exps['Sample'] == (
-            lambda wildcards: wildcards.sample)]['Files'].tolist()),
-        names = ','.join(mp_exps[mp_exps['Sample'] == (
-            lambda wildcards: wildcards.sample)]['Name'].tolist()),
-        workflow=config["proteomics_workflow"],
+        folders = lambda wildcards: ','.join(mp_exps[mp_exps['Sample'] == wildcards.sample]['Files'].tolist()),
+        names = lambda wildcards: ','.join(mp_exps[mp_exps['Sample'] == wildcards.sample]['Name'].tolist()),
         contaminants_database=config["proteomics_contaminants_database"],
         protease=config["protease"] if config["protease_file"] == "" else config["protease_file"],
         max_memory=config["max_memory"],
-        resources_directory=config["resources_directory"],
-        ref_taxa_level=config["reference_proteomes_taxa_level"]
+        resources_directory=config["resources_directory"]
     conda:
         "envs/mosca_mp.yaml"
     shell:
         "python {SCRIPTS_DIR}/metaproteomics_analyser.py -sf {params.folders} -ns {params.names} -t {threads} "
-        "-o {output}/Metaproteomics/{wildcards.sample} -w {params.workflow} "
-        "-db {OUTPUT}/Annotation/{wildcards.sample}/fgs.faa -cdb {params.contaminants_database} "
-        "--protease {params.protease} -ui {OUTPUT}/Annotation/{wildcards.sample}/UPIMAPI_results.tsv "
-        "-mmem {params.max_memory} -rd {params.resources_directory} -rtl {params.ref_taxa_level}"
+        "-o {OUTPUT}/Metaproteomics/{wildcards.sample} -db {OUTPUT}/Annotation/{wildcards.sample}/fgs.faa "
+        "-cdb {params.contaminants_database} --protease {params.protease} "
+        "-ur {OUTPUT}/Annotation/{wildcards.sample}/UPIMAPI_results.tsv -mmem {params.max_memory} "
+        "-rd {params.resources_directory}"
 
 rule mp_differential_expression:
     input:
-        "{{output}}/Metaproteomics/{{sample}}/spectracounts.tsv"
+        "{output}/Metaproteomics/{sample}/spectracounts.tsv"
     output:
-        expand("{{output}}/Metaproteomics/{{sample}}/mp_quantification.tsv")
+        "{output}/Metaproteomics/{sample}/mp_quantification.tsv"
     threads:
         1
     params:
@@ -319,9 +315,7 @@ rule main_reports:
         expand("{output}/Annotation/{sample}/reCOGnizer_results.xlsx", output = OUTPUT,
             sample = set(EXPS["Sample"])) +
         expand("{output}/Quantification/{name}.readcounts", output = OUTPUT,
-            name = set(not_mp_exps['Name'])) +
-        (expand("{output}/Metaproteomics/{sample}/mp_quantification.tsv", output = OUTPUT,
-            sample = set(not_mp_exps['Name'])) if len(mp_exps) > 0 else [])
+            name = set(not_mp_exps['Name']))
     output:
         f"{OUTPUT}/MOSCA_Protein_Report.xlsx",
         f"{OUTPUT}/MOSCA_Entry_Report.xlsx",
