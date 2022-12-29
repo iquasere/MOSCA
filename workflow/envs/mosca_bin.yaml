@@ -18,6 +18,7 @@ dependencies:
   - cairo=1.16.0=ha61ee94_1014
   - certifi=2022.12.7=pyhd8ed1ab_0
   - checkm-genome=1.2.2=pyhdfd78af_1
+  - colorama=0.4.6=pyhd8ed1ab_0
   - curl=7.87.0=h6312ad2_0
   - cycler=0.11.0=pyhd8ed1ab_0
   - dendropy=4.5.2=pyh3252c3a_0
@@ -127,6 +128,7 @@ dependencies:
   - tbb=2021.7.0=h924138e_1
   - tk=8.6.12=h27826a3_0
   - tktable=2.10=hb7b940f_3
+  - tqdm=4.64.1=pyhd8ed1ab_0
   - tzdata=2022g=h191b570_0
   - wget=1.20.3=ha56f1ee_1
   - wheel=0.38.4=pyhd8ed1ab_0

@@ -8,11 +8,17 @@ Welcome to the Meta-Omics Software for Community Analysis (MOSCA) Pipeline! :fly
 
 This pipeline is a powerful tool for analyzing and interpreting meta-omics data, including metagenomics, metatranscriptomics, and metaproteomics. It integrates a variety of state-of-the-art algorithms and visualizations, allowing you to easily and efficiently analyze your data.
 
-To get started, check out our web GUI: 🌐 https://iquasere.github.io/MOSGUITO
+To get started, check out our web GUI: 
 
-For more information on how to use the pipeline and its features, check out our wiki: 📖 https://github.com/iquasere/MOSCA/wiki
+🌐 https://iquasere.github.io/MOSGUITO
 
-If you use the Meta-Omics Pipeline in your research, please cite our publication: 📄 Sequeira, João Carlos, et al. "MOSCA: an automated pipeline for integrated metagenomics and metatranscriptomics data analysis." International Conference on Practical Applications of Computational Biology & Bioinformatics. Springer, Cham, 2018.
+For more information on how to use the pipeline and its features, check out our wiki: 
+
+📖 https://github.com/iquasere/MOSCA/wiki
+
+If you use the Meta-Omics Pipeline in your research, please cite our publication: 
+
+📄 Sequeira, João Carlos, et al. "MOSCA: an automated pipeline for integrated metagenomics and metatranscriptomics data analysis." International Conference on Practical Applications of Computational Biology & Bioinformatics. Springer, Cham, 2018.
 
 We hope you find the Meta-Omics Pipeline helpful in your research endeavors! 🔍
 

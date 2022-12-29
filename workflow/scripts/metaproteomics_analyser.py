@@ -11,14 +11,13 @@ from glob import glob
 import os
 import pathlib
 import shutil
-
 import pandas as pd
 import argparse
 from lxml import etree
-from mosca_tools import run_command, sort_alphanumeric, parse_blast, run_pipe_command, multiprocess_fun, count_on_file
 from tqdm import tqdm
 import requests
 from time import sleep
+from mosca_tools import run_command, sort_alphanumeric, parse_blast, run_pipe_command, multiprocess_fun, count_on_file
 
 
 class MetaproteomicsAnalyser:

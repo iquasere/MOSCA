@@ -20,6 +20,7 @@ dependencies:
   - cairo=1.16.0=ha61ee94_1014
   - certifi=2022.12.7=pyhd8ed1ab_0
   - circos=0.69.8=hdfd78af_1
+  - colorama=0.4.6=pyhd8ed1ab_0
   - curl=7.87.0=hdc1c0ab_0
   - cycler=0.11.0=pyhd8ed1ab_0
   - entrez-direct=16.2=he881be0_1
@@ -35,6 +36,7 @@ dependencies:
   - gettext=0.21.1=h27087fc_0
   - giflib=5.2.1=h36c2ea0_2
   - glimmerhmm=3.0.4=pl5321h87f3376_5
+  - gmcloser=1.6.2=hdfd78af_1
   - graphite2=1.3.13=h58526e2_1001
   - harfbuzz=6.0.0=h8e241bc_0
   - icu=70.1=h27087fc_0
@@ -87,6 +89,7 @@ dependencies:
   - matplotlib-base=3.6.2=py310h8d5ebf3_0
   - megahit=1.2.9=h2e03b76_1
   - minimap2=2.24=h7132678_1
+  - mummer=3.23=pl5321h87f3376_14
   - munkres=1.1.4=pyh9f0ad1d_0
   - ncurses=6.3=h27087fc_1
   - openjdk=17.0.3=h58dac75_5
@@ -114,8 +117,10 @@ dependencies:
   - perl-extutils-installpaths=0.012=pl5321ha770c72_0
   - perl-extutils-makemaker=7.66=pl5321hd8ed1ab_0
   - perl-extutils-pl2bat=0.005=pl5321ha770c72_0
+  - perl-findbin=1.51=pl5321hdfd78af_3
   - perl-font-ttf=1.06=pl5321hdfd78af_1
   - perl-gd=2.76=pl5321h5b5514e_1
+  - perl-getopt-long=2.54=pl5321hdfd78af_0
   - perl-inc-latest=0.500=pl5321ha770c72_0
   - perl-io-compress=2.201=pl5321h87f3376_0
   - perl-io-string=1.08=pl5321hdfd78af_4
@@ -135,6 +140,8 @@ dependencies:
   - perl-params-validate=1.31=pl5321hec16e2b_0
   - perl-parent=0.239=pl5321hd8ed1ab_0
   - perl-pathtools=3.75=pl5321h166bdaf_0
+  - perl-pod-escapes=1.07=pl5321hdfd78af_2
+  - perl-pod-usage=2.03=pl5321hdfd78af_0
   - perl-readonly=2.05=pl5321ha770c72_0
   - perl-regexp-common=2017060201=pl5321hd8ed1ab_0
   - perl-scalar-list-utils=1.63=pl5321h166bdaf_0
@@ -142,7 +149,9 @@ dependencies:
   - perl-statistics-basic=1.6611=pl5321hdfd78af_3
   - perl-storable=3.15=pl5321h166bdaf_0
   - perl-svg=2.87=pl5321hd8ed1ab_0
+  - perl-test=1.26=pl5321hd8ed1ab_0
   - perl-test-fatal=0.016=pl5321ha770c72_0
+  - perl-test-harness=3.44=pl5321hd8ed1ab_0
   - perl-text-format=0.62=pl5321hdfd78af_0
   - perl-time-hires=1.9764=pl5321hec16e2b_2
   - perl-try-tiny=0.31=pl5321ha770c72_0
@@ -155,6 +164,7 @@ dependencies:
   - python=3.10.8=h4a9ceb5_0_cpython
   - python-dateutil=2.8.2=pyhd8ed1ab_0
   - python_abi=3.10=3_cp310
+  - pytz=2022.7=pyhd8ed1ab_0
   - readline=8.1.2=h0f457ee_0
   - setuptools=65.6.3=pyhd8ed1ab_0
   - six=1.16.0=pyh6c4a22f_0
@@ -162,6 +172,7 @@ dependencies:
   - sysroot_linux-64=2.17=h4a8ded7_13
   - tbb=2021.7.0=h924138e_1
   - tk=8.6.12=h27826a3_0
+  - tqdm=4.64.1=pyhd8ed1ab_0
   - tzdata=2022g=h191b570_0
   - wget=1.20.3=ha35d2d1_1
   - wheel=0.38.4=pyhd8ed1ab_0
@@ -191,7 +202,9 @@ dependencies:
     - kiwisolver==1.4.4
     - matplotlib==3.6.2
     - numpy==1.24.0
+    - pandas==1.5.2
     - pillow==9.2.0
+    - psutil==5.9.4
     - quast==5.2.0
     - simplejson==3.18.0
     - unicodedata2==15.0.0

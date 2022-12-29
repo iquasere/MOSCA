@@ -2,8 +2,6 @@ import pathlib
 import pandas as pd
 import sys
 
-from mosca_tools import perform_alignment, make_entry_report, make_protein_report
-
 SCRIPTS_DIR = sys.path[0]
 OUTPUT = config["output"]
 EXPS = pd.DataFrame(config["experiments"])
@@ -43,10 +41,10 @@ def all_input(wildcards):
             f"{OUTPUT}/MOSCA_results.zip",
             f"{OUTPUT}/KEGG_maps/KEGGCharter_results.tsv"] +
             expand("{output}/Binning/{sample}/checkm.tsv", output=OUTPUT, sample=set(EXPS['Sample'])) +
-            expand("{output}/Metaproteomics/{sample}_metaproteomics.tsv", output=OUTPUT,
-                sample=set(mp_exps["Sample"])) +
             expand("{output}/Annotation/{sample}/reCOGnizer_results.xlsx", output=OUTPUT,
-                sample=set(EXPS['Sample']))
+                sample=set(EXPS['Sample'])) +
+            (expand("{output}/Metaproteomics/{sample}/mp_quantification.tsv", output=OUTPUT,
+                sample=set(mp_exps['Sample'])) if len(mp_exps) > 0 else [])
         )
     else:
         return f"{OUTPUT}/MOSCA_Entry_Counts_Report.xlsx"
@@ -273,10 +271,10 @@ rule quantification:
 
 rule metaphlan:
     input:
-        expand("{output}/Preprocess/{{sample}}{fr}.fastq", output = OUTPUT,
+        expand("{{output}}/Preprocess/{{sample}}{fr}.fastq",
             fr = (['_forward', '_reverse'] if EXPS["Files"].str.contains(',').tolist() else ''))
     output:
-        expand("{output}/Taxonomy/{{sample}}_profiled_metagenome.txt", output = OUTPUT)
+        "{{output}}/Taxonomy/{{sample}}_profiled_metagenome.txt"
     threads:
         config["threads"]
     params:
@@ -298,10 +296,7 @@ rule metaproteomics:
             lambda wildcards: wildcards.sample)]['Files']],
         profiled="{{output}}/Taxonomy/{{sample}}_profiled_metagenome.txt"
     output:
-        expand("{output}/Metaproteomics/{sample}_metaproteomics.tsv", output = OUTPUT,
-            sample = set(EXPS["Sample"])),
-        expand("{output}/Metaproteomics/{sample}/spectracounts.tsv", output = OUTPUT,
-            sample = set(EXPS["Sample"]))
+        "{{output}}/Metaproteomics/{{sample}}/spectracounts.tsv"
     threads:
         config["threads"]
     params:
@@ -328,16 +323,16 @@ rule mp_differential_expression:
     input:
         "{{output}}/Metaproteomics/{{sample}}/spectracounts.tsv"
     output:
-        expand("{output}/Metaproteomics/{sample}/quantification.tsv", output=OUTPUT, sample=set(not_mp_exps['Name']))
+        expand("{{output}}/Metaproteomics/{{sample}}/mp_quantification.tsv")
     threads:
         1
     params:
-        outdir = "{{output}}/Metaproteomics/{{sample}}",
         conditions = ','.join(EXPS[EXPS['Data type'] == 'protein']['Condition'].tolist())
     conda:
         "envs/mosca_mp_de.yaml"
     shell:
-        "Rscript {SCRIPTS_DIR}/proteomics_postprocessing.R -m {input} -o {params.outdir} -c {params.conditions}"
+        "Rscript {SCRIPTS_DIR}/proteomics_postprocessing.R -m {input} "
+        "-o {wildcards.output}/Metaproteomics/{wildcards.sample} -c {params.conditions}"
 
 rule main_reports:
     input:
@@ -347,7 +342,7 @@ rule main_reports:
             sample = set(EXPS["Sample"])) +
         expand("{output}/Quantification/{name}.readcounts", output = OUTPUT,
             name = set(not_mp_exps['Name'])) +
-        (expand("{output}/Metaproteomics/{sample}/quantification.tsv", output = OUTPUT,
+        (expand("{output}/Metaproteomics/{sample}/mp_quantification.tsv", output = OUTPUT,
             sample = set(not_mp_exps['Name'])) if len(mp_exps) > 0 else [])
     output:
         f"{OUTPUT}/MOSCA_Protein_Report.xlsx",
