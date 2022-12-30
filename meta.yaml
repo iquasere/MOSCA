@@ -19,6 +19,7 @@ requirements:
     - python >=3.9
     - pandas
     - snakemake-minimal
+    - mamba
 
 test:
   commands:
