@@ -68,7 +68,7 @@ class Binner:
 
     def run_checkm(self, bins_folder, threads=12):
         run_command(
-            f'checkm lineage_wf -x fasta -r --ali --nt -t {threads} --pplacer_threads {threads} {bins_folder} '
+            f'checkm lineage_wf -x fasta -r --ali --nt -t {threads} {bins_folder} --reduced_tree '
             f'{bins_folder} --tab_table --file {bins_folder}/checkm.tsv')
 
     def better_bin(self, table1, table2):
