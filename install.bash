@@ -1,5 +1,3 @@
-#!/bin/bash
-
 # Set default values for conda_dir and mosca_dir
 conda_dir=$(conda info --base)
 mosca_env="${conda_dir}/envs/mosca"
@@ -19,10 +17,11 @@ while [[ $# -gt 0 ]]; do
       shift # past value
       ;;
   esac
+  shift # past argument
 done
 
-# Set default value for mosca_dir if conda_dir is set but mosca_dir is not
-if [ -z "mosca_env" ] && [ ! -z "$conda_dir" ]; then
+# Set default value for mosca_dir if it is not set
+if [ -z "$mosca_env" ]; then
   mosca_env="${conda_dir}/envs/mosca"
 fi
 

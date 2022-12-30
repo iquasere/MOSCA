@@ -114,7 +114,7 @@ class MetaproteomicsAnalyser:
         run_command(
             f'seqkit rmdup -s -i -w 0 -o {output}/1st_search_database.fasta -D {output}/seqkit_duplicated.detail.txt '
             f'-j {threads} {output}/predatabase.fasta')
-        for file in ['database.fasta', 'predatabase.fasta', 'unique.fasta', 'ref_proteomes.fasta']:
+        for file in ['database.fasta', 'predatabase.fasta', 'ref_proteomes.fasta']:
             os.remove(f'{output}/{file}')
 
     def raw_to_mgf(self, file, out_dir):
@@ -319,11 +319,10 @@ class MetaproteomicsAnalyser:
 
     def run(self):
         args = self.get_arguments()
+        '''
         self.database_generation(
             args.database, args.output, args.upimapi_result, contaminants_database=args.contaminants_database,
             protease=args.protease)
-        proteins_for_second_search, spectracounts = [], pd.DataFrame(columns=['Main Accession'])
-
         self.create_decoy_database(f'{args.output}/1st_search_database.fasta')
         self.split_database(
             f'{args.output}/1st_search_database_concatenated_target_decoy.fasta', n_proteins=5000000)
@@ -331,6 +330,9 @@ class MetaproteomicsAnalyser:
             self.generate_parameters_file(f'{args.output}/1st_params.par', protein_fdr=100)
         except:
             print('An illegal reflective access operation has occurred. But MOSCA can handle it.')
+        '''
+        proteins_for_second_search = []
+
         for i in range(len(args.names)):
             out = f'{args.output}/{args.names[i]}'
             for foldername in ['spectra', '2nd_search']:
@@ -362,6 +364,8 @@ class MetaproteomicsAnalyser:
         # TODO - check if will be necessary to split the database
         # self.split_database(
         #    f'{args.output}/2nd_search_database_concatenated_target_decoy.fasta', n_proteins=5000000)
+
+        spectracounts = pd.DataFrame(columns=['Main Accession'])
         for name in args.names:
             out = f'{args.output}/{name}'
             self.compomics_run(
