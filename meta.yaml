@@ -18,6 +18,7 @@ requirements:
   run:
     - python >=3.9
     - pandas
+    - snakemake-minimal
 
 test:
   commands:
