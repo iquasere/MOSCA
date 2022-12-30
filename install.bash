@@ -30,8 +30,12 @@ conda config --add channels bioconda
 conda config --add channels conda-forge
 
 echo "Storing MOSCA's files in the Conda environment at: ${mosca_env}"
-mkdir -p "${mosca_env}/share/MOSCA/scripts" "${mosca_env}/bin" "${mosca_env}/share/MOSCA/resources"
-cp MOSCA/workflow/scripts/* MOSCA/workflow/Snakefile MOSCA/workflow/mosca.py "${mosca_env}/share/MOSCA/scripts"
-cp MOSCA/resources/* "${mosca_env}/share/MOSCA/resources"
+# create folders for storing MOSCA's YAMLs and scripts
+mkdir -p "${mosca_env}/share/MOSCA" "${mosca_env}/bin"
+# copy YAMLs and scripts to the MOSCA Conda environment
+cp -r MOSCA/workflow/scripts/* MOSCA/workflow/Snakefile MOSCA/workflow/mosca.py MOSCA/resources MOSCA/workflow/envs  \
+  "${mosca_env}/share/MOSCA"
+# make MOSCA's main script executable
 chmod +x "${mosca_env}/share/MOSCA/scripts/mosca.py"
+# create a symbolic link to MOSCA's main script in the bin folder
 ln -s "${mosca_env}/share/MOSCA/scripts/mosca.py" "${mosca_env}/bin/"
