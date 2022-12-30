@@ -16,7 +16,10 @@ import argparse
 from tqdm import tqdm
 import requests
 from time import sleep
+import docker
 from mosca_tools import run_command, run_pipe_command, multiprocess_fun
+
+client = docker.from_env()
 
 
 class MetaproteomicsAnalyser:
@@ -126,6 +129,7 @@ class MetaproteomicsAnalyser:
         :param peak_picking:
         :return:
         """
+        '''
         folder, filename = os.path.split(file)
         pathlib.Path('named_volume').mkdir(parents=True, exist_ok=True)
         shutil.copyfile(f'{folder}/{filename}', f'/data/{filename}')
@@ -135,6 +139,14 @@ class MetaproteomicsAnalyser:
             f'--filter "peakPicking cwt"')
         shutil.copyfile(
             f'/data/{".".join(filename.split(".")[:-1])}.mgf', f'{out_dir}/{".".join(filename.split(".")[:-1])}.mgf')
+        '''
+        container = client.containers.run(
+            "chambm/pwiz-skyline-i-agree-to-the-vendor-licenses",
+            command="wine msconvert /data/mp1.RAW --mgf --filter 'peakPicking cwt'",
+            environment={"WINEDEBUG": "-all"},
+            volumes={"MOSCARDO/input": {"bind": "/data", "mode": "rw"}},
+            remove=True,
+        )
 
     def spectra_in_proper_state(self, folder, out_dir, threads=1):
         """

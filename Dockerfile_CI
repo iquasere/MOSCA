@@ -2,7 +2,7 @@ FROM continuumio/miniconda3
 
 RUN buildDeps='build-essential zlib1g-dev' \
 && apt-get update \
-&& apt-get install -y $buildDeps packagekit-gtk3-module libasound2 libdbus-glib-1-2 libx11-xcb1 --no-install-recommends \
+&& apt-get install -y $buildDeps --no-install-recommends \
 # Set up CI files
 && git clone https://github.com/iquasere/MOSCARDO.git \
 && gunzip -v MOSCARDO/input/*/mp*.RAW.gz \
@@ -11,6 +11,7 @@ RUN buildDeps='build-essential zlib1g-dev' \
 # Install MOSCA
 && git clone https://github.com/iquasere/MOSCA.git -b development \
 && bash MOSCA/install.bash --mosca_env "$(conda info --base)" \
+&& apt-get install -y packagekit-gtk3-module libasound2 libdbus-glib-1-2 libx11-xcb1 \
 && conda clean --all \
 && apt-get purge -y --auto-remove $buildDeps
 
