@@ -411,11 +411,10 @@ rule report:
     threads:
         1
     params:
-        reporter_lists = f'{SCRIPTS_DIR}/../resources',
         suffix = f' -s {config["suffix"]}' if config["suffix"] != '' else '',
         no_de = '' if len(mt_exps) > 0 else ' --no-differential-expression'
     conda:
         "envs/mosca_final.yaml"
     shell:
-        "python {SCRIPTS_DIR}/report.py -e {OUTPUT}/exps.tsv -o {OUTPUT} -ldir {params.reporter_lists} "
+        "python {SCRIPTS_DIR}/report.py -e {OUTPUT}/exps.tsv -o {OUTPUT} -ldir {SCRIPTS_DIR}/resources "
         "-if tsv{params.suffix}{params.no_de}"
