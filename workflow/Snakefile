@@ -41,7 +41,8 @@ def all_input(wildcards):
             f"{OUTPUT}/MOSCA_General_Report.xlsx",
             f"{OUTPUT}/MOSCA_results.zip",
             f"{OUTPUT}/KEGG_maps/KEGGCharter_results.tsv"] +
-            expand("{output}/Binning/{sample}/checkm.tsv", output=OUTPUT, sample=set(EXPS['Sample'])) +
+            (expand("{output}/Binning/{sample}/checkm.tsv", output=OUTPUT, sample=set(EXPS['Sample'])) if
+                config['do_binning'] else []) +
             expand("{output}/Annotation/{sample}/reCOGnizer_results.xlsx", output=OUTPUT,
                 sample=set(EXPS['Sample'])) +
             (expand("{output}/Metaproteomics/{sample}/mp_quantification.tsv", output=OUTPUT,
