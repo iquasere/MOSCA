@@ -190,7 +190,7 @@ class Preprocesser:
                 f.write(f'HEADCROP:{headcrop}\n')
             if crop < float('inf'):
                 f.write(f'CROP:{crop}\n')
-            f.write(f'AVGQUAL{avgqual}\n')
+            f.write(f'AVGQUAL:{avgqual}\n')
             f.write(f'MINLEN:{minlen}\n')
 
     # TODO - implement

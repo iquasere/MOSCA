@@ -235,7 +235,7 @@ def expand_by_list_column(df, column='Pathway'):
 
 
 def parse_fastqc_report(filename):
-    data = dict()
+    data = {}
     file = open(filename).read().split('\n')
     i = 1
     while i < len(file):

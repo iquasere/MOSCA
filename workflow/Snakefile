@@ -38,7 +38,7 @@ def all_input(wildcards):
             [f"{OUTPUT}/MOSCA_Protein_Report.xlsx",
             f"{OUTPUT}/MOSCA_Entry_Report.xlsx",
             f"{OUTPUT}/technical_report.tsv",
-            f"{OUTPUT}/MOSCA_General_Report.xlsx",
+            f"{OUTPUT}/MOSCA_General_Report.tsv",
             f"{OUTPUT}/MOSCA_results.zip",
             f"{OUTPUT}/KEGG_maps/KEGGCharter_results.tsv"] +
             (expand("{output}/Binning/{sample}/checkm.tsv", output=OUTPUT, sample=set(EXPS['Sample'])) if
@@ -403,19 +403,15 @@ rule report:
     input:
         f"{OUTPUT}/MOSCA_Protein_Report.xlsx",
         f"{OUTPUT}/MOSCA_Entry_Report.xlsx",
-        expand("{output}/Quantification/{sample}/condition_treated_results.tsv", output=OUTPUT,
-            sample=set(mt_exps['Sample'].tolist())) if len(mt_exps) > 0 else []
+        (expand("{output}/Quantification/{sample}/condition_treated_results.tsv", output=OUTPUT,
+            sample=set(mt_exps['Sample'].tolist())) if len(mt_exps) > 0 else [])
     output:
         f"{OUTPUT}/technical_report.tsv",
-        f"{OUTPUT}/MOSCA_General_Report.xlsx",
+        f"{OUTPUT}/MOSCA_General_Report.tsv",
         f"{OUTPUT}/MOSCA_results.zip"
     threads:
         1
-    params:
-        suffix = f' -s {config["suffix"]}' if config["suffix"] != '' else '',
-        no_de = '' if len(mt_exps) > 0 else ' --no-differential-expression'
     conda:
         "envs/mosca_final.yaml"
     shell:
-        "python {SCRIPTS_DIR}/report.py -e {OUTPUT}/exps.tsv -o {OUTPUT} -ldir {SCRIPTS_DIR}/resources "
-        "-if tsv{params.suffix}{params.no_de}"
+        "python {SCRIPTS_DIR}/report.py -o {OUTPUT}"
