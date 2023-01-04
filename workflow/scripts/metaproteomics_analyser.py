@@ -16,10 +16,7 @@ import argparse
 from tqdm import tqdm
 import requests
 from time import sleep
-import docker
 from mosca_tools import run_command, run_pipe_command, multiprocess_fun
-
-client = docker.from_env()
 
 
 class MetaproteomicsAnalyser:
@@ -129,7 +126,6 @@ class MetaproteomicsAnalyser:
         :param peak_picking:
         :return:
         """
-        '''
         folder, filename = os.path.split(file)
         pathlib.Path('named_volume').mkdir(parents=True, exist_ok=True)
         shutil.copyfile(f'{folder}/{filename}', f'/data/{filename}')
@@ -139,14 +135,6 @@ class MetaproteomicsAnalyser:
             f'--filter "peakPicking cwt"')
         shutil.copyfile(
             f'/data/{".".join(filename.split(".")[:-1])}.mgf', f'{out_dir}/{".".join(filename.split(".")[:-1])}.mgf')
-        '''
-        container = client.containers.run(
-            "chambm/pwiz-skyline-i-agree-to-the-vendor-licenses",
-            command="wine msconvert /data/mp1.RAW --mgf --filter 'peakPicking cwt'",
-            environment={"WINEDEBUG": "-all"},
-            volumes={"MOSCARDO/input": {"bind": "/data", "mode": "rw"}},
-            remove=True,
-        )
 
     def spectra_in_proper_state(self, folder, out_dir, threads=1):
         """
@@ -182,18 +170,10 @@ class MetaproteomicsAnalyser:
 
     def create_decoy_database(self, database):
         """
-        input:
-            protein_fasta: fasta file with proteins from MG analysis, plus trypsin
-            and cRAP sequences
-        output:
-            a FASTA file named "database + _concatenated_target_decoy.fasta" will be
-            created, containing interleaved original and decoy sequences
+        Create decoy database
+        :param database: str - Database to create decoy of
         """
-        decoy_database = database.replace('.fasta', '_concatenated_target_decoy.fasta')
-        if not os.path.isfile(decoy_database):
-            run_command(f'searchgui eu.isas.searchgui.cmd.FastaCLI -in {database} -decoy')
-        else:
-            print(f'{decoy_database} already exists!')
+        run_command(f'searchgui eu.isas.searchgui.cmd.FastaCLI -in {database} -decoy')
 
     def generate_parameters_file(self, output, protein_fdr=1):
         """
@@ -331,7 +311,8 @@ class MetaproteomicsAnalyser:
 
     def run(self):
         args = self.get_arguments()
-        '''
+
+        # first database creation
         self.database_generation(
             args.database, args.output, args.upimapi_result, contaminants_database=args.contaminants_database,
             protease=args.protease)
@@ -342,24 +323,26 @@ class MetaproteomicsAnalyser:
             self.generate_parameters_file(f'{args.output}/1st_params.par', protein_fdr=100)
         except:
             print('An illegal reflective access operation has occurred. But MOSCA can handle it.')
-        '''
-        proteins_for_second_search = []
 
+        proteins_for_second_search = []
         for i in range(len(args.names)):
             out = f'{args.output}/{args.names[i]}'
             for foldername in ['spectra', '2nd_search']:
                 pathlib.Path(f'{out}/{foldername}').mkdir(parents=True, exist_ok=True)
-            self.spectra_in_proper_state(args.spectra_folders[i], f'{out}/spectra')
-            i = 0
-            for database in sorted(glob(f'{os.path.dirname(args.output)}/1st_search_database_*.part_*.fasta')):
-                i += 1
-                pathlib.Path(f'{out}_{i}').mkdir(parents=True, exist_ok=True)
+
+            self.spectra_in_proper_state(args.spectra_folders[i], f'{out}/spectra/')
+
+            j = 0
+            for database in sorted(glob(f'{args.output}/1st_search_database_*.part_*.fasta')):
+                j += 1
+                pathlib.Path(f'{out}_{j}').mkdir(parents=True, exist_ok=True)
+
                 self.compomics_run(
-                    database, f'{out}_{i}/1st_search', f'{out}/spectra', args.names[i],
-                    f'{args.output}/1s_params.par', threads=args.threads, protein_fdr=100,
-                    max_memory=args.max_memory, reports=['4'])
+                    database, f'{out}_{j}/1st_search', f'{out}/spectra', args.names[i],
+                    f'{args.output}/1st_params.par', threads=args.threads, max_memory=args.max_memory, reports=['4'])
+
                 df = pd.read_csv(
-                    f'{out}_{i}/reports/{args.names[i]}_Default_PSM_Report_with_non-validated_matches.txt',
+                    f'{out}_{j}/1st_search/reports/{args.names[i]}_Default_PSM_Report_with_non-validated_matches.txt',
                     sep='\t', index_col=0)
                 for protein_group in df['Protein(s)'].str.split(','):
                     proteins_for_second_search += protein_group

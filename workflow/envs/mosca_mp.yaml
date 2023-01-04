@@ -1,4 +1,4 @@
-name: my_env
+name: mosca_mp
 channels:
   - conda-forge
   - bioconda
@@ -9,13 +9,16 @@ dependencies:
   - _openmp_mutex=4.5=2_gnu
   - alsa-lib=1.2.8=h166bdaf_0
   - blast=2.2.31=pl526he19e7b1_5
+  - brotlipy=0.7.0=py311hd4cff14_1005
   - bzip2=1.0.8=h7f98852_4
   - c-ares=1.18.1=h7f98852_0
   - ca-certificates=2022.12.7=ha878542_0
   - cairo=1.16.0=ha61ee94_1014
   - certifi=2022.12.7=pyhd8ed1ab_0
+  - cffi=1.15.1=py311h409f033_3
   - charset-normalizer=2.1.1=pyhd8ed1ab_0
   - colorama=0.4.6=pyhd8ed1ab_0
+  - cryptography=39.0.0=py311h9b4c7bb_0
   - curl=7.87.0=hdc1c0ab_0
   - dotnet-runtime=3.1.18=h73ebe80_0
   - entrez-direct=16.2=he881be0_1
@@ -56,7 +59,7 @@ dependencies:
   - libiconv=1.17=h166bdaf_0
   - libidn2=2.3.4=h166bdaf_0
   - liblapack=3.9.0=16_linux64_openblas
-  - libnghttp2=1.47.0=hff17c54_1
+  - libnghttp2=1.51.0=hff17c54_0
   - libnsl=2.0.0=h7f98852_0
   - libopenblas=0.3.21=pthreads_h78a6416_3
   - libpng=1.6.39=h753d276_0
@@ -74,8 +77,10 @@ dependencies:
   - metamorpheus=0.0.317=h7f98852_2
   - mono=6.12.0.90=h780b84a_0
   - ncurses=6.3=h27087fc_1
+  - numpy=1.24.1=py311hbde0eaa_0
   - openjdk=17.0.3=h58dac75_5
   - openssl=3.0.7=h0b41bf4_1
+  - pandas=1.5.2=py311h8b32b4d_0
   - pcre=8.45=h9c3ff4c_0
   - pcre2=10.40=hc3806b6_0
   - peptide-shaker=2.2.6=hec16e2b_1
@@ -102,7 +107,7 @@ dependencies:
   - pixman=0.40.0=h36c2ea0_0
   - pthread-stubs=0.4=h36c2ea0_1001
   - pycparser=2.21=pyhd8ed1ab_0
-  - pyopenssl=22.1.0=pyhd8ed1ab_0
+  - pyopenssl=23.0.0=pyhd8ed1ab_0
   - pysocks=1.7.1=pyha2e5f31_6
   - python=3.11.0=ha86cf86_0_cpython
   - python-dateutil=2.8.2=pyhd8ed1ab_0
@@ -141,10 +146,4 @@ dependencies:
   - xz=5.2.6=h166bdaf_0
   - zlib=1.2.13=h166bdaf_4
   - zstd=1.5.2=h6239696_4
-  - pip:
-    - brotlipy==0.7.0
-    - cffi==1.15.1
-    - cryptography==38.0.4
-    - numpy==1.24.0
-    - pandas==1.5.2
 prefix: /opt/conda/envs/my_env

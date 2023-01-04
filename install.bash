@@ -32,9 +32,6 @@ conda config --add channels conda-forge
 conda install -c conda-forge mamba
 mamba env update --file MOSCA/base_environment.yml --name base
 
-curl -fsSL https://get.docker.com -o get-docker.sh
-sh get-docker.sh
-
 echo "Storing MOSCA's files in the Conda environment at: ${mosca_env}"
 # create folders for storing MOSCA's YAMLs and scripts
 mkdir -p "${mosca_env}/share/MOSCA" "${mosca_env}/bin"

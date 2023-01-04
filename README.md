@@ -1,26 +1,26 @@
 # Meta-Omics Software for Community Analysis
 
 <p align="center" href="https://github.com/iquasere/MOSCA">
-  <img width="30%" src="resources/mosca_logo.png" alt="Logo" title="Logo by Sérgio A. Silva">
+  <img width="40%" src="resources/mosca_logo.png" alt="Logo" title="Logo by Sérgio A. Silva">
 </p>
 
 Welcome to the Meta-Omics Software for Community Analysis (MOSCA) Pipeline! :fly:
 
 This pipeline is a powerful tool for analyzing and interpreting meta-omics data, including metagenomics, metatranscriptomics, and metaproteomics. It integrates a variety of state-of-the-art algorithms and visualizations, allowing you to easily and efficiently analyze your data.
 
-**To get started, check out our web GUI: **
+#### To get started, check out our web GUI:
 
 🌐 https://iquasere.github.io/MOSGUITO
 
-**For more information on how to use the pipeline and its features, check out our wiki: **
+#### For more information on how to use the pipeline and its features, check out our wiki:
 
 📖 https://github.com/iquasere/MOSCA/wiki
 
-**If you use the Meta-Omics Pipeline in your research, please cite our publication: **
+#### If you use the Meta-Omics Pipeline in your research, please cite our publication:
 
 📄 Sequeira, João Carlos, et al. "MOSCA: an automated pipeline for integrated metagenomics and metatranscriptomics data analysis." International Conference on Practical Applications of Computational Biology & Bioinformatics. Springer, Cham, 2018.
 
-**We hope you find the Meta-Omics Pipeline helpful in your research endeavors! 🔍**
+#### We hope you find the Meta-Omics Pipeline helpful in your research endeavors! 🔍
 
 
 [![Development CI](https://github.com/iquasere/MOSCA/actions/workflows/main.yml/badge.svg?branch=development)](https://github.com/iquasere/MOSCA/actions/workflows/main.yml)

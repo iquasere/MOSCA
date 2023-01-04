@@ -1,4 +1,4 @@
-name: my_env
+name: mosca_kegg
 channels:
   - bioconda
   - conda-forge

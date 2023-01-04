@@ -11,8 +11,10 @@ RUN buildDeps='build-essential zlib1g-dev' \
 # Install MOSCA
 && git clone https://github.com/iquasere/MOSCA.git -b development \
 && bash MOSCA/install.bash --mosca_env "$(conda info --base)" \
-&& apt-get install -y packagekit-gtk3-module libasound2 libdbus-glib-1-2 libx11-xcb1 \
 && conda clean --all \
+&& apt-get install -y packagekit-gtk3-module libasound2 libdbus-glib-1-2 libx11-xcb1 curl \
+&& curl -fsSL https://get.docker.com -o get-docker.sh \
+&& sh get-docker.sh \
 && apt-get purge -y --auto-remove $buildDeps
 
 CMD [ "python", "bin/mosca.py" ]

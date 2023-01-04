@@ -22,8 +22,6 @@ class Reporter:
     def get_arguments(self):
         parser = argparse.ArgumentParser(description="MOSCA's technical and quality control reports")
         parser.add_argument("-o", "--output", help="Output directory")
-        parser.add_argument("-s", "--suffix", default="",
-                            help="If files don't end with _R1, _R2, this will be added to ends")
         args = parser.parse_args()
         args.output = args.output.rstrip('/')
         return args
