@@ -9,7 +9,7 @@ Jul 2018
 
 from glob import glob
 import os
-import pathlib
+from pathlib import Path
 import shutil
 import pandas as pd
 import argparse
@@ -127,7 +127,7 @@ class MetaproteomicsAnalyser:
         :return:
         """
         folder, filename = os.path.split(file)
-        pathlib.Path('named_volume').mkdir(parents=True, exist_ok=True)
+        Path('named_volume').mkdir(parents=True, exist_ok=True)
         shutil.copyfile(f'{folder}/{filename}', f'/data/{filename}')
         run_pipe_command(
             f'docker run --rm -e WINEDEBUG=-all -v named_volume:/data '
@@ -251,7 +251,7 @@ class MetaproteomicsAnalyser:
             reports will be outputed to "reports_folder"
         """
         print(f'Created {reports_folder}')
-        pathlib.Path(reports_folder).mkdir(parents=True, exist_ok=True)  # creates folder for reports
+        Path(reports_folder).mkdir(parents=True, exist_ok=True)  # creates folder for reports
         run_command(
             f"peptide-shaker -Xmx{max_memory}M eu.isas.peptideshaker.cmd.ReportCLI -in {peptideshaker_output} "
             f"-out_reports {reports_folder} -reports {','.join(reports)}")
@@ -311,8 +311,7 @@ class MetaproteomicsAnalyser:
 
     def run(self):
         args = self.get_arguments()
-
-        # first database creation
+        # 1st database construction
         self.database_generation(
             args.database, args.output, args.upimapi_result, contaminants_database=args.contaminants_database,
             protease=args.protease)
@@ -323,30 +322,25 @@ class MetaproteomicsAnalyser:
             self.generate_parameters_file(f'{args.output}/1st_params.par', protein_fdr=100)
         except:
             print('An illegal reflective access operation has occurred. But MOSCA can handle it.')
-
+        # 2nd database construction
         proteins_for_second_search = []
         for i in range(len(args.names)):
             out = f'{args.output}/{args.names[i]}'
             for foldername in ['spectra', '2nd_search']:
-                pathlib.Path(f'{out}/{foldername}').mkdir(parents=True, exist_ok=True)
-
+                Path(f'{out}/{foldername}').mkdir(parents=True, exist_ok=True)
             self.spectra_in_proper_state(args.spectra_folders[i], f'{out}/spectra/')
-
-            j = 0
+            j = 1
             for database in sorted(glob(f'{args.output}/1st_search_database_*.part_*.fasta')):
-                j += 1
-                pathlib.Path(f'{out}_{j}').mkdir(parents=True, exist_ok=True)
-
+                Path(f'{out}_{j}/1st_search').mkdir(parents=True, exist_ok=True)
                 self.compomics_run(
                     database, f'{out}_{j}/1st_search', f'{out}/spectra', args.names[i],
                     f'{args.output}/1st_params.par', threads=args.threads, max_memory=args.max_memory, reports=['4'])
-
                 df = pd.read_csv(
                     f'{out}_{j}/1st_search/reports/{args.names[i]}_Default_PSM_Report_with_non-validated_matches.txt',
                     sep='\t', index_col=0)
                 for protein_group in df['Protein(s)'].str.split(','):
                     proteins_for_second_search += protein_group
-
+                j += 1
         with open(f'{args.output}/2nd_search_proteins.txt', 'w') as f:
             f.write('\n'.join(set(proteins_for_second_search)))
         run_command(
@@ -356,7 +350,7 @@ class MetaproteomicsAnalyser:
         self.create_decoy_database(f'{args.output}/2nd_search_database.fasta')
         self.generate_parameters_file(f'{args.output}/2nd_params.par', protein_fdr=1)
 
-        # TODO - check if will be necessary to split the database
+        # TODO - check if splitting the database will be necessary
         # self.split_database(
         #    f'{args.output}/2nd_search_database_concatenated_target_decoy.fasta', n_proteins=5000000)
 
