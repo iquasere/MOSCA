@@ -274,7 +274,8 @@ rule quantification:
 
 rule metaproteomics:
     input:
-        [directory(folder) for folder in mp_exps[mp_exps['Sample'] == (lambda wildcards: wildcards.sample)]['Files']]
+        [directory(folder) for folder in mp_exps[mp_exps['Sample'] == (lambda wildcards: wildcards.sample)]['Files']],
+        "{output}/Annotation/{sample}/UPIMAPI_results.tsv"
     output:
         "{output}/Metaproteomics/{sample}/spectracounts.tsv"
     threads:

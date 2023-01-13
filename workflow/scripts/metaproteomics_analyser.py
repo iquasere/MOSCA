@@ -314,7 +314,7 @@ class MetaproteomicsAnalyser:
 
     def run(self):
         args = self.get_arguments()
-        '''
+
         # 1st database construction
         self.database_generation(
             args.database, args.output, args.upimapi_result, contaminants_database=args.contaminants_database,
@@ -325,7 +325,7 @@ class MetaproteomicsAnalyser:
             self.generate_parameters_file(f'{args.output}/1st_params.par', protein_fdr=100)
         except:
             print('An illegal reflective access operation has occurred. But MOSCA can handle it.')
-        '''
+
         # 2nd database construction
         proteins_for_second_search = []
         for i in range(len(args.names)):
