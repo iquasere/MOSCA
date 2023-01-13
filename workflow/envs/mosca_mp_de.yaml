@@ -63,7 +63,7 @@ dependencies:
   - libgomp=12.2.0=h65d4601_19
   - libiconv=1.17=h166bdaf_0
   - liblapack=3.9.0=16_linux64_openblas
-  - libnghttp2=1.47.0=hff17c54_1
+  - libnghttp2=1.51.0=hff17c54_0
   - libopenblas=0.3.21=pthreads_h78a6416_3
   - libpng=1.6.39=h753d276_0
   - libsanitizer=12.2.0=h46fd767_19
@@ -74,7 +74,7 @@ dependencies:
   - libuuid=2.32.1=h7f98852_1000
   - libwebp-base=1.2.4=h166bdaf_0
   - libxcb=1.13=h7f98852_1004
-  - libxml2=2.10.3=h7463322_0
+  - libxml2=2.10.3=hca2bb57_1
   - libzlib=1.2.13=h166bdaf_4
   - make=4.3=hd18ef5c_1
   - ncurses=6.3=h27087fc_1
@@ -83,9 +83,10 @@ dependencies:
   - pcre2=10.40=hc3806b6_0
   - pixman=0.40.0=h36c2ea0_0
   - pthread-stubs=0.4=h36c2ea0_1001
+  - r-assertthat=0.2.1=r42hc72bb7e_3
   - r-base=4.2.2=ha7d60f8_3
   - r-biocmanager=1.30.19=r42hc72bb7e_0
-  - r-cli=3.5.0=r42h38f115c_1
+  - r-cli=3.6.0=r42h38f115c_0
   - r-colorspace=2.0_3=r42h06615bd_1
   - r-crayon=1.5.2=r42hc72bb7e_1
   - r-ellipsis=0.3.2=r42h06615bd_1
@@ -95,6 +96,7 @@ dependencies:
   - r-ggplot2=3.4.0=r42hc72bb7e_1
   - r-glue=1.6.2=r42h06615bd_1
   - r-gtable=0.3.1=r42hc72bb7e_1
+  - r-hms=1.1.2=r42hc72bb7e_1
   - r-isoband=0.2.7=r42h38f115c_1
   - r-labeling=0.4.2=r42hc72bb7e_2
   - r-lattice=0.20_45=r42h06615bd_1
@@ -108,6 +110,8 @@ dependencies:
   - r-optparse=1.7.3=r42hc72bb7e_1
   - r-pillar=1.8.1=r42hc72bb7e_1
   - r-pkgconfig=2.0.3=r42hc72bb7e_2
+  - r-prettyunits=1.1.1=r42hc72bb7e_2
+  - r-progress=1.2.2=r42hc72bb7e_3
   - r-r6=2.5.1=r42hc72bb7e_1
   - r-rcolorbrewer=1.1_3=r42h785f33e_1
   - r-rcpp=1.0.9=r42h7525677_2

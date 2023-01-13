@@ -154,11 +154,10 @@ def timed_message(message):
     print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ': ' + message)
 
 
-def normalize_mg_by_size(readcounts, contigs):
+def normalize_counts_by_size(readcounts, reference):
     run_pipe_command(
-        f"seqkit fx2tab {contigs} | sort | awk '{{print $1\"\\t\"length($2)}}' | "
-        f"join - {readcounts} | awk '{{print $1\"\\t\"$3/$2}}'",
-        output=readcounts.replace('.readcounts', '_normalized.readcounts'))
+        f"seqkit fx2tab {reference} | sort | awk '{{print $1\"\\t\"length($2)}}' | join - {readcounts} | "
+        f"awk '{{print $1\"\\t\"$3/$2}}'", output=readcounts.replace('.readcounts', '_normalized.readcounts'))
 
 
 def add_abundance(data, readcounts, name, origin_of_data='metagenomics'):
@@ -193,32 +192,6 @@ def multi_sheet_excel(output, data, sheet_name='Sheet', lines=1000000, index=Fal
             j = min(i + lines, len(data))
             data.iloc[i:(i + lines)].to_excel(writer, sheet_name=f'{sheet_name} ({j})', index=index)
     writer.save()
-
-
-def normalize_readcounts(joined, columns, method='TMM'):
-    """
-    Input:
-        joined: name of final TSV file outputed by MOSCA
-        columns: name of columns to normalize (don't put them all at once, one
-        normalization at a time!)
-        output: name of file to output
-    Output:
-        A TXT file will be generated with a single column of numbers, each one
-        corresponding to the normalization factor of each sample by order of
-        column in the readcounts file
-    """
-    working_dir = '/'.join(joined.split('/')[:-1])
-    info = pd.read_csv(joined, sep='\t')
-    info[columns] = info[columns].fillna(value=0)
-    info[columns].to_csv(working_dir + '/to_normalize.tsv', sep='\t', index=False)
-    print(f"Normalizing {joined} on columns {','.join(columns)}")
-    run_command(
-        f'Rscript {sys.path[0]}/normalization.R --readcounts {working_dir}/to_normalize.tsv '
-        f'--output {working_dir}/normalization_factors.txt -m {method}')
-    factors = open(f'{working_dir}/normalization_factors.txt').read().split('\n')[:-1]  # \n always last element
-    for i in range(len(columns)):
-        info[f'{columns[i]}_normalized'] = info[columns[i]] * float(factors[i])
-    return info
 
 
 def timed_message(message=None):

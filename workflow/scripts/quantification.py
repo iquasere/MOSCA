@@ -10,7 +10,7 @@ Dec 2022
 import pandas as pd
 import argparse
 import multiprocessing
-from mosca_tools import perform_alignment
+from mosca_tools import perform_alignment, normalize_counts_by_size
 
 
 def get_arguments():
@@ -30,18 +30,34 @@ def run():
 
     exps = pd.read_csv(args.experiments, sep='\t')
 
-    for i in exps.index:
-        if exps.iloc[i]['Data type'] == 'mrna':
-            reference = f"{args.output}/Annotation/{exps.iloc[i]['Sample']}/fgs.ffn"
-        elif exps.iloc[i]['Data type'] == 'dna':
-            reference = f"{args.output}/Assembly/{exps.iloc[i]['Sample']}/contigs.fasta"
-        else:
-            continue
-        perform_alignment(
-            reference,
-            [f"{args.output}/Preprocess/Trimmomatic/quality_trimmed_{exps.iloc[i]['Name']}_{fr}_paired.fq"
-             for fr in ['forward', 'reverse']],
-            f"{args.output}/Quantification/{exps.iloc[i]['Name']}", threads=args.threads)
+    for sample in set(exps['Sample']):
+        mg_result = pd.DataFrame()
+        mt_result = pd.DataFrame()
+        pexps = exps[(exps['Sample'] == sample)]
+        for i in pexps.index:
+            if pexps.iloc[i]['Data type'] == 'mrna':
+                reference = f"{args.output}/Annotation/{pexps.iloc[i]['Sample']}/fgs.ffn"
+            elif pexps.iloc[i]['Data type'] == 'dna':
+                reference = f"{args.output}/Assembly/{pexps.iloc[i]['Sample']}/contigs.fasta"
+            else:
+                continue
+            reads = ([
+                f"{args.output}/Preprocess/Trimmomatic/quality_trimmed_{pexps.iloc[i]['Name']}_{fr}_paired.fq" for fr in [
+                    'forward', 'reverse']] if ',' in pexps.iloc[i]['Name'] else
+                [f"{args.output}/Preprocess/Trimmomatic/quality_trimmed_{pexps.iloc[i]['Name']}.fq"])
+            perform_alignment(
+                reference, reads, f"{args.output}/Quantification/{pexps.iloc[i]['Name']}", threads=args.threads)
+            normalize_counts_by_size(f"{args.output}/Quantification/{pexps.iloc[i]['Name']}.readcounts", reference)
+            # Read the results of alignment and add them to the readcounts result at sample level
+            counts = pd.read_csv(
+                f"{args.output}/Quantification/{pexps.iloc[i]['Name']}_normalized.readcounts",
+                names=['Gene', pexps.iloc[i]['Name']])
+            (mg_result if pexps.iloc[i]['Data type'] == 'dna' else mt_result) = pd.merge((
+                mg_result if pexps.iloc[i]['Data type'] == 'dna' else mt_result), counts, how='outer', on='Gene')
+        if len(mg_result) > 0:
+            mg_result.to_csv(f"{args.output}/Quantification/{sample}/mg.readcounts", sep='\t', index=False)
+        if len(mt_result) > 0:
+            mt_result.astype(int).to_csv(f"{args.output}/Quantification/{sample}/mt.readcounts", sep='\t', index=False)
 
 
 if __name__ == '__main__':

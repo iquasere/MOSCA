@@ -149,11 +149,14 @@ class MetaproteomicsAnalyser:
             if os.path.isfile(file):
                 if file.endswith('.mgf'):
                     already_mgfs.append(file)
+                # elif file with termination replaced by mgf exists, skip
+                elif os.path.isfile(f'{out_dir}/{".".join(file.split(".")[:-1])}.mgf'):
+                    already_mgfs.append(f'{out_dir}/{".".join(file.split(".")[:-1])}.mgf')
                 else:
                     files2convert.append(file)
         if len(files2convert) > 0:
             multiprocess_fun(self.raw_to_mgf, [(file, out_dir) for file in files2convert], threads=threads)
-        for file in already_mgfs:
+        for file in set(already_mgfs):
             shutil.copyfile(f'{folder}/{file}', f'{out_dir}/{file}')
 
     def verify_crap_db(self, contaminants_database='MOSCA/Databases/metaproteomics/crap.fasta'):
@@ -311,17 +314,18 @@ class MetaproteomicsAnalyser:
 
     def run(self):
         args = self.get_arguments()
+        '''
         # 1st database construction
         self.database_generation(
             args.database, args.output, args.upimapi_result, contaminants_database=args.contaminants_database,
             protease=args.protease)
         self.create_decoy_database(f'{args.output}/1st_search_database.fasta')
-        self.split_database(
-            f'{args.output}/1st_search_database_concatenated_target_decoy.fasta', n_proteins=5000000)
+        self.split_database(f'{args.output}/1st_search_database_concatenated_target_decoy.fasta', n_proteins=5000000)
         try:  # try/except - https://github.com/compomics/searchgui/issues/217
             self.generate_parameters_file(f'{args.output}/1st_params.par', protein_fdr=100)
         except:
             print('An illegal reflective access operation has occurred. But MOSCA can handle it.')
+        '''
         # 2nd database construction
         proteins_for_second_search = []
         for i in range(len(args.names)):
@@ -351,9 +355,9 @@ class MetaproteomicsAnalyser:
         self.generate_parameters_file(f'{args.output}/2nd_params.par', protein_fdr=1)
 
         # TODO - check if splitting the database will be necessary
-        # self.split_database(
-        #    f'{args.output}/2nd_search_database_concatenated_target_decoy.fasta', n_proteins=5000000)
+        #self.split_database(f'{args.output}/2nd_search_database_concatenated_target_decoy.fasta', n_proteins=5000000)
 
+        # Protein identification and quantification
         spectracounts = pd.DataFrame(columns=['Main Accession'])
         for name in args.names:
             out = f'{args.output}/{name}'

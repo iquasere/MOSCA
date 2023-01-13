@@ -1,4 +1,0 @@
-name: mosca_pd
-channels:
-  - defaults
-prefix: /opt/conda/envs/my_env

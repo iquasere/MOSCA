@@ -35,7 +35,9 @@ remove_nas_by_condition <- function (data, conditions) {
   }
   rows_to_keep = rownames(data)
   for (col_group in cols) {
-    pb <- progress_bar$new(total = length(rows_to_keep), format = "Removing rows with < 2 non NA per sample: :current/:total [:bar] :percent eta: :eta")
+    pb <- progress_bar$new(
+      total=length(rows_to_keep),
+      format="Removing rows with < 2 non NA per sample: :current/:total [:bar] :percent eta: :eta")
     for (row in rows_to_keep) {
       if (sum(!is.na(data[row, colnames(data)[col_group]])) < 2) {
         rows_to_keep = rows_to_keep[rows_to_keep != row]
@@ -57,7 +59,7 @@ filtered = remove_nas_by_condition(exprs(norm), opt$conditions)  # remove rows w
 #normalized = normalized[rowSums(is.na(normalized)) < 2, , drop=FALSE]   # love R's insanity
 print("Filtered rows with too many NAs.")
 
-# local least squares imputation - TODO - check when this works
+# local least squares imputation - TODO - make this work
 #allVariables = TRUE
 # using 'nniRes' function is advised in documentation, but it does not allow to set 'allVariables' to TRUE
 # not using 'allVariables' will result in too many missing values breaking the script
@@ -66,7 +68,7 @@ print("Filtered rows with too many NAs.")
 #print("Imputation done.")
 
 # export results
-write.table(filtered, file = paste0(opt$output, '/quantification.tsv'), sep='\t', row.names = TRUE, col.names = TRUE)
+write.table(filtered, file = paste0(opt$output, '/mp_quantification.tsv'), sep='\t', row.names = TRUE, col.names = TRUE)
 print("Results exported.")
 
 # Reproducibility-Optimized Test Statistic

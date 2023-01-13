@@ -12,8 +12,7 @@ from tqdm import tqdm
 import argparse
 import pandas as pd
 import numpy as np
-from mosca_tools import run_command, timed_message, multi_sheet_excel, normalize_mg_by_size, blast_cols, \
-    normalize_readcounts
+from mosca_tools import run_command, timed_message, multi_sheet_excel, blast_cols
 
 
 def get_arguments():
@@ -21,6 +20,8 @@ def get_arguments():
 
     parser.add_argument("-o", "--output", help="Output directory (and input!).")
     parser.add_argument("-e", "--experiments", help="Filename of exps.")
+    parser.add_argument("--protein-report", help="Make protein report.", action='store_true', default=False)
+    parser.add_argument("--entry-report", help="Make entry report.", action='store_true', default=False)
 
     args = parser.parse_args()
     args.output = args.output.rstrip('/')
@@ -34,13 +35,17 @@ def make_protein_report(out, exps):
             lines = f.readlines()
         headers = [line.strip()[1:] for line in lines if line.startswith(">")]
         report = pd.DataFrame(headers, columns=["qseqid"])
-        report = pd.merge(report, pd.read_csv(f'{out}/Annotation/{sample}/reCOGnizer_results.tsv', sep='\t'),
-                          on='qseqid', how='left')
+        cog_report = pd.read_csv(f'{out}/Annotation/{sample}/COG_report.tsv', sep='\t')
+        cog_report = cog_report.groupby('qseqid')[cog_report.columns.tolist()[1:]].first().reset_index()
+        report = pd.merge(report, cog_report, on='qseqid', how='left')
         report = report.groupby('qseqid')[report.columns.tolist()[1:]].first().reset_index()
         report = report[report['DB ID'].str.startswith('COG') == True].rename(columns={'DB ID': 'COG ID'})
         report = pd.merge(
             pd.read_csv(f'{out}/Annotation/{sample}/UPIMAPI_results.tsv', sep='\t'), report, on='qseqid',
             how='outer')
+        for col in report.columns:
+            if '.' in col:      # some columns of UPIMAPI are repeated
+                del report[col]
         rename_cols = blast_cols + ['EC number']
         report = report.rename(columns={**{f'{col}_x': f'{col} (UPIMAPI)' for col in rename_cols},
                                         **{f'{col}_y': f'{col} (reCOGnizer)' for col in rename_cols}})
@@ -52,27 +57,31 @@ def make_protein_report(out, exps):
             readcounts = pd.read_csv(
                 f'{out}/Quantification/{mg_name}.readcounts', sep='\t', header=None,
                 names=['Contig', mg_name])
-            normalize_mg_by_size(
-                f'{out}/Quantification/{mg_name}.readcounts', f'{out}/Assembly/{sample}/contigs.fasta')
-            norm_by_size = pd.read_csv(
-                f'{out}/Quantification/{mg_name}_normalized.readcounts', sep='\t', header=None,
-                names=['Contig', f'{mg_name} (Normalized by contig size)'])
-            for counts in [readcounts, norm_by_size]:
-                counts['Contig'] = counts['Contig'].apply(lambda x: x.split('_')[1])
+            readcounts['Contig'] = readcounts['Contig'].apply(lambda x: x.split('_')[1])
             report = pd.merge(report, readcounts, on='Contig', how='left')
-            report = pd.merge(report, norm_by_size, on='Contig', how='left')
         for mt_name in mt_names:
             readcounts = pd.read_csv(f'{out}/Quantification/{mt_name}.readcounts', sep='\t', header=None,
                                      names=['qseqid', mt_name])
             report = pd.merge(report, readcounts, on='qseqid', how='left')
-        if len(mp_names) > 0:
-            spectracounts = pd.read_csv(f'{out}/Metaproteomics/{sample}/spectracounts.tsv', sep='\t', header=None)
+        if len(mt_names) > 0:
+            report[['qseqid'] + mt_names].to_csv(f'{out}/Quantification/{sample}/mt.readcounts', sep='\t', index=False)
+            print('Wrote MT readcounts.')
+        for mp_name in mp_names:
+            spectracounts = pd.read_csv(
+                f'{out}/Metaproteomics/{sample}/{mp_name}/2nd_search/reports/{mp_name}_Default_Protein_Report.txt',
+                sep='\t', usecols=['Main Accession', '#Validated PSMs'])
+            spectracounts.columns = ['qseqid', mp_name]
+            spectracounts = spectracounts.groupby('qseqid')[mp_name].sum().reset_index()
             report = pd.merge(report, spectracounts, on='qseqid', how='left')
-        report[mg_names + mt_names + mp_names if len(mp_names) > 0 else []] = report[
-            mg_names + mt_names + mp_names if len(mp_names) > 0 else []].fillna(value=0).astype(int)
-        report[[f'{name} (Normalized by contig size)' for name in mg_names]].fillna(value=0, inplace=True)
+        if len(mp_names) > 0:
+            report[['qseqid'] + mp_names][report[mp_names].isnull().sum(
+                axis=1) < len(mp_names)].drop_duplicates().to_csv(
+                f'{out}/Metaproteomics/{sample}/mp.spectracounts', sep='\t', index=False)
+            print('Wrote MP spectracounts.')
+        report[mg_names + mt_names + mp_names] = report[mg_names + mt_names + mp_names].fillna(value=0).astype(int)
         multi_sheet_excel(f'{out}/MOSCA_Protein_Report.xlsx', report, sheet_name=sample)
         report.to_csv(f'{out}/MOSCA_{sample}_Protein_Report.tsv', sep='\t', index=False)
+        print(f'Wrote protein report for sample [{sample}].')
 
 
 def make_entry_report(protein_report, out, exps):
@@ -82,6 +91,9 @@ def make_entry_report(protein_report, out, exps):
         report = pd.read_excel(protein_report, sheet_name=sample)
         timed_message('Reading UPIMAPI report')
         upimapi_res = pd.read_csv(f'{out}/Annotation/{sample}/UPIMAPI_results.tsv', sep='\t')
+        for col in upimapi_res.columns:
+            if '.' in col:      # some columns of UPIMAPI are repeated
+                del upimapi_res[col]
         uniprot_cols = [col for col in upimapi_res.columns if col not in blast_cols]
         taxonomy_columns = [col for col in upimapi_res.columns if 'Taxonomic lineage (' in col]
         functional_columns = ['General functional category', 'Functional category', 'Protein description', 'COG ID']
@@ -95,11 +107,9 @@ def make_entry_report(protein_report, out, exps):
             cogs_df = pd.DataFrame(columns=['Entry', 'COG ID'])
         mg_names = exps[(exps["Data type"] == 'dna') & (exps["Sample"] == sample)]['Name'].tolist()
         mt_names = exps[(exps["Data type"] == 'mrna') & (exps["Sample"] == sample)]['Name'].tolist()
+        mp_names = exps[(exps['Sample'] == sample) & (exps['Data type'] == 'protein')]['Name'].tolist()
         # Aggregate information for each Entry, keep UniProt information, sum MG and MT or MP quantification
-        if len(mg_names) > 0:
-            report.rename(
-                columns={f'{mg_name} (Normalized by contig size)': mg_name for mg_name in mg_names}, inplace=True)
-        report = report.groupby('Entry')[mg_names + mt_names].sum().reset_index()
+        report = report.groupby('Entry')[mg_names + mt_names + mp_names].sum().reset_index()
         report = pd.merge(report, upimapi_res, on='Entry', how='left')
         report = pd.merge(report, cogs_df, on='Entry', how='left')
         if report['COG ID'].notnull().sum() > 0:
@@ -108,48 +118,39 @@ def make_entry_report(protein_report, out, exps):
             report = pd.concat([report, pd.DataFrame(
                 columns=['General functional category', 'Functional category', 'Protein description'],
                 index=range(len(report)))], axis=1)
-        report = report[uniprot_cols + functional_columns + mg_names + mt_names]
-        timed_message('MG normalization by sample and protein abundance')
-        if len(mg_names) > 0:
-            report[mg_names].to_csv(f'{out}/Quantification/mg_preprocessed_readcounts.tsv', sep='\t', index=False)
-            report = pd.concat([report, normalize_readcounts(
-                f'{out}/Quantification/mg_preprocessed_readcounts.tsv', mg_names)[
-                [f'{col}_normalized' for col in mg_names]]], axis=1)
-        timed_message('MT normalization by sample and protein expression')
-        if len(mt_names) > 0:
-            report[mt_names].to_csv(f'{out}/Quantification/expression_analysed_readcounts.tsv', sep='\t',
-                                    index=False)
-            report = pd.concat([report, normalize_readcounts(
-                f'{out}/Quantification/expression_analysed_readcounts.tsv', mt_names)[
-                [f'{col}_normalized' for col in mt_names]]], axis=1)
+        report = report[uniprot_cols + functional_columns + mg_names + mt_names + mp_names]
         timed_message('Writing Entry Report')
         report = report.drop_duplicates()
         multi_sheet_excel(f'{out}/MOSCA_Entry_Report.xlsx', report, sheet_name=sample)
         report.to_csv(f'{out}/MOSCA_{sample}_Entry_Report.tsv', sep='\t', index=False)
-        timed_message('Writting expression matrix')
-        if len(mt_names) > 0:
-            Path(f'{out}/Quantification/{sample}').mkdir(parents=True, exist_ok=True)
-            report[['Entry'] + mt_names].groupby('Entry')[mt_names].sum().reset_index().to_csv(
-                f'{out}/Quantification/{sample}/expression_matrix.tsv', sep='\t', index=False)
-        if len(mg_names) == 0:
-            mg_names = mt_names
+
         timed_message('Generating krona plots')
-        for mg_name in mg_names:
+        tax_order = ['SUPERKINGDOM', 'KINGDOM', 'PHYLUM', 'CLASS', 'ORDER', 'FAMILY', 'GENUS', 'SPECIES']
+        print(taxonomy_columns)
+        tax_cols = [
+            f'Taxonomic lineage ({col})' for col in tax_order if f'Taxonomic lineage ({col})' in taxonomy_columns]
+        print(tax_cols)
+        for name in mg_names + mt_names + mp_names:
+            Path(f'{out}/kronas').mkdir(parents=True, exist_ok=True)
             # Draw the taxonomy krona plot
-            report.groupby(taxonomy_columns)[mg_name].sum().reset_index()[[mg_name] + taxonomy_columns].to_csv(
-                f'{out}/{mg_name}_tax.tsv', sep='\t', index=False, header=False)
-            run_command('ktImportText {0}/{1}_tax.tsv -o {0}/{1}_tax.html'.format(out, mg_name))
+            report.groupby(tax_cols)[name].sum().reset_index()[[name] + tax_cols].to_csv(
+                f'{out}/kronas/{name}_tax.tsv', sep='\t', index=False, header=False)
+            run_command('ktImportText {0}/kronas/{1}_tax.tsv -o {0}/kronas/{1}_tax.html'.format(out, name))
             # Draw the functional krona plot
-            report.groupby(functional_columns)[mg_name].sum().reset_index()[[mg_name] + functional_columns].to_csv(
-                f'{out}/{mg_name}_fun.tsv', sep='\t', index=False, header=False)
-            run_command('ktImportText {0}/{1}_fun.tsv -o {0}/{1}_fun.html'.format(out, mg_name))
+            report.groupby(functional_columns)[name].sum().reset_index()[[name] + functional_columns].to_csv(
+                f'{out}/kronas/{name}_fun.tsv', sep='\t', index=False, header=False)
+            run_command('ktImportText {0}/kronas/{1}_fun.tsv -o {0}/kronas/{1}_fun.html'.format(out, name))
 
 
 def run():
     args = get_arguments()
     exps = pd.read_csv(args.experiments, sep='\t')
-    make_protein_report(args.output, exps),
-    make_entry_report(f"{args.output}/MOSCA_Protein_Report.xlsx", args.output, exps)
+
+    if args.protein_report:
+        make_protein_report(args.output, exps)
+
+    if args.entry_report:
+        make_entry_report(f"{args.output}/MOSCA_Protein_Report.xlsx", args.output, exps)
 
 
 if __name__ == '__main__':
