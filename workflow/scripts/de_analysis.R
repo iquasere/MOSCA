@@ -4,11 +4,7 @@
 
 # problems with libreadline.so.6 might be solved with cd /lib/x86_64-linux-gnu/; sudo ln -s libreadline.so.7.0 libreadline.so.6
 
-packages <- c("optparse", "DESeq2", "pheatmap", "RColorBrewer", "ROTS")
-
-for (package in packages){
-  eval(bquote(library(.(package))))
-}
+library("optparse")
 
 option_list <- list(
   make_option(c("-r", "--counts"), type="character", default=NULL, metavar="character",
@@ -21,7 +17,7 @@ option_list <- list(
   make_option(c("-o", "--output"), type="character", default=NULL, help="Output directory", metavar="character"),
   make_option(c("-f", "--foldchange"), type="numeric", default=2,
               help="Minimum fold change for two-tailed hypothesis of differential expression significance"),
-  make_option(c("-d", "--data-type"), type="character", default="rna_seq", metavar="character",
+  make_option(c("-d", "--datatype"), type="character", default="rna_seq", metavar="character",
               help="Data type [rna_seq/proteomics]"),
   make_option("--fdr", type="numeric", default=0.05, help="False discovery rate for differential analysis"))
 
@@ -40,7 +36,10 @@ total <- read.table(opt$counts, h=T, row.names=1, sep = '\t')
 conditions <- factor(opt$conditions)
 
 # RNA-Seq differential analysis
-if(opt$data_type == "rna_seq") {
+if(opt$datatype == "rna_seq") {
+  for (package in c("DESeq2", "pheatmap", "RColorBrewer")){
+    eval(bquote(library(.(package))))
+  }
   total <- total[ rowSums(total) > 1, ]
   cd <- data.frame(opt$conditions)
   colnames(cd)[1] <- "condition"
@@ -93,7 +92,8 @@ if(opt$data_type == "rna_seq") {
   dev.off()
 
 # Proteomics differential analysis
-} else if(opt$data_type == "proteomics") {
+} else if(opt$datatype == "proteomics") {
+  library("ROTS")
   # Reproducibility-Optimized Test Statistics
   de = ROTS(data=total, groups=opt$conditions, progress=TRUE)
 
