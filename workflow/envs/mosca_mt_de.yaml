@@ -1,4 +1,4 @@
-name: mosca_mt_de
+name: my_env
 channels:
   - bioconda
   - conda-forge

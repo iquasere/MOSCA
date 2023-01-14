@@ -20,21 +20,17 @@ opt = parse_args(opt_parser);
 print("Reading data to normalize.")
 df <- read.table(opt$counts, header=TRUE, sep="\t", row.names=1)
 
-if (opt$method == "auto") {
-
-}
-
 # TMM or RLE normalization -> for RNA-Seq
 if(opt$method == "TMM" || opt$method == "RLE") {
   print(paste("Performing", if (opt$method == "TMM") {"Trimmed Mean of M-values" } else {"Relative Log Expression"},
               "normalization.", sep=' '))
   library("edgeR")
+  df[is.na(df)] <- 0
   # Remove
   factors = calcNormFactors(df, method = opt$method)
-  write.table(normalization_factors, file = paste0(dirname(opt$counts), "/norm_factors.txt"), sep='\n',
+  write.table(factors, file = paste0(dirname(opt$counts), "/norm_factors.txt"), sep='\n',
               row.names = FALSE, col.names = FALSE)
   df[,1:ncol(df)] <- mapply("*", df[,1:ncol(df)], factors)
-  colnames(df) <- ids
 
 # Variance Stabilizing Normalization -> for proteomics
 } else if(opt$method == "VSN") {

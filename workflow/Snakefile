@@ -1,7 +1,6 @@
 import pathlib
 import pandas as pd
 import sys
-import subprocess
 import os
 
 SCRIPTS_DIR = sys.path[0]
@@ -48,12 +47,7 @@ def all_input(wildcards):
             f"{OUTPUT}/MOSCA_results.zip",
             f"{OUTPUT}/KEGG_maps/KEGGCharter_results.tsv"] +
             (expand("{output}/Binning/{sample}/checkm.tsv", output=OUTPUT, sample=set(EXPS['Sample'])) if
-                config['do_binning'] else []) +
-            expand("{output}/Annotation/{sample}/reCOGnizer_results.xlsx", output=OUTPUT,
-                sample=set(EXPS['Sample'])) +
-            (expand("{output}/Metaproteomics/{sample}/mp_quantification.tsv", output=OUTPUT,
-                sample=set(mp_exps['Sample'])) if len(mp_exps) > 0 else [])
-        )
+                config['do_binning'] else []))
     else:
         return f"{OUTPUT}/MOSCA_Entry_Counts_Report.xlsx"
 
@@ -265,8 +259,7 @@ rule quantification:
         expand("{output}/Assembly/{sample}/contigs.fasta", output=OUTPUT, sample=set(EXPS["Sample"])),
         expand("{output}/Annotation/{sample}/fgs.ffn", output=OUTPUT, sample=set(EXPS["Sample"]))
     output:
-        expand("{output}/Quantification/{sample}_mg.readcounts", output=OUTPUT, sample=set(mg_exps['Sample'])),
-        expand("{output}/Quantification/{sample}_mt.readcounts", output=OUTPUT, sample=set(mt_exps['Sample']))
+        expand("{output}/Quantification/{name}.readcounts", output=OUTPUT, name=set(mt_exps['Name']))
     threads:
         config["threads"]
     conda:
@@ -376,21 +369,6 @@ rule entry_count:
         result[['Entry'] + names].to_csv(f"{OUTPUT}/Quantification/expression_matrix.tsv",
                                          sep='\t', index=False)
 '''
-
-rule mp_differential_expression:
-    input:
-        "{output}/Metaproteomics/{sample}/spectracounts.tsv"
-    output:
-        "{output}/Metaproteomics/{sample}/mp_quantification.tsv"
-    threads:
-        1
-    params:
-        conditions=','.join(EXPS[EXPS['Data type'] == 'protein']['Condition'].tolist())
-    conda:
-        "envs/mosca_mp_de.yaml"
-    shell:
-        "Rscript {SCRIPTS_DIR}/proteomics_postprocessing.R -m {input} "
-        "-o {wildcards.output}/Metaproteomics/{wildcards.sample} -c {params.conditions}"
 
 rule de_analysis:
     input:

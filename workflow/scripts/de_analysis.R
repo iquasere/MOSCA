@@ -40,6 +40,7 @@ if(opt$datatype == "rna_seq") {
   for (package in c("DESeq2", "pheatmap", "RColorBrewer")){
     eval(bquote(library(.(package))))
   }
+  total[is.na(total)] <- 0
   total <- total[ rowSums(total) > 1, ]
   cd <- data.frame(opt$conditions)
   colnames(cd)[1] <- "condition"
@@ -49,7 +50,8 @@ if(opt$datatype == "rna_seq") {
   dds <- DESeq(dds)
   res <- results(dds, lfcThreshold = log2(opt$foldchange))
   data <- counts(estimateSizeFactors(dds), normalized=TRUE)
-  write.table(data, file=paste(file=opt$output, "normalized_counts.tsv", sep = '/'), sep='\t', col.names = NA, quote=FALSE)
+  write.table(data, file=paste(file=opt$output, "normalized_counts.tsv", sep = '/'),
+              sep='\t', col.names = NA, quote=FALSE)
 
   # Bland–Altman plot
   jpeg(paste(opt$output, "ma.jpeg", sep = '/'))
