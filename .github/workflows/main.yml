@@ -75,4 +75,4 @@ jobs:
       #  run: docker run mosca /bin/bash -c "mosca.py -c MOSCARDO/configs/mt_config.json"
 
       - name: MGMP workflow
-        run: docker run mosca /bin/bash -c "mosca.py -c MOSCARDO/configs/mgmp_config.json"
+        run: docker run mosca /bin/bash -v named_volume:/data -c "mosca.py -c MOSCARDO/configs/mgmp_config.json"
