@@ -128,9 +128,9 @@ class MetaproteomicsAnalyser:
         """
         folder, filename = os.path.split(file)
         Path('named_volume').mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(f'{folder}/{filename}', f'/data/{filename}')
+        shutil.copyfile(f'{folder}/{filename}', f'named_volume/{filename}')
         run_pipe_command(
-            f'docker run --rm -e WINEDEBUG=-all -v named_volume:/data '
+            f'docker run --rm -e WINEDEBUG=-all -v /data:/data '
             f'chambm/pwiz-skyline-i-agree-to-the-vendor-licenses wine msconvert /data/{filename} --mgf '
             f'--filter "peakPicking cwt"')
         shutil.copyfile(
@@ -146,12 +146,12 @@ class MetaproteomicsAnalyser:
         """
         already_mgfs, files2convert = [], []
         for file in glob(f'{folder}/*'):
-            if os.path.isfile(file):
+            if os.path.isfile(file):        # could be a folder
                 if file.endswith('.mgf'):
                     already_mgfs.append(file)
                 # elif file with termination replaced by mgf exists, skip
                 elif os.path.isfile(f'{out_dir}/{".".join(file.split(".")[:-1])}.mgf'):
-                    already_mgfs.append(f'{out_dir}/{".".join(file.split(".")[:-1])}.mgf')
+                    continue
                 else:
                     files2convert.append(file)
         if len(files2convert) > 0:

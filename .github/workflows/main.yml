@@ -69,13 +69,10 @@ jobs:
       #    mosca.py -c MOSCARDO/configs/mg_only_config.json"
 
       - name: MGMT workflow
-        run: >
-          docker run mosca /bin/bash -c "mosca.py -c MOSCARDO/configs/mgmt_config.json; rm -r output"
+        run: docker run mosca /bin/bash -c "mosca.py -c MOSCARDO/configs/mgmt_config.json; rm -r output"
 
       #- name: MT only workflow
-      #  run: >
-      #    docker run mosca /bin/bash -c "mosca.py -c MOSCARDO/configs/mt_config.json"
+      #  run: docker run mosca /bin/bash -c "mosca.py -c MOSCARDO/configs/mt_config.json"
 
       - name: MGMP workflow
-        run: >
-          docker run mosca /bin/bash -c "mosca.py -c MOSCARDO/configs/mgmp_config.json"
+        run: docker run mosca /bin/bash -c "mosca.py -c MOSCARDO/configs/mgmp_config.json"
