@@ -70,7 +70,7 @@ jobs:
 
       - name: MGMT workflow
         run: >
-          docker run mosca /bin/bash -c "mosca.py -c MOSCARDO/configs/mgmt_config.json"
+          docker run mosca /bin/bash -c "mosca.py -c MOSCARDO/configs/mgmt_config.json; rm -r output"
 
       #- name: MT only workflow
       #  run: >
