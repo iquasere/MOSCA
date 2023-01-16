@@ -33,6 +33,8 @@ jobs:
           file: ./Dockerfile_CI
           tags: mosca:latest
           outputs: type=docker,dest=/tmp/mosca.tar
+          volumes:
+            - named_volume:${{ github.workspace }}/data
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2
@@ -65,7 +67,7 @@ jobs:
         run: docker volume create named_volume
 
       - name: MGMP workflow
-        run: docker run mosca /bin/bash --mount type=volume,source=named_volume,destination=/data -c "mosca.py -c MOSCARDO/configs/mgmp_config.json"
+        run: docker run mosca /bin/bash -v named_volume:/data -c "mosca.py -c MOSCARDO/configs/mgmp_config.json"
 
       #- name: MG only workflow
       #  run: >
