@@ -61,6 +61,9 @@ jobs:
       - name: Check base entrypoint
         run: docker run mosca /bin/bash -c "ls"
 
+      - name: MGMP workflow
+        run: docker run mosca /bin/bash -v named_volume:/data -c "mosca.py -c MOSCARDO/configs/mgmp_config.json"
+
       #- name: MG only workflow
       #  run: >
       #    docker run mosca /bin/bash -c "mkdir resources_directory; mv MOSCARDO/data/cdd.tar.gz resources_directory;
@@ -74,7 +77,4 @@ jobs:
       #- name: MT only workflow
       #  run: docker run mosca /bin/bash -c "mosca.py -c MOSCARDO/configs/mt_config.json"
 
-      - name: MGMP workflow
-        run: > 
-          docker volume create named_volume;
-          docker run mosca /bin/bash -v named_volume:/data -c "mosca.py -c MOSCARDO/configs/mgmp_config.json"
+
