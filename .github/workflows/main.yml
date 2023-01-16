@@ -33,8 +33,9 @@ jobs:
           file: ./Dockerfile_CI
           tags: mosca:latest
           outputs: type=docker,dest=/tmp/mosca.tar
-          volumes:
-            - named_volume:${{ github.workspace }}/data
+
+      - name: Create named volume
+        run: docker volume create named_volume
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2
