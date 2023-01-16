@@ -67,10 +67,15 @@ jobs:
       - name: Create named volume
         run: docker volume create named_volume
 
-      - name: MGMP workflow
+      - name: test_docker
         run: >
           docker run -v named_volume:/data -v /var/run/docker.sock:/var/run/docker.sock mosca /bin/bash 
-          -c "mosca.py -c MOSCARDO/configs/mgmp_config.json"
+          -c 'cp MOSCARDO/input/mp1/mp1.RAW named_volume/mp1.RAW; docker run --rm -e WINEDEBUG=-all -v named_volume:/data chambm/pwiz-skyline-i-agree-to-the-vendor-licenses wine msconvert /data/mp1.RAW --mgf --filter "peakPicking cwt"; ls /data'
+
+      #- name: MGMP workflow
+      #  run: >
+      #    docker run -v named_volume:/data -v /var/run/docker.sock:/var/run/docker.sock mosca /bin/bash
+      #    -c "mosca.py -c MOSCARDO/configs/mgmp_config.json; rm -r output"
 
       #- name: MG only workflow
       #  run: >
@@ -79,8 +84,8 @@ jobs:
       #    cp MOSCARDO/data/mg_R2.fastq.gz MOSCARDO/data/mg_R2_001.fastq.gz;
       #    mosca.py -c MOSCARDO/configs/mg_only_config.json"
 
-      - name: MGMT workflow
-        run: docker run mosca /bin/bash -c "mosca.py -c MOSCARDO/configs/mgmt_config.json; rm -r output"
+      #- name: MGMT workflow
+      #  run: docker run mosca /bin/bash -c "mosca.py -c MOSCARDO/configs/mgmt_config.json"
 
       #- name: MT only workflow
       #  run: docker run mosca /bin/bash -c "mosca.py -c MOSCARDO/configs/mt_config.json"
