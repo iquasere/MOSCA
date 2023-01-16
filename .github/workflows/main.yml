@@ -70,7 +70,7 @@ jobs:
       - name: test_docker
         run: >
           docker run -v named_volume:/data -v /var/run/docker.sock:/var/run/docker.sock mosca /bin/bash 
-          -c 'cp MOSCARDO/input/mp1/mp1.RAW named_volume/mp1.RAW; docker run --rm -e WINEDEBUG=-all -v named_volume:/data chambm/pwiz-skyline-i-agree-to-the-vendor-licenses wine msconvert /data/mp1.RAW --mgf --filter "peakPicking cwt"; ls /data'
+          -c 'cp MOSCARDO/input/mp1/mp1.RAW data/mp1.RAW; docker run --rm -e WINEDEBUG=-all -v named_volume:/data chambm/pwiz-skyline-i-agree-to-the-vendor-licenses wine msconvert /data/mp1.RAW --mgf --filter "peakPicking cwt"; ls /data'
 
       #- name: MGMP workflow
       #  run: >
