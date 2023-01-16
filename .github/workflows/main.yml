@@ -68,7 +68,9 @@ jobs:
         run: docker volume create named_volume
 
       - name: MGMP workflow
-        run: docker run -v named_volume:/data mosca /bin/bash -c "mosca.py -c MOSCARDO/configs/mgmp_config.json"
+        run: >
+          docker run -v named_volume:/data -v /var/run/docker.sock:/var/run/docker.sock mosca /bin/bash 
+          -c "mosca.py -c MOSCARDO/configs/mgmp_config.json"
 
       #- name: MG only workflow
       #  run: >

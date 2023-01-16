@@ -59,9 +59,6 @@ config, config_format = read_config(args.configfile)
 pathlib.Path(config["output"]).mkdir(parents=True, exist_ok=True)
 save_config(config, f'{config["output"]}/config.json', output_format=config_format)
 
-with open(pathlib.Path(sys.path[0], "resources", "logo.txt")) as f:
-    print(f.read())
-
 snakemake.main(
     f"-s {args.snakefile} --printshellcmds --cores {config['threads']} --configfile {args.configfile} "
     f"--use-conda {' --unlock' if args.unlock else ''}")
