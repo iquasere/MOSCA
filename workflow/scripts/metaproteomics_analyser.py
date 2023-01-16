@@ -127,7 +127,7 @@ class MetaproteomicsAnalyser:
         :return:
         """
         folder, filename = os.path.split(file)
-        Path('named_volume').mkdir(parents=True, exist_ok=True)
+        Path('named_volume').mkdir(parents=True, exist_ok=True)     # if not in a docker run with -v named_volume:/data
         shutil.copyfile(f'{folder}/{filename}', f'named_volume/{filename}')
         run_pipe_command(
             f'docker run --rm -e WINEDEBUG=-all -v named_volume:/data '
