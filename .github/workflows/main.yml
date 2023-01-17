@@ -68,7 +68,7 @@ jobs:
         run: docker volume create named_volume
 
       - name: MGMT workflow
-        run: docker run mosca /bin/bash -c "mosca.py -c MOSCARDO/configs/mgmt_config.json"
+        run: docker run mosca /bin/bash -c "mosca.py -c MOSCARDO/configs/mgmt_config.json; rm -r output"
 
       - name: test_docker
         run: >
@@ -78,7 +78,7 @@ jobs:
       - name: MGMP workflow
         run: >
           docker run -v named_volume:/data -v /var/run/docker.sock:/var/run/docker.sock mosca /bin/bash
-          -c "mosca.py -c MOSCARDO/configs/mgmp_config.json; rm -r output"
+          -c "mosca.py -c MOSCARDO/configs/mgmp_config.json"
 
       #- name: MG only workflow
       #  run: >
