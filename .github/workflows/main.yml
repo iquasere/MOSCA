@@ -67,6 +67,9 @@ jobs:
       - name: Create named volume
         run: docker volume create named_volume
 
+      - name: MGMT workflow
+        run: docker run mosca /bin/bash -c "mosca.py -c MOSCARDO/configs/mgmt_config.json"
+
       - name: test_docker
         run: >
           docker run -v named_volume:/data -v /var/run/docker.sock:/var/run/docker.sock mosca /bin/bash 
@@ -84,10 +87,5 @@ jobs:
       #    cp MOSCARDO/data/mg_R2.fastq.gz MOSCARDO/data/mg_R2_001.fastq.gz;
       #    mosca.py -c MOSCARDO/configs/mg_only_config.json"
 
-      - name: MGMT workflow
-        run: docker run mosca /bin/bash -c "mosca.py -c MOSCARDO/configs/mgmt_config.json"
-
       #- name: MT only workflow
       #  run: docker run mosca /bin/bash -c "mosca.py -c MOSCARDO/configs/mt_config.json"
-
-
