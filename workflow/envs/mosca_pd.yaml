@@ -1,4 +1,0 @@
-name: my_env
-channels:
-  - defaults
-prefix: /opt/conda/envs/my_env
