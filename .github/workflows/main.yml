@@ -2,9 +2,13 @@ name: CI
 
 on:
   push:
-    branches: [ development ]
+    branches:
+      - development
+      - master
   pull_request:
-    branches: [ development ]
+    branches:
+      - development
+      - master
 
 
   # Allows you to run this workflow manually from the Actions tab
