@@ -7,7 +7,7 @@ rule metaproteomics:
     threads:
         config["threads"]
     params:
-        output = lambda wildcards: f'{OUTPUT}/Binning/{wildcards.sample}',
+        output = lambda wildcards: f'{OUTPUT}/Metaproteomics/{wildcards.sample}',
         mg_db = lambda wildcards: f'{OUTPUT}/Annotation/{wildcards.sample}/fgs.faa',
         up_res = lambda wildcards: f'{OUTPUT}/Annotation/{wildcards.sample}/UPIMAPI_results.tsv',
         folders = lambda wildcards: ','.join(mp_exps[mp_exps['Sample'] == wildcards.sample]['Files'].tolist()),
