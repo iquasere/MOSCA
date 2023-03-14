@@ -6,7 +6,7 @@ print("Reading data to normalize.")
 df <- read.table(snakemake@input[[1]], header=TRUE, sep="\t", row.names=1)
 
 # TMM or RLE normalization -> for RNA-Seq
-if(snakemake@params$method == "TMM" || snakemake@params$method == "RLE") {
+if (snakemake@params$method == "TMM" || snakemake@params$method == "RLE") {
   print(paste(
     "Performing", if (snakemake@params$method == "TMM") {"Trimmed Mean of M-values" } else {"Relative Log Expression"},
     "normalization.", sep=' '))

@@ -3,6 +3,7 @@
 # Sep 2017
 
 # problems with libreadline.so.6 might be solved with cd /lib/x86_64-linux-gnu/; sudo ln -s libreadline.so.7.0 libreadline.so.6
+method = 'differential'   # TODO - think about reintegrating the method by baseMean
 
 paste("Counts:", snakemake@input[[1]], sep=' ')
 paste("Conditions:", snakemake@params$conditions, sep=' ')
@@ -13,13 +14,13 @@ paste("Minimum fold change:", snakemake@params$foldchange, sep=' ')
 # Input parsing
 conditions <- strsplit(snakemake@params$conditions, ",")[[1]]
 total <- read.table(snakemake@input[[1]], h=T, row.names=1, sep = '\t')
-conditions <- factor(snakemake@params$conditions)
 
 # RNA-Seq differential analysis
 if(snakemake@params$datatype == "rna_seq") {
   for (package in c("DESeq2", "pheatmap", "RColorBrewer")){
     eval(bquote(library(.(package))))
   }
+  conditions <- factor(snakemake@params$conditions)
   total[is.na(total)] <- 0
   total <- total[ rowSums(total) > 1, ]
   cd <- data.frame(conditions)
@@ -44,7 +45,7 @@ if(snakemake@params$datatype == "rna_seq") {
   dev.off()
 
   # Protein expressions differential analysis
-  if(identical(snakemake@params$method, "differential")) {
+  if(identical(method, "differential")) {
     resOrdered <- res[order(res$padj),]
   } else {
     resOrdered <- res[order(-res$baseMean),]}
@@ -77,7 +78,7 @@ if(snakemake@params$datatype == "rna_seq") {
 } else if(snakemake@params$datatype == "proteomics") {
   library("ROTS")
   # Reproducibility-Optimized Test Statistics
-  de = ROTS(data=total, groups=snakemake@params$conditions, progress=TRUE)
+  de = ROTS(data=total, groups=conditions, progress=TRUE)
 
   de_results <- cbind(de$logfc, de$pvalue)
   colnames(de_results) <- c("log2FoldChange", "pvalue")

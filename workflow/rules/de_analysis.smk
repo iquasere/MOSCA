@@ -18,5 +18,5 @@ rule de_analysis:
         datatype = (lambda wildcards, input: "rna_seq" if "Quantification" in input[0] else "proteomics")
     conda:
         "../envs/de_analysis.yaml"
-    shell:
+    script:
         "../scripts/de_analysis.R"
