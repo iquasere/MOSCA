@@ -3,7 +3,7 @@
 # Jan 2019
 
 print("Reading data to normalize.")
-df <- read.table(snakemake@input, header=TRUE, sep="\t", row.names=1)
+df <- read.table(snakemake@input[[1]], header=TRUE, sep="\t", row.names=1)
 
 # TMM or RLE normalization -> for RNA-Seq
 if(snakemake@params$method == "TMM" || snakemake@params$method == "RLE") {
@@ -14,7 +14,7 @@ if(snakemake@params$method == "TMM" || snakemake@params$method == "RLE") {
   df[is.na(df)] <- 0
   # Remove
   factors = calcNormFactors(df, method = snakemake@params$method)
-  write.table(factors, file = paste0(dirname(snakemake@input), "/norm_factors.txt"), sep='\n',
+  write.table(factors, file = paste0(dirname(snakemake@output[[1]]), "/norm_factors.txt"), sep='\n',
               row.names = FALSE, col.names = FALSE)
   df[,1:ncol(df)] <- mapply("*", df[,1:ncol(df)], factors)
 
@@ -39,4 +39,4 @@ if(snakemake@params$method == "TMM" || snakemake@params$method == "RLE") {
 }
 
 print('Writting normalized results.')
-write.table(df, file=snakemake@output, sep = "\t", row.names = TRUE,  col.names = TRUE)
+write.table(df, file=snakemake@output[[1]], sep = "\t", row.names = TRUE,  col.names = TRUE)

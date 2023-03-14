@@ -4,7 +4,7 @@
 
 # problems with libreadline.so.6 might be solved with cd /lib/x86_64-linux-gnu/; sudo ln -s libreadline.so.7.0 libreadline.so.6
 
-paste("Counts:", snakemake@input, sep=' ')
+paste("Counts:", snakemake@input[[1]], sep=' ')
 paste("Conditions:", snakemake@params$conditions, sep=' ')
 paste("Method:", snakemake@params$method, sep=' ')
 paste("Output:", snakemake@params$output, sep=' ')
@@ -12,7 +12,7 @@ paste("Minimum fold change:", snakemake@params$foldchange, sep=' ')
 
 # Input parsing
 conditions <- strsplit(snakemake@params$conditions, ",")[[1]]
-total <- read.table(snakemake@input, h=T, row.names=1, sep = '\t')
+total <- read.table(snakemake@input[[1]], h=T, row.names=1, sep = '\t')
 conditions <- factor(snakemake@params$conditions)
 
 # RNA-Seq differential analysis
