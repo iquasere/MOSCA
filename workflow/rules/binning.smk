@@ -1,5 +1,3 @@
-include: "common.smk"
-
 rule binning:
     input:
         reads = expand("{output}/Preprocess/{{sample}}{fr}.fastq", output=OUTPUT,
@@ -16,5 +14,5 @@ rule binning:
     conda:
         "../envs/binning.yaml"
     shell:
-        "python {SCRIPTS_DIR}/binning.py -c {input.contigs} -t {threads} -o {OUTPUT}/Binning/{wildcards.sample} "
+        "python ../scripts/binning.py -c {input.contigs} -t {threads} -o {OUTPUT}/Binning/{wildcards.sample} "
         "-r {params.reads} -mset {params.markerset}{params.iterative_binning}"

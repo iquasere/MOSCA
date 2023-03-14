@@ -1,5 +1,3 @@
-include: "common.smk"
-
 rule quantification:
     input:
         expand("{output}/Preprocess/Trimmomatic/quality_trimmed_{name}{fr}.fq", output=OUTPUT, name=not_mp_exps["Name"],
@@ -13,4 +11,4 @@ rule quantification:
     conda:
         "../envs/quantification.yaml"
     shell:
-        "python {SCRIPTS_DIR}/quantification.py -o {OUTPUT} -e {OUTPUT}/exps.tsv -t {threads}"
+        "python ../scripts/quantification.py -o {OUTPUT} -e {OUTPUT}/exps.tsv -t {threads}"

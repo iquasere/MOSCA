@@ -1,3 +1,18 @@
+#!/bin/bash
+
+usage() {
+  cat <<EOF
+Usage: $(basename "$0") [-h] [--conda_dir DIR] [--mosca_env ENV]
+
+Sets up MOSCA in a Conda environment.
+
+Optional arguments:
+  -h, --help            Show this help message and exit
+  --conda_dir DIR       Specify the path to the Conda installation directory. Default is $(conda info --base)
+  --mosca_env ENV       Specify the name of the Conda environment to install MOSCA in. Default is mosca in the base environment.
+EOF
+}
+
 # Set default values for conda_dir and mosca_dir
 conda_dir=$(conda info --base)
 mosca_env="${conda_dir}/envs/mosca"

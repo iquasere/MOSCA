@@ -1,4 +1,6 @@
-include: "common.smk"
+import os
+
+SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 
 rule entry_report:
     input:
@@ -8,8 +10,8 @@ rule entry_report:
     output:
         f"{OUTPUT}/MOSCA_Entry_Report.xlsx"
     threads:
-        1
+        config["threads"]
     conda:
         "../envs/reports.yaml"
     shell:
-        "python {SCRIPTS_DIR}/main_reports.py -o {OUTPUT} -e {OUTPUT}/exps.tsv --entry-report"
+        "python ../scripts/main_reports.py -o {OUTPUT} -e {OUTPUT}/exps.tsv --entry-report"

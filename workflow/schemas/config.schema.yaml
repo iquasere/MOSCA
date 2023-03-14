@@ -1,0 +1,155 @@
+$schema: "http://json-schema.org/draft-06/schema#"
+
+description: MOSCA configuration file
+
+type: object
+
+version:
+  type: string
+
+output:
+  type: string
+
+resources_directory:
+  type: string
+
+threads:
+  type: integer
+
+experiments:
+  type: array
+  items:
+    type: object
+    properties:
+      Files:
+        type: string
+      Sample:
+        type: string
+      "Data type":
+        type: string
+        enum: [dna, mrna, protein]
+      Condition:
+        type: string
+      Name:
+        type: string
+    required: [Files, Sample, "Data type"]
+  minItems: 1
+
+minimum_read_length:
+  type: integer
+
+minimum_read_average_quality:
+  type: integer
+
+do_assembly:
+  type: boolean
+
+max_memory:
+  type: integer
+
+assembler:
+  type: string
+
+error_model:
+  type: string
+
+markerset:
+  type: string
+
+do_binning:
+  type: boolean
+
+do_iterative_binning:
+  type: boolean
+
+split_gene_calling:
+  type: integer
+
+upimapi_database:
+  type: string
+
+upimapi_max_target_seqs:
+  type: integer
+
+upimapi_taxids:
+  type: string
+
+upimapi_check_db:
+  type: boolean
+
+uniprot_columns:
+  type: array
+
+download_cdd_resources:
+  type: boolean
+
+recognizer_databases:
+  type: array
+
+normalization_method:
+  type: string
+
+minimum_differential_expression:
+  type: number
+
+use_crap:
+  type: boolean
+
+proteomics_contaminants_database:
+  type: string
+
+reference_proteomes_taxa_level:
+  type: string
+
+protease:
+  type: string
+
+protease_file:
+  type: string
+
+false_discovery_rate:
+  type: number
+
+keggcharter_taxa_level:
+  type: string
+
+keggcharter_number_of_taxa:
+  type: integer
+
+keggcharter_maps:
+  type: array
+
+required:
+  - version
+  - output
+  - resources_directory
+  - threads
+  - experiments
+  - minimum_read_length
+  - minimum_read_average_quality
+  - do_assembly
+  - max_memory
+  - assembler
+  - error_model
+  - markerset
+  - do_binning
+  - do_iterative_binning
+  - split_gene_calling
+  - upimapi_database
+  - upimapi_max_target_seqs
+  - upimapi_taxids
+  - upimapi_check_db
+  - uniprot_columns
+  - download_cdd_resources
+  - recognizer_databases
+  - normalization_method
+  - minimum_differential_expression
+  - use_crap
+  - proteomics_contaminants_database
+  - reference_proteomes_taxa_level
+  - protease
+  - protease_file
+  - false_discovery_rate
+  - keggcharter_taxa_level
+  - keggcharter_number_of_taxa
+  - keggcharter_maps

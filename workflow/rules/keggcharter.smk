@@ -1,5 +1,3 @@
-include: "common.smk"
-
 rule keggcharter:
     input:
         f"{OUTPUT}/MOSCA_Entry_Report.xlsx"

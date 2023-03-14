@@ -1,5 +1,3 @@
-include: "common.smk"
-
 rule preprocess:
     input:
         lambda wildcards: EXPS.loc[EXPS['Name'] == wildcards.name, 'Files'].iloc[0].split(',')
@@ -17,6 +15,6 @@ rule preprocess:
     conda:
         "../envs/preprocess.yaml"
     shell:
-        "python {SCRIPTS_DIR}/preprocess.py -i {params.reads} -t {threads} -o {OUTPUT}/Preprocess "
+        "python ../scripts/preprocess.py -i {params.reads} -t {threads} -o {OUTPUT}/Preprocess "
         "-d {params.data_type} -rd {params.resources_directory} -n {wildcards.name} --minlen {params.minlen} "
         "--avgqual {params.avgqual}"

@@ -1,5 +1,3 @@
-include: "common.smk"
-
 rule de_analysis:
     input:
         expand("{output}/Quantification/{sample}/mt.readcounts", output=OUTPUT, sample=set(mt_exps['Sample'])),
@@ -21,6 +19,6 @@ rule de_analysis:
     conda:
         "../envs/de_analysis.yaml"
     shell:
-        "Rscript {SCRIPTS_DIR}/de_analysis.R --counts {input} --conditions {params.conditions} "
+        "Rscript ../scripts/de_analysis.R --counts {input} --conditions {params.conditions} "
         "--output {params.out_dir} --foldchange {params.minimum_fold_change} "
         "--fdr {params.fdr} --datatype {params.type_of_data}"

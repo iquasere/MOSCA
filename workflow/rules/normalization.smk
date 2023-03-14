@@ -1,5 +1,3 @@
-include: "common.smk"
-
 rule normalization:
     input:
         expand("{output}/Quantification/{sample}/mt.readcounts", output=OUTPUT, sample=set(mt_exps['Sample'])),
@@ -14,4 +12,4 @@ rule normalization:
     conda:
         "../envs/normalization.yaml"
     shell:
-        "Rscript {SCRIPTS_DIR}/normalization.R -c {input} -m {params.nm} -o {output}"
+        "Rscript ../scripts/normalization.R -c {input} -m {params.nm} -o {output}"

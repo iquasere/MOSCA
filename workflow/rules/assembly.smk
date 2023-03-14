@@ -1,5 +1,3 @@
-include: "common.smk"
-
 rule join_reads:
     input:
         join_reads_input
@@ -39,5 +37,5 @@ rule assembly:
     conda:
         "../envs/assembly.yaml"
     shell:
-        "python {SCRIPTS_DIR}/assembly.py -r {params.reads} -t {threads} -a {params.assembler} -m {params.max_memory} "
+        "python ../scripts/assembly.py -r {params.reads} -t {threads} -a {params.assembler} -m {params.max_memory} "
         "-o {OUTPUT}/Assembly/{wildcards.sample}"

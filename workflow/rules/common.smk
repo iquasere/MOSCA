@@ -12,7 +12,7 @@ SCRIPTS_DIR = sys.path[0]
 OUTPUT = config["output"]
 EXPS = pd.DataFrame(config["experiments"])
 
-with open(pathlib.Path(SCRIPTS_DIR, "resources", "logo.txt")) as f:
+with open(pathlib.Path(SCRIPTS_DIR, "../../resources", "logo.txt")) as f:
     print(f.read())
 
 def set_name(files, data_type):

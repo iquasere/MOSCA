@@ -1,5 +1,3 @@
-include: "common.smk"
-
 rule protein_report:
     input:
         expand("{output}/Annotation/{sample}/UPIMAPI_results.tsv", output=OUTPUT, sample=set(EXPS['Sample'])),
@@ -15,4 +13,4 @@ rule protein_report:
     conda:
         "../envs/reports.yaml"
     shell:
-        "python {SCRIPTS_DIR}/main_reports.py -o {OUTPUT} -e {OUTPUT}/exps.tsv --protein-report"
+        "python ../scripts/main_reports.py -o {OUTPUT} -e {OUTPUT}/exps.tsv --protein-report"

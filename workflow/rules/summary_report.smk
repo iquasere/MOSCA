@@ -1,5 +1,3 @@
-include: "common.smk"
-
 rule summary_report:
     input:
         f"{OUTPUT}/MOSCA_Protein_Report.xlsx",
@@ -17,4 +15,4 @@ rule summary_report:
     conda:
         "../envs/summary.yaml"
     shell:
-        "python {SCRIPTS_DIR}/summary_report.py -o {OUTPUT}"
+        "python ../scripts/summary_report.py -o {OUTPUT}"

@@ -1,5 +1,3 @@
-include: "common.smk"
-
 rule metaproteomics:
     input:
         [directory(folder) for folder in mp_exps[mp_exps['Sample'] == (lambda wildcards: wildcards.sample)]['Files']],
@@ -18,7 +16,7 @@ rule metaproteomics:
     conda:
         "../envs/metaproteomics.yaml"
     shell:
-        "python {SCRIPTS_DIR}/metaproteomics_analyser.py -sf {params.folders} -ns {params.names} -t {threads} "
+        "python ../scripts/metaproteomics_analyser.py -sf {params.folders} -ns {params.names} -t {threads} "
         "-o {OUTPUT}/Metaproteomics/{wildcards.sample} -db {OUTPUT}/Annotation/{wildcards.sample}/fgs.faa "
         "-cdb {params.contaminants_database} --protease {params.protease} "
         "-ur {OUTPUT}/Annotation/{wildcards.sample}/UPIMAPI_results.tsv -mmem {params.max_memory} "

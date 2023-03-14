@@ -1,3 +1,7 @@
+# This Dockerfile should only be used for testing purposes
+# It differs from the main Dockerfile by including the download of MOSCARDO's files to be run with MOSCA
+# Also includes the creation of a named_volume automatically, neccessary for MP spectra conversion
+
 FROM continuumio/miniconda3
 
 VOLUME ["named_volume"]

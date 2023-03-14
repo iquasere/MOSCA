@@ -1,5 +1,3 @@
-include: "common.smk"
-
 rule recognizer:
     input:
         orfs = expand("{output}/Annotation/{{sample}}/fgs.faa", output=OUTPUT),

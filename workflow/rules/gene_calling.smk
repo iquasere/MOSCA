@@ -1,5 +1,3 @@
-include: "common.smk"
-
 rule fastq2fasta:
     input:
         fastq2fasta_input

@@ -1,5 +1,3 @@
-include: "common.smk"
-
 rule split_gene_calling:
     input:
         expand("{output}/Annotation/{{sample}}/fgs.faa", output=OUTPUT)
