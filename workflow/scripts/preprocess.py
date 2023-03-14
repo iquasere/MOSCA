@@ -257,7 +257,7 @@ class Preprocesser:
 
         self.quality_trimming(
             reads, snakemake.params.output, name, threads=snakemake.threads, avgqual=snakemake.params.avgqual,
-            minlen=snakemake.params.minlen, type_of_data=snakemake.params.data)
+            minlen=snakemake.params.minlen, type_of_data=snakemake.params.data_type)
 
         reads = ([f'{snakemake.params.output}/Trimmomatic/quality_trimmed_{name}_{fr}_paired.fq'
                   for fr in ['forward', 'reverse']]
