@@ -36,6 +36,5 @@ rule assembly:
         max_memory = config["max_memory"]
     conda:
         "../envs/assembly.yaml"
-    shell:
-        "python ../scripts/assembly.py -r {params.reads} -t {threads} -a {params.assembler} -m {params.max_memory} "
-        "-o {OUTPUT}/Assembly/{wildcards.sample}"
+    script:
+        "../scripts/assembly.py"

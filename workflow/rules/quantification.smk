@@ -8,6 +8,9 @@ rule quantification:
         expand("{output}/Quantification/{name}.readcounts", output=OUTPUT, name=set(mt_exps['Name']))
     threads:
         config["threads"]
+    params:
+        output = OUTPUT,
+        exps = f"{OUTPUT}/exps.tsv"
     conda:
         "../envs/quantification.yaml"
     shell:

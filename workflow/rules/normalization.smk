@@ -11,5 +11,5 @@ rule normalization:
         nm = config["normalization_method"]
     conda:
         "../envs/normalization.yaml"
-    shell:
-        "Rscript ../scripts/normalization.R -c {input} -m {params.nm} -o {output}"
+    script:
+        "../scripts/normalization.R"

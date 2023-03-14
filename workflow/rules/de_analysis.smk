@@ -12,13 +12,11 @@ rule de_analysis:
     params:
         conditions = (lambda wildcards, input: ",".join(not_mg_exps[not_mg_exps['Sample'] == os.path.basename(
             os.path.dirname(input[0]))]['Condition'].tolist())),
-        minimum_fold_change=config["minimum_differential_expression"],
+        foldchange=config["minimum_differential_expression"],
         fdr=config["false_discovery_rate"],
-        out_dir = (lambda wildcards, input: os.path.dirname(input[0])),
-        type_of_data = (lambda wildcards, input: "rna_seq" if "Quantification" in input[0] else "proteomics")
+        output = (lambda wildcards, input: os.path.dirname(input[0])),
+        datatype = (lambda wildcards, input: "rna_seq" if "Quantification" in input[0] else "proteomics")
     conda:
         "../envs/de_analysis.yaml"
     shell:
-        "Rscript ../scripts/de_analysis.R --counts {input} --conditions {params.conditions} "
-        "--output {params.out_dir} --foldchange {params.minimum_fold_change} "
-        "--fdr {params.fdr} --datatype {params.type_of_data}"
+        "../scripts/de_analysis.R"

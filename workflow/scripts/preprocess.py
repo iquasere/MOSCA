@@ -203,68 +203,69 @@ class Preprocesser:
             print(f'Removed intermediate file: {file}')
 
     def run(self):
-        args = self.get_arguments()
+        reads = snakemake.params.reads.split(',')
         for directory in \
-                [f'{args.output}/{f}' for f in ['FastQC', 'Trimmomatic', 'SortMeRNA']] + \
-                [f'{args.resources_directory}{f}' for f in ['/adapters', '/rRNA_databases']]:
+                [f'{snakemake.params.output}/{f}' for f in ['FastQC', 'Trimmomatic', 'SortMeRNA']] + \
+                [f'{snakemake.params.resources_directory}{f}' for f in ['/adapters', '/rRNA_databases']]:
             pathlib.Path(directory).mkdir(parents=True, exist_ok=True)
-        if args.name is None:
-            name = fastqc_name(args.input[0].split('/')[-1])
+        if snakemake.params.name is None:
+            name = fastqc_name(reads[0].split('/')[-1])
             if '_R' in name:
                 name = name.split('_R')[0]
         else:
-            name = args.name
-        self.paired = len(args.input) > 1
+            name = snakemake.params.name
+        self.paired = len(reads) > 1
 
         # First quality check
-        self.run_fastqc(args.input, f'{args.output}/FastQC', threads=args.threads)
+        self.run_fastqc(reads, f'{snakemake.params.output}/FastQC', threads=snakemake.threads)
 
-        self.download_resources(args.resources_directory)
+        self.download_resources(snakemake.params.resources_directory)
 
-        adapters_dir, rrna_databases_dir = [f'{args.resources_directory}/{f}' for f in ['adapters', 'rRNA_databases']]
+        adapters_dir, rrna_databases_dir = [
+            f'{snakemake.params.resources_directory}/{f}' for f in ['adapters', 'rRNA_databases']]
 
         # Adapter removal
         adapters = self.select_adapters(glob(f'{adapters_dir}/*.fa*'), paired=self.paired)
         print('Available adapter files:\n{}'.format('\n'.join(adapters)))
 
-        adapter_result = self.remove_adapters(args.input, args.output, name, adapters, threads=args.threads)
+        adapter_result = self.remove_adapters(reads, snakemake.params.output, name, adapters, threads=snakemake.threads)
 
         print(f'adapter result:{adapter_result}')
-        with open(f'{args.output}/Trimmomatic/{name}_adapters.txt', 'w') as f:
+        with open(f'{snakemake.params.output}/Trimmomatic/{name}_adapters.txt', 'w') as f:
             f.write(adapter_result)
         if adapter_result not in ['None', 'Failed']:
             adapter_part = adapter_result.split('/')[-1].split('.fa')[0]
             if self.paired:
-                args.input = [
-                    f'{args.output}/Trimmomatic/noadapters_{name}_{adapter_part}_{fr}_paired.fq'
-                    for fr in ['forward', 'reverse']]
+                reads = [f'{snakemake.params.output}/Trimmomatic/noadapters_{name}_{adapter_part}_{fr}_paired.fq'
+                         for fr in ['forward', 'reverse']]
             else:
-                args.input = [f'{args.output}/Trimmomatic/noadapters_{name}_{adapter_part}.fq']
+                reads = [f'{snakemake.params.output}/Trimmomatic/noadapters_{name}_{adapter_part}.fq']
 
         # self.host_sequences_removal()
 
         # rRNA removal
-        if args.data == 'mrna':
+        if snakemake.params.data == 'mrna':
             rrna_databases = glob(f'{rrna_databases_dir}/*.fa*')
             self.rrna_removal(
-                args.input, f'{args.output}/SortMeRNA', name, rrna_databases, rrna_databases_dir,
-                tmp_dir=args.temporary_directory, threads=args.threads)
+                reads, f'{snakemake.params.output}/SortMeRNA', name, rrna_databases, rrna_databases_dir,
+                tmp_dir=snakemake.params.temporary_directory, threads=snakemake.threads)
 
-            args.input = ([f'{args.output}/SortMeRNA/norrna_{name}_{fr}.fq.gz' for fr in ['fwd', 'rev']] if
-                          self.paired else [f'{args.output}/SortMeRNA/norrna_{name}.fq.gz'])
+            reads = ([f'{snakemake.params.output}/SortMeRNA/norrna_{name}_{fr}.fq.gz' for fr in ['fwd', 'rev']] if
+                     self.paired else [f'{snakemake.params.output}/SortMeRNA/norrna_{name}.fq.gz'])
 
-        self.run_fastqc(args.input, f'{args.output}/FastQC', threads=args.threads)
+        self.run_fastqc(reads, f'{snakemake.params.output}/FastQC', threads=snakemake.threads)
 
-        self.quality_trimming(args.input, args.output, name, threads=args.threads, avgqual=args.avgqual,
-                              minlen=args.minlen, type_of_data=args.data)
+        self.quality_trimming(
+            reads, snakemake.params.output, name, threads=snakemake.threads, avgqual=snakemake.params.avgqual,
+            minlen=snakemake.params.minlen, type_of_data=snakemake.params.data)
 
-        args.input = ([
-            f'{args.output}/Trimmomatic/quality_trimmed_{name}_{fr}_paired.fq' for fr in ['forward', 'reverse']]
-            if self.paired else [f'{args.output}/Trimmomatic/quality_trimmed_{name}.fq'])
+        reads = ([f'{snakemake.params.output}/Trimmomatic/quality_trimmed_{name}_{fr}_paired.fq'
+                  for fr in ['forward', 'reverse']]
+                 if self.paired else [f'{snakemake.params.output}/Trimmomatic/quality_trimmed_{name}.fq'])
 
-        self.run_fastqc(args.input, f'{args.output}/FastQC', threads=args.threads)
+        self.run_fastqc(reads, f'{snakemake.params.output}/FastQC', threads=snakemake.threads)
 
-        self.remove_intermediates(args.output)
+        self.remove_intermediates(snakemake.params.output)
 
 
 if __name__ == '__main__':

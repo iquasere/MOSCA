@@ -2,38 +2,24 @@
 # By João Sequeira
 # Jan 2019
 
-library("optparse")
-
-option_list = list(
-    make_option(c("-c", "--counts"), type="character", default=NULL,
-                help="Table with abundance information.", metavar="character"),
-    make_option(c("-m", "--method"), type="character", default="auto",
-                help="Normalization method to apply (TMM, RLE or VSN). If 'auto', will determine from filename",
-                metavar="character"),
-      make_option(c("-o", "--output"), type="character", default=NULL,
-              help="Output filename of normalized counts.", metavar="character")
-);
- 
-opt_parser = OptionParser(option_list=option_list);
-opt = parse_args(opt_parser);
-
 print("Reading data to normalize.")
-df <- read.table(opt$counts, header=TRUE, sep="\t", row.names=1)
+df <- read.table(snakemake@input, header=TRUE, sep="\t", row.names=1)
 
 # TMM or RLE normalization -> for RNA-Seq
-if(opt$method == "TMM" || opt$method == "RLE") {
-  print(paste("Performing", if (opt$method == "TMM") {"Trimmed Mean of M-values" } else {"Relative Log Expression"},
-              "normalization.", sep=' '))
+if(snakemake@params$method == "TMM" || snakemake@params$method == "RLE") {
+  print(paste(
+    "Performing", if (snakemake@params$method == "TMM") {"Trimmed Mean of M-values" } else {"Relative Log Expression"},
+    "normalization.", sep=' '))
   library("edgeR")
   df[is.na(df)] <- 0
   # Remove
-  factors = calcNormFactors(df, method = opt$method)
-  write.table(factors, file = paste0(dirname(opt$counts), "/norm_factors.txt"), sep='\n',
+  factors = calcNormFactors(df, method = snakemake@params$method)
+  write.table(factors, file = paste0(dirname(snakemake@input), "/norm_factors.txt"), sep='\n',
               row.names = FALSE, col.names = FALSE)
   df[,1:ncol(df)] <- mapply("*", df[,1:ncol(df)], factors)
 
 # Variance Stabilizing Normalization -> for proteomics
-} else if(opt$method == "VSN") {
+} else if(snakemake@params$method == "VSN") {
   df = as.matrix(df)              # ExpressionSet requires a matrix
   print("Performing Variance Stabilizing Normalization.")
   library("vsn")          # justvsn
@@ -53,4 +39,4 @@ if(opt$method == "TMM" || opt$method == "RLE") {
 }
 
 print('Writting normalized results.')
-write.table(df, file=opt$output, sep = "\t", row.names = TRUE,  col.names = TRUE)
+write.table(df, file=snakemake@output, sep = "\t", row.names = TRUE,  col.names = TRUE)

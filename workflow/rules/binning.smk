@@ -8,11 +8,11 @@ rule binning:
     threads:
         config["threads"]
     params:
+        output = lambda wildcards: f'{OUTPUT}/Binning/{wildcards.sample}',
         markerset = config["markerset"],
-        iterative_binning = ' --iterative' if config['do_iterative_binning'] else '',
+        iterative = config['do_iterative_binning'],
         reads = lambda wildcards, input: input.reads[0] if len(input.reads) == 1 else ",".join(input.reads)
     conda:
         "../envs/binning.yaml"
-    shell:
-        "python ../scripts/binning.py -c {input.contigs} -t {threads} -o {OUTPUT}/Binning/{wildcards.sample} "
-        "-r {params.reads} -mset {params.markerset}{params.iterative_binning}"
+    script:
+        "../scripts/binning.py"

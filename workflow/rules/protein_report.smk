@@ -10,7 +10,11 @@ rule protein_report:
         expand("{output}/Metaproteomics/{sample}/mp.spectracounts", output=OUTPUT, sample=set(mp_exps['Sample']))
     threads:
         1
+    params:
+        output = OUTPUT,
+        exps = f"{OUTPUT}/exps.tsv",
+        report = 'protein'
     conda:
         "../envs/reports.yaml"
     shell:
-        "python ../scripts/main_reports.py -o {OUTPUT} -e {OUTPUT}/exps.tsv --protein-report"
+        "../scripts/main_reports.py"

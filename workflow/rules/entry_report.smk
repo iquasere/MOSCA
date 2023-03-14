@@ -1,7 +1,3 @@
-import os
-
-SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
-
 rule entry_report:
     input:
         f"{OUTPUT}/MOSCA_Protein_Report.xlsx",
@@ -13,5 +9,9 @@ rule entry_report:
         config["threads"]
     conda:
         "../envs/reports.yaml"
-    shell:
-        "python ../scripts/main_reports.py -o {OUTPUT} -e {OUTPUT}/exps.tsv --entry-report"
+    params:
+        output = OUTPUT,
+        exps = f"{OUTPUT}/exps.tsv",
+        report = 'entry'
+    script:
+        "../scripts/main_reports.py"

@@ -130,25 +130,23 @@ class Reporter:
                     archive.write(file, arcname=f'{k}/{prefix}{file.split("/")[-1]}')
 
     def run(self):
-        args = self.get_arguments()
-
         timed_message('Writting final reports.')
 
-        self.write_technical_report(f'{args.output}/technical_report.tsv')
+        self.write_technical_report(f'{snakemake.params.output}/technical_report.tsv')
 
         self.report = pd.DataFrame(columns=[
             'Initial reads', 'Qual trim params', 'Final reads', '# contigs', 'N50', 'Reads aligned (%)',
             '# high-quality MAGs', '# medium-quality MAGs', '# low-quality MAGs', '# genes',
             '# annotations (UPIMAPI)', '# annotations (reCOGnizer)', '# differentially expressed'])
-        self.info_from_preprocessing(args.output)
-        self.info_from_assembly(args.output)
-        self.info_from_binning(args.output)
-        self.info_from_annotation(args.output)
-        self.info_from_mt_quantification(args.output)
-        self.info_from_differential_expression(args.output)
-        self.report.dropna(how='all', axis=1).to_csv(f'{args.output}/MOSCA_General_Report.tsv', sep='\t')
+        self.info_from_preprocessing(snakemake.params.output)
+        self.info_from_assembly(snakemake.params.output)
+        self.info_from_binning(snakemake.params.output)
+        self.info_from_annotation(snakemake.params.output)
+        self.info_from_mt_quantification(snakemake.params.output)
+        self.info_from_differential_expression(snakemake.params.output)
+        self.report.dropna(how='all', axis=1).to_csv(f'{snakemake.params.output}/MOSCA_General_Report.tsv', sep='\t')
 
-        self.zip_outputs(args.output)
+        self.zip_outputs(snakemake.params.output)
 
 
 if __name__ == '__main__':

@@ -7,6 +7,8 @@ rule preprocess:
     threads:
         config["threads"]
     params:
+        output = f'{OUTPUT}/Preprocess',
+        name = lambda wildcards: wildcards.name,
         reads = lambda wildcards: EXPS.loc[EXPS['Name'] == wildcards.name, 'Files'].iloc[0],
         resources_directory = config["resources_directory"],
         data_type = lambda wildcards: EXPS.loc[EXPS['Name'] == wildcards.name, 'Data type'].iloc[0],
@@ -14,7 +16,5 @@ rule preprocess:
         avgqual = config["minimum_read_average_quality"]
     conda:
         "../envs/preprocess.yaml"
-    shell:
-        "python ../scripts/preprocess.py -i {params.reads} -t {threads} -o {OUTPUT}/Preprocess "
-        "-d {params.data_type} -rd {params.resources_directory} -n {wildcards.name} --minlen {params.minlen} "
-        "--avgqual {params.avgqual}"
+    script:
+        "../scripts/preprocess.py"

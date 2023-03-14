@@ -12,7 +12,9 @@ rule summary_report:
         f"{OUTPUT}/MOSCA_results.zip"
     threads:
         1
+    params:
+        output=OUTPUT,
     conda:
         "../envs/summary.yaml"
     shell:
-        "python ../scripts/summary_report.py -o {OUTPUT}"
+        "../scripts/summary_report.py"

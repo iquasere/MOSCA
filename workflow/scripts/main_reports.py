@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 MOSCA's script for producing Protein and Entry reports
 
@@ -9,23 +8,9 @@ Dec 2022
 
 from pathlib import Path
 from tqdm import tqdm
-import argparse
 import pandas as pd
 import numpy as np
 from mosca_tools import run_command, timed_message, multi_sheet_excel, blast_cols
-
-
-def get_arguments():
-    parser = argparse.ArgumentParser(description="MOSCA main reports")
-
-    parser.add_argument("-o", "--output", help="Output directory (and input!).")
-    parser.add_argument("-e", "--experiments", help="Filename of exps.")
-    parser.add_argument("--protein-report", help="Make protein report.", action='store_true', default=False)
-    parser.add_argument("--entry-report", help="Make entry report.", action='store_true', default=False)
-
-    args = parser.parse_args()
-    args.output = args.output.rstrip('/')
-    return args
 
 
 def make_protein_report(out, exps):
@@ -143,14 +128,12 @@ def make_entry_report(protein_report, out, exps):
 
 
 def run():
-    args = get_arguments()
-    exps = pd.read_csv(args.experiments, sep='\t')
+    exps = pd.read_csv(snakemake.params.exps, sep='\t')
 
-    if args.protein_report:
-        make_protein_report(args.output, exps)
-
-    if args.entry_report:
-        make_entry_report(f"{args.output}/MOSCA_Protein_Report.xlsx", args.output, exps)
+    if snakemake.params.report == 'protein':
+        make_protein_report(snakemake.params.output, exps)
+    elif snakemake.params.report == 'entry':
+        make_entry_report(f"{snakemake.params.output}/MOSCA_Protein_Report.xlsx", snakemake.params.output, exps)
 
 
 if __name__ == '__main__':
