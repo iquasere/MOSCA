@@ -30,6 +30,7 @@ rule assembly:
     threads:
         config["threads"]
     params:
+        output = lambda wildcards: f'{OUTPUT}/Assembly/{wildcards.sample}',
         assembler = config["assembler"],
         reads = ",".join(expand("{output}/Preprocess/{{sample}}{fr}.fastq", output=OUTPUT,
             fr=(['_forward', '_reverse'] if EXPS["Files"].str.contains(',').tolist() else ''))),
