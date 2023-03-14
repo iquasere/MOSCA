@@ -244,7 +244,7 @@ class Preprocesser:
         # self.host_sequences_removal()
 
         # rRNA removal
-        if snakemake.params.data == 'mrna':
+        if snakemake.params.data_type == 'mrna':
             rrna_databases = glob(f'{rrna_databases_dir}/*.fa*')
             self.rrna_removal(
                 reads, f'{snakemake.params.output}/SortMeRNA', name, rrna_databases, rrna_databases_dir,
