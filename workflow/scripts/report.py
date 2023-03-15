@@ -19,13 +19,6 @@ class Reporter:
         self.report = None
         self.__dict__ = kwargs
 
-    def get_arguments(self):
-        parser = argparse.ArgumentParser(description="MOSCA's technical and quality control reports")
-        parser.add_argument("-o", "--output", help="Output directory")
-        args = parser.parse_args()
-        args.output = args.output.rstrip('/')
-        return args
-
     def write_technical_report(self, output):
         """
         Writes the report with the softwares used by MOSCA and respective versions to a file

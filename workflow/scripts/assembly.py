@@ -56,11 +56,11 @@ class Assembler:
         if snakemake.params.assembler != 'trinity':
             self.run_assembler_mg(
                 snakemake.params.reads, snakemake.params.output, snakemake.params.assembler, threads=snakemake.threads,
-                memory=snakemake.params.memory)
+                memory=snakemake.params.max_memory)
         else:
             self.run_assembler_mt(
                 snakemake.params.reads, snakemake.params.output, threads=snakemake.threads,
-                memory=snakemake.params.memory)
+                memory=snakemake.params.max_memory)
         if snakemake.params.assembler == 'megahit':  # all contigs files are outputed the metaspades way
             run_pipe_command(f"awk \'{{print $1}}\' {snakemake.params.output}/final.contigs.fa",
                              # k141_714 flag=1 multi=1.0000 len=369 -> k141_714
@@ -94,7 +94,7 @@ class Assembler:
         if os.path.isfile(f'{snakemake.params.output}/quality_control/combined_reference/report.tsv'):  # if metaquast finds references to contigs, it will output results to different folders
             shutil.copyfile(f'{snakemake.params.output}/quality_control/combined_reference/report.tsv',
                             f'{snakemake.params.output}/quality_control/report.tsv')
-        with open(args.output + '/quality_control/report.tsv', 'a') as f:
+        with open(snakemake.params.output + '/quality_control/report.tsv', 'a') as f:
             f.write(f'Reads aligned (%)\t{percentage_of_reads}\n')
 
 

@@ -102,16 +102,14 @@ class Binner:
             f.write(f'Best probability threshold: {best_bin}')
 
     def run(self):
-        files = snakemake.params.reads.split(',')
-        reads = files[0]
-        if len(files) == 2:
-            reads2 = files[1]
+        reads = snakemake.input.reads[0]
+        reads2 = snakemake.input.reads[1] if len(snakemake.input.reads) > 1 else None
 
         sample = snakemake.params.output.split('/')[-1]
 
         if snakemake.params.iterative:
             self.iterative_binning(
-                args.contigs, snakemake.params.output, threads=snakemake.threads, reads=reads, reads2=reads2,
+                snakemake.input.contigs, snakemake.params.output, threads=snakemake.threads, reads=reads, reads2=reads2,
                 markerset=snakemake.params.markerset)
         else:
             self.run_maxbin(

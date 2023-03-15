@@ -10,8 +10,7 @@ rule binning:
     params:
         output = lambda wildcards: f'{OUTPUT}/Binning/{wildcards.sample}',
         markerset = config["markerset"],
-        iterative = config['do_iterative_binning'],
-        reads = lambda wildcards, input: input.reads[0] if len(input.reads) == 1 else ",".join(input.reads)
+        iterative = config['do_iterative_binning']
     conda:
         "../envs/binning.yaml"
     script:

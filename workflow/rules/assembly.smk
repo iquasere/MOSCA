@@ -32,8 +32,8 @@ rule assembly:
     params:
         output = lambda wildcards: f'{OUTPUT}/Assembly/{wildcards.sample}',
         assembler = config["assembler"],
-        reads = ",".join(expand("{output}/Preprocess/{{sample}}{fr}.fastq", output=OUTPUT,
-            fr=(['_forward', '_reverse'] if EXPS["Files"].str.contains(',').tolist() else ''))),
+        reads = expand("{output}/Preprocess/{{sample}}{fr}.fastq", output=OUTPUT,
+            fr=(['_forward', '_reverse'] if EXPS["Files"].str.contains(',').tolist() else '')),
         max_memory = config["max_memory"]
     conda:
         "../envs/assembly.yaml"

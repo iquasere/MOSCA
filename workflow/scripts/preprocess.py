@@ -25,31 +25,6 @@ class Preprocesser:
     def __init__(self, **kwargs):
         self.__dict__ = kwargs
 
-    def get_arguments(self):
-        parser = argparse.ArgumentParser(description="MOSCA preprocessing")
-        parser.add_argument(
-            "-i", "--input", required=True, help="File(s) for preprocessing (comma-separated if two paired-ended)")
-        parser.add_argument(
-            "-t", "--threads", type=int, default=cpu_count() - 2,
-            help="Number of threads to use [available - 2]")
-        parser.add_argument("-d", "--data", choices=["dna", "mrna"])
-        parser.add_argument("-o", "--output", help="Output directory"),
-        parser.add_argument(
-            "-rd", "--resources-directory", required=True,
-            help="Directory with resources for SortMeRNA and Trimmomatic")
-        parser.add_argument(
-            "-tmp", "--temporary-directory", default='mosca_pp_tmp',
-            help="Directory to store temporary outputs. Will be deleted at workflow end.")
-        parser.add_argument(
-            "-n", "--name", help="Name attributed to the data inputted. Will be added to basename of output files")
-        parser.add_argument("--minlen", default=100, help='Minimum length of reads to keep')
-        parser.add_argument("--avgqual", default=20, help='Average quality of reads to keep')
-
-        args = parser.parse_args()
-        args.output = args.output.rstrip('/')
-        args.input = args.input.split(',')
-        return args
-
     def run_fastqc(self, files, out_dir, extract=True, threads='12'):
         run_command(
             f"fastqc --outdir {out_dir} --threads {threads}{' --extract ' if extract else ' '}{' '.join(files)}")
