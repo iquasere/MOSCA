@@ -38,11 +38,14 @@ class MetaproteomicsAnalyser:
         return res.content.decode('utf8')
 
     def add_reference_proteomes(self, upimapi_res, output):
-        taxids = pd.read_csv(
-            upimapi_res, sep='\t')['Taxonomic lineage IDs (SPECIES)'].dropna().unique().astype(int).tolist()
+        taxids = pd.read_csv(upimapi_res, sep='\t', low_memory=False)[
+            'Taxonomic lineage IDs (SPECIES)'].dropna().unique().astype(int).tolist()
         with open(output, 'w') as f:
             for taxid in tqdm(taxids, desc=f'Retrieving reference proteomes for {len(taxids)} taxa from UniProt'):
-                f.write(self.get_proteome_uniprot(taxid))
+                try:
+                    f.write(self.get_proteome_uniprot(taxid))
+                except UnboundLocalError as e:
+                    print(f'Failed to retrieve proteome for taxid {taxid}. Skipping.')
 
     def database_generation(
             self, mg_orfs, output, upimapi_res, contaminants_database=None, protease='Trypsin', threads=1):
@@ -280,6 +283,8 @@ class MetaproteomicsAnalyser:
             output=f'{output}/2nd_search_database.fasta')
 
     def run(self):
+        Path(snakemake.params.output).mkdir(parents=True, exist_ok=True)
+        '''
         # 1st database construction
         self.database_generation(
             snakemake.params.mg_db, snakemake.params.output, snakemake.params.up_res,
@@ -292,7 +297,7 @@ class MetaproteomicsAnalyser:
             self.generate_parameters_file(f'{snakemake.params.output}/1st_params.par', protein_fdr=100)
         except:
             print('An illegal reflective access operation has occurred. But MOSCA can handle it.')
-        
+        '''
         # 2nd database construction
         proteins_for_second_search = []
         for i in range(len(snakemake.params.names)):
