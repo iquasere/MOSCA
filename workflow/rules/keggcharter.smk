@@ -16,6 +16,6 @@ rule keggcharter:
     conda:
         "../envs/keggcharter.yaml"
     shell:
-        "keggcharter.py -f {input} -o {params.outdir} -gcol {params.mg_cols}{params.exp_cols} "
+        "keggcharter -f {input} -o {params.outdir} -gcol {params.mg_cols}{params.exp_cols} "
         "-tc 'Taxonomic lineage ({params.taxa_level})' -not {params.number_of_taxa} -keggc KEGG "
         "-rd {params.resources_directory}{params.metabolic_maps}"

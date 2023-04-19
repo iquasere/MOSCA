@@ -184,7 +184,7 @@ class MetaproteomicsAnalyser:
             a "searchgui_out.zip" file will be created in the output folder
         """
         run_command(
-            f"searchgui eu.isas.searchgui.cmd.SearchCLI -Xmx{max_memory}M -spectrum_files {spectra_folder} "
+            f"searchgui eu.isas.searchgui.cmd.SearchCLI -Xmx{max_memory}G -spectrum_files {spectra_folder} "
             f"-output_folder {output} -id_params {parameters_file} -threads {threads} -fasta_file {database} "
             f"{' '.join([f'-{engine} 1' for engine in search_engines])}")
 
@@ -206,7 +206,7 @@ class MetaproteomicsAnalyser:
         """
         try:
             run_command(
-                f'peptide-shaker -Xmx{max_memory}M eu.isas.peptideshaker.cmd.PeptideShakerCLI -spectrum_files '
+                f'peptide-shaker -Xmx{max_memory}G eu.isas.peptideshaker.cmd.PeptideShakerCLI -spectrum_files '
                 f'{spectra_folder} -reference {name} -identification_files {searchcli_output} '
                 f'-out {output} -fasta_file {database} -id_params {parameters_file}')
         except:
@@ -226,7 +226,7 @@ class MetaproteomicsAnalyser:
         print(f'Created {reports_folder}')
         Path(reports_folder).mkdir(parents=True, exist_ok=True)  # creates folder for reports
         run_command(
-            f"peptide-shaker -Xmx{max_memory}M eu.isas.peptideshaker.cmd.ReportCLI -in {peptideshaker_output} "
+            f"peptide-shaker -Xmx{max_memory}G eu.isas.peptideshaker.cmd.ReportCLI -in {peptideshaker_output} "
             f"-out_reports {reports_folder} -reports {','.join(reports)}")
 
     def join_ps_reports(self, files, local_fdr=None, validation=False):
@@ -284,7 +284,6 @@ class MetaproteomicsAnalyser:
 
     def run(self):
         Path(snakemake.params.output).mkdir(parents=True, exist_ok=True)
-        '''
         # 1st database construction
         self.database_generation(
             snakemake.params.mg_db, snakemake.params.output, snakemake.params.up_res,
@@ -297,7 +296,6 @@ class MetaproteomicsAnalyser:
             self.generate_parameters_file(f'{snakemake.params.output}/1st_params.par', protein_fdr=100)
         except:
             print('An illegal reflective access operation has occurred. But MOSCA can handle it.')
-        '''
         # 2nd database construction
         proteins_for_second_search = []
         for i in range(len(snakemake.params.names)):

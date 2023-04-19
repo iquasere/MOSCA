@@ -29,7 +29,7 @@ dependencies:
   - gettext=0.21.1=h27087fc_0
   - icu=70.1=h27087fc_0
   - jpeg=9e=h166bdaf_2
-  - keggcharter=0.4.1=hdfd78af_0
+  - keggcharter>=0.5
   - keyutils=1.6.1=h166bdaf_0
   - krb5=1.20.1=h81ceb04_0
   - lcms2=2.14=hfd0df8a_1

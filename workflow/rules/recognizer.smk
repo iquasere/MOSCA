@@ -13,7 +13,7 @@ rule recognizer:
     conda:
         "../envs/recognizer.yaml"
     shell:
-        "recognizer.py -f {input.orfs} -t {threads} -o {OUTPUT}/Annotation/{wildcards.sample} "
+        "recognizer -f {input.orfs} -t {threads} -o {OUTPUT}/Annotation/{wildcards.sample} "
         "-rd {params.resources_directory} -dbs {params.recognizer_databases} -sd "
         #"--tax-file {input.upimapi_results} --protein-id-col Entry --tax-col 'Organism (ID)' --species-taxids 
         "--quiet{params.download_cdd_resources}"

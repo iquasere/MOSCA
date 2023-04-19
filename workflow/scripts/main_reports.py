@@ -26,8 +26,8 @@ def make_protein_report(out, exps):
         report = report.groupby('qseqid')[report.columns.tolist()[1:]].first().reset_index()
         report = report[report['DB ID'].str.startswith('COG') == True].rename(columns={'DB ID': 'COG ID'})
         report = pd.merge(
-            pd.read_csv(f'{out}/Annotation/{sample}/UPIMAPI_results.tsv', sep='\t'), report, on='qseqid',
-            how='outer')
+            pd.read_csv(f'{out}/Annotation/{sample}/UPIMAPI_results.tsv', sep='\t', low_memory=False),
+            report, on='qseqid', how='outer')
         for col in report.columns:
             if '.' in col:      # some columns of UPIMAPI are repeated
                 del report[col]
@@ -40,28 +40,26 @@ def make_protein_report(out, exps):
         mp_names = exps[(exps['Sample'] == sample) & (exps['Data type'] == 'protein')]['Name'].tolist()
         for mg_name in mg_names:
             readcounts = pd.read_csv(
-                f'{out}/Quantification/{mg_name}.readcounts', sep='\t', header=None,
-                names=['Contig', mg_name])
+                f'{out}/Quantification/{mg_name}.readcounts', sep='\t', header=None, names=['Contig', mg_name])
             readcounts['Contig'] = readcounts['Contig'].apply(lambda x: x.split('_')[1])
             report = pd.merge(report, readcounts, on='Contig', how='left')
         for mt_name in mt_names:
-            readcounts = pd.read_csv(f'{out}/Quantification/{mt_name}.readcounts', sep='\t', header=None,
-                                     names=['qseqid', mt_name])
+            readcounts = pd.read_csv(
+                f'{out}/Quantification/{mt_name}.readcounts', sep='\t', header=None, names=['qseqid', mt_name])
             report = pd.merge(report, readcounts, on='qseqid', how='left')
         if len(mt_names) > 0:
             report[['qseqid'] + mt_names].to_csv(f'{out}/Quantification/{sample}/mt.readcounts', sep='\t', index=False)
             print('Wrote MT readcounts.')
-        for mp_name in mp_names:
-            spectracounts = pd.read_csv(
-                f'{out}/Metaproteomics/{sample}/{mp_name}/2nd_search/reports/{mp_name}_Default_Protein_Report.txt',
-                sep='\t', usecols=['Main Accession', '#Validated PSMs'])
-            spectracounts.columns = ['qseqid', mp_name]
-            spectracounts = spectracounts.groupby('qseqid')[mp_name].sum().reset_index()
-            report = pd.merge(report, spectracounts, on='qseqid', how='left')
         if len(mp_names) > 0:
+            spectracounts = pd.read_csv(f'{out}/Metaproteomics/{sample}/spectracounts.tsv', sep='\t')
+            print(report.head())
+            spectracounts.rename(columns={'Main Accession': 'qseqid'}, inplace=True)
+            print(spectracounts.head())
+            report = pd.merge(report, spectracounts, on='qseqid', how='left')
             report[['qseqid'] + mp_names][report[mp_names].isnull().sum(
                 axis=1) < len(mp_names)].drop_duplicates().to_csv(
                 f'{out}/Metaproteomics/{sample}/mp.spectracounts', sep='\t', index=False)
+            print(report.head())
             print('Wrote MP spectracounts.')
         report[mg_names + mt_names + mp_names] = report[mg_names + mt_names + mp_names].fillna(value=0).astype(int)
         multi_sheet_excel(f'{out}/MOSCA_Protein_Report.xlsx', report, sheet_name=sample)

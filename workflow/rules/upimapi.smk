@@ -29,7 +29,7 @@ rule upimapi:
     conda:
         "../envs/upimapi.yaml"
     shell:
-        'upimapi.py -i {input} -t {threads} -o {OUTPUT}/Annotation/{wildcards.sample}/{wildcards.part} '
+        'upimapi -i {input} -t {threads} -o {OUTPUT}/Annotation/{wildcards.sample}/{wildcards.part} '
         '-rd {params.rd} -db {params.upimapi_database} -mts {params.max_target_seqs}{params.taxids} '
         '-cols "{params.cols}"{params.check_db}'
 

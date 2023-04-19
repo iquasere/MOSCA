@@ -191,7 +191,7 @@ def multi_sheet_excel(output, data, sheet_name='Sheet', lines=1000000, index=Fal
         for i in range(0, len(data), lines):
             j = min(i + lines, len(data))
             data.iloc[i:(i + lines)].to_excel(writer, sheet_name=f'{sheet_name} ({j})', index=index)
-    writer.save()
+    writer.close()
 
 
 def timed_message(message=None):

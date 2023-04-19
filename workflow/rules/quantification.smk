@@ -5,7 +5,7 @@ rule quantification:
         expand("{output}/Assembly/{sample}/contigs.fasta", output=OUTPUT, sample=set(EXPS["Sample"])),
         expand("{output}/Annotation/{sample}/fgs.ffn", output=OUTPUT, sample=set(EXPS["Sample"]))
     output:
-        expand("{output}/Quantification/{name}.readcounts", output=OUTPUT, name=set(mt_exps['Name']))
+        expand("{output}/Quantification/{name}.readcounts", output=OUTPUT, name=set(not_mp_exps['Name']))
     threads:
         config["threads"]
     params:
@@ -13,5 +13,5 @@ rule quantification:
         exps = f"{OUTPUT}/exps.tsv"
     conda:
         "../envs/quantification.yaml"
-    shell:
-        "python ../scripts/quantification.py -o {OUTPUT} -e {OUTPUT}/exps.tsv -t {threads}"
+    script:
+        "../scripts/quantification.py"

@@ -2,7 +2,7 @@ rule protein_report:
     input:
         expand("{output}/Annotation/{sample}/UPIMAPI_results.tsv", output=OUTPUT, sample=set(EXPS['Sample'])),
         expand("{output}/Annotation/{sample}/reCOGnizer_results.xlsx", output=OUTPUT, sample=set(EXPS["Sample"])),
-        expand("{output}/Quantification/{name}.readcounts", output=OUTPUT, name=set(mt_exps['Name'])),
+        expand("{output}/Quantification/{name}.readcounts", output=OUTPUT, name=set(not_mp_exps['Name'])),
         expand("{output}/Metaproteomics/{sample}/spectracounts.tsv", output=OUTPUT, sample=set(mp_exps['Sample']))
     output:
         f"{OUTPUT}/MOSCA_Protein_Report.xlsx",
@@ -16,5 +16,5 @@ rule protein_report:
         report = 'protein'
     conda:
         "../envs/reports.yaml"
-    shell:
+    script:
         "../scripts/main_reports.py"

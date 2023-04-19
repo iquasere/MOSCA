@@ -16,5 +16,5 @@ rule summary_report:
         output=OUTPUT,
     conda:
         "../envs/summary.yaml"
-    shell:
+    script:
         "../scripts/summary_report.py"
