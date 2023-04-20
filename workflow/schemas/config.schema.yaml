@@ -92,6 +92,9 @@ normalization_method:
 minimum_differential_expression:
   type: number
 
+metaproteomics_add_reference_proteomes:
+  type: boolean
+
 use_crap:
   type: boolean
 
