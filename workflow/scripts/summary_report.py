@@ -7,7 +7,6 @@ By João Sequeira
 Oct 2019
 """
 
-import argparse
 from glob import glob
 import pandas as pd
 from zipfile import ZipFile
@@ -80,11 +79,12 @@ class Reporter:
             self.report['# genes'] = count_on_file('>', file)
         for upi_res in upimapi_res:
             sample = file.split('/')[-2]
-            self.report.loc[sample, '# annotations (UPIMAPI)'] = pd.read_csv(upi_res, sep='\t')['qseqid'].unique().sum()
+            self.report.loc[sample, '# annotations (UPIMAPI)'] = pd.read_csv(
+                upi_res, sep='\t', low_memory=False)['qseqid'].unique().sum()
         for recog_res in recognizer_res:
             sample = file.split('/')[-2]
             self.report.loc[sample, '# annotations (reCOGnizer)'] = pd.read_csv(
-                recog_res, sep='\t')['qseqid'].unique().sum()
+                recog_res, sep='\t', low_memory=False)['qseqid'].unique().sum()
 
     def info_from_mt_quantification(self, out_dir):
         reports = glob(f'{out_dir}/Quantification/*.log')
