@@ -48,7 +48,8 @@ class MetaproteomicsAnalyser:
                     print(f'Failed to retrieve proteome for taxid {taxid}. Skipping.')
 
     def database_generation(
-            self, mg_orfs, output, upimapi_res, contaminants_database=None, protease='Trypsin', threads=1):
+            self, mg_orfs, output, upimapi_res, contaminants_database=None, protease='Trypsin', threads=1,
+            add_reference_proteomes=True):
         """
         Build database from MG analysis
         :param mg_orfs:
@@ -60,7 +61,8 @@ class MetaproteomicsAnalyser:
         """
         print(f'Generating new database in {output}')
         # Get reference proteomes for the various taxa
-        self.add_reference_proteomes(upimapi_res, f'{output}/ref_proteomes.fasta')
+        if add_reference_proteomes:
+            self.add_reference_proteomes(upimapi_res, f'{output}/ref_proteomes.fasta')
         # Add protease
         if protease == 'Trypsin':
             if not os.path.isfile(f'{output}/P00761.fasta'):
@@ -70,7 +72,9 @@ class MetaproteomicsAnalyser:
         else:  # is an inputed file
             if not os.path.isfile(protease):
                 exit(f'Protease file does not exist: {protease}')
-        files = [mg_orfs, f'{output}/ref_proteomes.fasta', protease]
+        files = [mg_orfs, protease]
+        if add_reference_proteomes:
+            files.append(f'{output}/ref_proteomes.fasta')
         if contaminants_database is not None:
             self.verify_crap_db(contaminants_database)
             files.append(contaminants_database)
@@ -85,7 +89,8 @@ class MetaproteomicsAnalyser:
         run_command(
             f'seqkit rmdup -s -i -w 0 -o {output}/1st_search_database.fasta -D {output}/seqkit_duplicated.detail.txt '
             f'-j {threads} {output}/predatabase.fasta')
-        for file in ['database.fasta', 'predatabase.fasta', 'ref_proteomes.fasta']:
+        for file in (
+                ['database.fasta', 'predatabase.fasta'] + ['ref_proteomes.fasta'] if add_reference_proteomes else []):
             os.remove(f'{output}/{file}')
 
     def raw_to_mgf(self, file, out_dir):
@@ -288,7 +293,7 @@ class MetaproteomicsAnalyser:
         self.database_generation(
             snakemake.params.mg_db, snakemake.params.output, snakemake.params.up_res,
             contaminants_database=snakemake.params.contaminants_database,
-            protease=snakemake.params.protease)
+            protease=snakemake.params.protease, add_reference_proteomes=snakemake.params.add_reference_proteomes)
         self.create_decoy_database(f'{snakemake.params.output}/1st_search_database.fasta')
         self.split_database(
             f'{snakemake.params.output}/1st_search_database_concatenated_target_decoy.fasta', n_proteins=5000000)
