@@ -223,7 +223,7 @@ class Preprocesser:
             rrna_databases = glob(f'{rrna_databases_dir}/*.fa*')
             self.rrna_removal(
                 reads, f'{snakemake.params.output}/SortMeRNA', name, rrna_databases, rrna_databases_dir,
-                tmp_dir=snakemake.params.temporary_directory, threads=snakemake.threads)
+                tmp_dir=f'{snakemake.params.output}/SortMeRNA/tmp', threads=snakemake.threads)
 
             reads = ([f'{snakemake.params.output}/SortMeRNA/norrna_{name}_{fr}.fq.gz' for fr in ['fwd', 'rev']] if
                      self.paired else [f'{snakemake.params.output}/SortMeRNA/norrna_{name}.fq.gz'])

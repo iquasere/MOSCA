@@ -10,7 +10,6 @@ on:
       - development
       - master
 
-
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
@@ -72,24 +71,10 @@ jobs:
         run: docker volume create named_volume
 
       - name: MGMT workflow
-        run: docker run mosca /bin/bash -c "mosca.py -c MOSCARDO/configs/mgmt_config.json; rm -r output"
+        # rm -r output prevents overfilling GitHub's storage
+        run: docker run mosca /bin/bash -c "mosca -c MOSCARDO/configs/mgmt_config.json; rm -r output"
 
-      - name: test_docker
+      - name: MGMP workflow
         run: >
-          docker run -v named_volume:/data -v /var/run/docker.sock:/var/run/docker.sock mosca /bin/bash 
-          -c 'cp MOSCARDO/input/mp1/mp1.RAW data/mp1.RAW; docker run --rm -e WINEDEBUG=-all -v named_volume:/data chambm/pwiz-skyline-i-agree-to-the-vendor-licenses wine msconvert /data/mp1.RAW --mgf --filter "peakPicking cwt"; ls /data'
-
-      #- name: MGMP workflow
-      #  run: >
-      #    docker run -v named_volume:/data -v /var/run/docker.sock:/var/run/docker.sock mosca /bin/bash
-      #    -c "mosca.py -c MOSCARDO/configs/mgmp_config.json"
-
-      #- name: MG only workflow
-      #  run: >
-      #    docker run mosca /bin/bash -c "mkdir resources_directory; mv MOSCARDO/data/cdd.tar.gz resources_directory;
-      #    cp MOSCARDO/data/mg_R1.fastq.gz MOSCARDO/data/mg_R1_001.fastq.gz;
-      #    cp MOSCARDO/data/mg_R2.fastq.gz MOSCARDO/data/mg_R2_001.fastq.gz;
-      #    mosca.py -c MOSCARDO/configs/mg_only_config.json"
-
-      #- name: MT only workflow
-      #  run: docker run mosca /bin/bash -c "mosca.py -c MOSCARDO/configs/mt_config.json"
+          docker run -v named_volume:/data -v /var/run/docker.sock:/var/run/docker.sock mosca /bin/bash
+          -c "mosca -c MOSCARDO/configs/mgmp_config.json; rm -r output"
