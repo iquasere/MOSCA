@@ -40,7 +40,7 @@ jobs:
           name: mosca
           path: /tmp/mosca.tar
 
-  mgmt_workflow:
+  mgmt-workflow:
     runs-on: ubuntu-latest
     needs: build
     steps:
@@ -61,7 +61,7 @@ jobs:
       - name: MGMT workflow
         run: docker run mosca /bin/bash -c "mosca -c MOSCARDO/configs/mgmt_config.json"
 
-  mgmp_workflow:
+  mgmp-workflow:
     runs-on: ubuntu-latest
     needs: build
     steps:
@@ -85,4 +85,4 @@ jobs:
       - name: MGMP workflow
         run: >
           docker run -v named_volume:/data -v /var/run/docker.sock:/var/run/docker.sock mosca /bin/bash
-          -c "mosca -c MOSCARDO/configs/mgmp_config.json; rm -r output"
+          -c "mosca -c MOSCARDO/configs/mgmp_config.json; du -sh output/*; df -h"
