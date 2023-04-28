@@ -9,8 +9,6 @@ Nov 2018
 """
 
 from mosca_tools import run_command
-import argparse
-import multiprocessing
 import pandas as pd
 import shutil
 import pathlib
@@ -19,24 +17,6 @@ import pathlib
 class Binner:
     def __init__(self, **kwargs):
         self.__dict__ = kwargs
-
-    def get_arguments(self):
-        parser = argparse.ArgumentParser(description="MOSCA binning")
-
-        parser.add_argument("-c", "--contigs", required=True, help="Filename of contigs")
-        parser.add_argument(
-            "-t", "--threads", default=multiprocessing.cpu_count() - 2, help="Number of threads to use.")
-        parser.add_argument("-o", "--output", help="Output directory")
-        parser.add_argument(
-            "-mset", "--markerset", default='40', choices=['40', '107'],
-            help="Set of marker genes to use (40 - all taxa; 107 - only bacteria)")
-        parser.add_argument("-s", "--sample", default='Sample', help="Name of sample analysed")
-        parser.add_argument("-r", "--reads", help="Filenames of reads")
-        parser.add_argument("-i", "--iterative", action='store_true', default=False, help="Output directory")
-
-        args = parser.parse_args()
-        args.output = args.output.rstrip('/')
-        return args
 
     def run_maxbin(self, contigs, output, threads=8, reads=None, reads2=None, markerset='40', prob_threshold=0.9):
         '''
@@ -71,17 +51,16 @@ class Binner:
             f'checkm lineage_wf -x fasta -r --ali --nt -t {threads} {bins_folder} --reduced_tree '
             f'{bins_folder} --tab_table --file {bins_folder}/checkm.tsv')
 
+    def get_bins_quality(self, table):
+        table = pd.read_csv(table, sep='\t')
+        hq_bins = ((table.Completeness >= 90) & (table.Contamination < 5)).sum()
+        mq_bins = ((table.Completeness < 90) & (table.Completeness >= 50) & (table.Contamination < 10)).sum()
+        lq_bins = ((table.Completeness < 50) & (table.Contamination < 10)).sum()
+        return hq_bins, mq_bins, lq_bins
+
     def better_bin(self, table1, table2):
-        table1 = pd.read_csv(table1, sep='\t')
-        table2 = pd.read_csv(table2, sep='\t')
-
-        hq_bins1 = ((table1.Completeness >= 90) & (table1.Contamination < 5)).sum()
-        mq_bins1 = ((table1.Completeness < 90) & (table1.Completeness >= 50) & (table1.Contamination < 10)).sum()
-        lq_bins1 = ((table1.Completeness < 50) & (table1.Contamination < 10)).sum()
-
-        hq_bins2 = ((table2.Completeness >= 90) & (table2.Contamination < 5)).sum()
-        mq_bins2 = ((table2.Completeness < 90) & (table2.Completeness >= 50) & (table2.Contamination < 10)).sum()
-        lq_bins2 = ((table2.Completeness < 50) & (table2.Contamination < 10)).sum()
+        hq_bins1, mq_bins1, lq_bins1 = self.get_bins_quality(table1)
+        hq_bins2, mq_bins2, lq_bins2 = self.get_bins_quality(table2)
 
         if hq_bins1 > hq_bins2:
             return True
@@ -123,23 +102,20 @@ class Binner:
             f.write(f'Best probability threshold: {best_bin}')
 
     def run(self):
-        args = self.get_arguments()
+        reads = snakemake.input.reads[0]
+        reads2 = snakemake.input.reads[1] if len(snakemake.input.reads) > 1 else None
 
-        files = args.reads.split(',')
-        reads = files[0]
-        if len(files) == 2:
-            reads2 = files[1]
+        sample = snakemake.params.output.split('/')[-1]
 
-        sample = args.output.split('/')[-1]
-
-        if args.iterative:
+        if snakemake.params.iterative:
             self.iterative_binning(
-                args.contigs, args.output, threads=args.threads, reads=reads, reads2=reads2, markerset=args.markerset)
+                snakemake.input.contigs, snakemake.params.output, threads=snakemake.threads, reads=reads, reads2=reads2,
+                markerset=snakemake.params.markerset)
         else:
             self.run_maxbin(
-                args.contigs, f'{args.output}/{sample}', threads=args.threads, reads=reads, reads2=reads2,
-                markerset=args.markerset)
-            self.run_checkm(args.output, threads=args.threads)
+                snakemake.input.contigs, f'{snakemake.params.output}/{sample}', threads=snakemake.threads, reads=reads,
+                reads2=reads2, markerset=snakemake.params.markerset)
+            self.run_checkm(snakemake.params.output, threads=snakemake.threads)
 
 
 if __name__ == '__main__':

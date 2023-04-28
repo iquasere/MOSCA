@@ -12,7 +12,6 @@ import os
 from pathlib import Path
 import shutil
 import pandas as pd
-import argparse
 from tqdm import tqdm
 import requests
 from time import sleep
@@ -23,37 +22,6 @@ class MetaproteomicsAnalyser:
 
     def __init__(self, **kwargs):
         self.__dict__ = kwargs
-
-    def get_arguments(self):
-        parser = argparse.ArgumentParser(description="MOSCA's metaproteomics analysis")
-        parser.add_argument("-sfs", "--spectra-folders", help="List of folders with spectra to be analysed")
-        parser.add_argument("-ns", "--names", help="List of names for datasets")
-        parser.add_argument("-t", "--threads", help="Number of threads to use.")
-        parser.add_argument("-o", "--output", help="Output directory, where results are stored.")
-        parser.add_argument(
-            "-db", "--database", help="Database file (FASTA format) from metagenomics for protein identification")
-        parser.add_argument(
-            "-cdb", "--contaminants-database", default=None,
-            help="Database file (FASTA format) with contaminant sequences")
-        parser.add_argument("-ur", "--upimapi-result", help="Results from UPIMAPI")
-        parser.add_argument(
-            "-bs", "--batch-size", type=int, default=5000, help="How many IDs to submit per request to NCBI")
-        parser.add_argument("-ma", "--max-attempts", default=3, help="Maximum attempts to access NCBI")
-        parser.add_argument("--protease", help="Filename in fasta format of protease sequence", default='Trypsin')
-        parser.add_argument(
-            "-mmem", "--max-memory", type=int, default=4, help="Maximum memory (Gb) to use for Peptide-to-Spectrum matching [4]")
-        parser.add_argument(
-            "-rd", "--resources-directory", default=os.path.expanduser('~/resources'),
-            help="Directory for storing databases and other important files")
-
-        args = parser.parse_args()
-        args.output = args.output.rstrip('/')
-        args.spectra_folders = args.spectra_folders.split(',')
-        args.names = args.names.split(',')
-        if len(args.names) != len(args.spectra_folders):
-            exit('Length of names and spectra_folders must be equal.')
-        args.max_memory *= 1024
-        return args
 
     def get_proteome_uniprot(self, taxid, max_tries=3):
         tries = 0
@@ -70,14 +38,18 @@ class MetaproteomicsAnalyser:
         return res.content.decode('utf8')
 
     def add_reference_proteomes(self, upimapi_res, output):
-        taxids = pd.read_csv(
-            upimapi_res, sep='\t')['Taxonomic lineage IDs (SPECIES)'].dropna().unique().astype(int).tolist()
+        taxids = pd.read_csv(upimapi_res, sep='\t', low_memory=False)[
+            'Taxonomic lineage IDs (SPECIES)'].dropna().unique().astype(int).tolist()
         with open(output, 'w') as f:
             for taxid in tqdm(taxids, desc=f'Retrieving reference proteomes for {len(taxids)} taxa from UniProt'):
-                f.write(self.get_proteome_uniprot(taxid))
+                try:
+                    f.write(self.get_proteome_uniprot(taxid))
+                except UnboundLocalError as e:
+                    print(f'Failed to retrieve proteome for taxid {taxid}. Skipping.')
 
     def database_generation(
-            self, mg_orfs, output, upimapi_res, contaminants_database=None, protease='Trypsin', threads=1):
+            self, mg_orfs, output, upimapi_res, contaminants_database=None, protease='Trypsin', threads=1,
+            add_reference_proteomes=True):
         """
         Build database from MG analysis
         :param mg_orfs:
@@ -89,7 +61,8 @@ class MetaproteomicsAnalyser:
         """
         print(f'Generating new database in {output}')
         # Get reference proteomes for the various taxa
-        self.add_reference_proteomes(upimapi_res, f'{output}/ref_proteomes.fasta')
+        if add_reference_proteomes:
+            self.add_reference_proteomes(upimapi_res, f'{output}/ref_proteomes.fasta')
         # Add protease
         if protease == 'Trypsin':
             if not os.path.isfile(f'{output}/P00761.fasta'):
@@ -99,7 +72,9 @@ class MetaproteomicsAnalyser:
         else:  # is an inputed file
             if not os.path.isfile(protease):
                 exit(f'Protease file does not exist: {protease}')
-        files = [mg_orfs, f'{output}/ref_proteomes.fasta', protease]
+        files = [mg_orfs, protease]
+        if add_reference_proteomes:
+            files.append(f'{output}/ref_proteomes.fasta')
         if contaminants_database is not None:
             self.verify_crap_db(contaminants_database)
             files.append(contaminants_database)
@@ -114,7 +89,8 @@ class MetaproteomicsAnalyser:
         run_command(
             f'seqkit rmdup -s -i -w 0 -o {output}/1st_search_database.fasta -D {output}/seqkit_duplicated.detail.txt '
             f'-j {threads} {output}/predatabase.fasta')
-        for file in ['database.fasta', 'predatabase.fasta', 'ref_proteomes.fasta']:
+        for file in (
+                ['database.fasta', 'predatabase.fasta'] + ['ref_proteomes.fasta'] if add_reference_proteomes else []):
             os.remove(f'{output}/{file}')
 
     def raw_to_mgf(self, file, out_dir):
@@ -213,7 +189,7 @@ class MetaproteomicsAnalyser:
             a "searchgui_out.zip" file will be created in the output folder
         """
         run_command(
-            f"searchgui eu.isas.searchgui.cmd.SearchCLI -Xmx{max_memory}M -spectrum_files {spectra_folder} "
+            f"searchgui eu.isas.searchgui.cmd.SearchCLI -Xmx{max_memory}G -spectrum_files {spectra_folder} "
             f"-output_folder {output} -id_params {parameters_file} -threads {threads} -fasta_file {database} "
             f"{' '.join([f'-{engine} 1' for engine in search_engines])}")
 
@@ -235,7 +211,7 @@ class MetaproteomicsAnalyser:
         """
         try:
             run_command(
-                f'peptide-shaker -Xmx{max_memory}M eu.isas.peptideshaker.cmd.PeptideShakerCLI -spectrum_files '
+                f'peptide-shaker -Xmx{max_memory}G eu.isas.peptideshaker.cmd.PeptideShakerCLI -spectrum_files '
                 f'{spectra_folder} -reference {name} -identification_files {searchcli_output} '
                 f'-out {output} -fasta_file {database} -id_params {parameters_file}')
         except:
@@ -255,7 +231,7 @@ class MetaproteomicsAnalyser:
         print(f'Created {reports_folder}')
         Path(reports_folder).mkdir(parents=True, exist_ok=True)  # creates folder for reports
         run_command(
-            f"peptide-shaker -Xmx{max_memory}M eu.isas.peptideshaker.cmd.ReportCLI -in {peptideshaker_output} "
+            f"peptide-shaker -Xmx{max_memory}G eu.isas.peptideshaker.cmd.ReportCLI -in {peptideshaker_output} "
             f"-out_reports {reports_folder} -reports {','.join(reports)}")
 
     def join_ps_reports(self, files, local_fdr=None, validation=False):
@@ -312,63 +288,65 @@ class MetaproteomicsAnalyser:
             output=f'{output}/2nd_search_database.fasta')
 
     def run(self):
-        args = self.get_arguments()
-        
+        Path(snakemake.params.output).mkdir(parents=True, exist_ok=True)
         # 1st database construction
         self.database_generation(
-            args.database, args.output, args.upimapi_result, contaminants_database=args.contaminants_database,
-            protease=args.protease)
-        self.create_decoy_database(f'{args.output}/1st_search_database.fasta')
-        self.split_database(f'{args.output}/1st_search_database_concatenated_target_decoy.fasta', n_proteins=5000000)
+            snakemake.params.mg_db, snakemake.params.output, snakemake.params.up_res,
+            contaminants_database=snakemake.params.contaminants_database,
+            protease=snakemake.params.protease, add_reference_proteomes=snakemake.params.add_reference_proteomes)
+        self.create_decoy_database(f'{snakemake.params.output}/1st_search_database.fasta')
+        self.split_database(
+            f'{snakemake.params.output}/1st_search_database_concatenated_target_decoy.fasta', n_proteins=5000000)
         try:  # try/except - https://github.com/compomics/searchgui/issues/217
-            self.generate_parameters_file(f'{args.output}/1st_params.par', protein_fdr=100)
+            self.generate_parameters_file(f'{snakemake.params.output}/1st_params.par', protein_fdr=100)
         except:
             print('An illegal reflective access operation has occurred. But MOSCA can handle it.')
-        
         # 2nd database construction
         proteins_for_second_search = []
-        for i in range(len(args.names)):
-            out = f'{args.output}/{args.names[i]}'
+        for i in range(len(snakemake.params.names)):
+            out = f'{snakemake.params.output}/{snakemake.params.names[i]}'
             for foldername in ['spectra', '2nd_search']:
                 Path(f'{out}/{foldername}').mkdir(parents=True, exist_ok=True)
-            self.spectra_in_proper_state(args.spectra_folders[i], f'{out}/spectra/')
+            self.spectra_in_proper_state(snakemake.params.spectra_folders[i], f'{out}/spectra/')
             j = 1
-            for database in sorted(glob(f'{args.output}/1st_search_database_*.part_*.fasta')):
+            for database in sorted(glob(f'{snakemake.params.output}/1st_search_database_*.part_*.fasta')):
                 Path(f'{out}_{j}/1st_search').mkdir(parents=True, exist_ok=True)
                 self.compomics_run(
-                    database, f'{out}_{j}/1st_search', f'{out}/spectra', args.names[i],
-                    f'{args.output}/1st_params.par', threads=args.threads, max_memory=args.max_memory, reports=['4'])
+                    database, f'{out}_{j}/1st_search', f'{out}/spectra', snakemake.params.names[i],
+                    f'{snakemake.params.output}/1st_params.par', threads=snakemake.threads,
+                    max_memory=snakemake.params.max_memory, reports=['4'])
                 df = pd.read_csv(
-                    f'{out}_{j}/1st_search/reports/{args.names[i]}_Default_PSM_Report_with_non-validated_matches.txt',
+                    f'{out}_{j}/1st_search/reports/{snakemake.params.names[i]}_'
+                    f'Default_PSM_Report_with_non-validated_matches.txt',
                     sep='\t', index_col=0)
                 for protein_group in df['Protein(s)'].str.split(','):
                     proteins_for_second_search += protein_group
                 j += 1
-        with open(f'{args.output}/2nd_search_proteins.txt', 'w') as f:
+        with open(f'{snakemake.params.output}/2nd_search_proteins.txt', 'w') as f:
             f.write('\n'.join(set(proteins_for_second_search)))
         run_command(
-            f'seqkit grep -f {args.output}/2nd_search_proteins.txt -o {args.output}/2nd_search_database.fasta '
-            f'{args.output}/1st_search_database.fasta')
+            f'seqkit grep -f {snakemake.params.output}/2nd_search_proteins.txt -o '
+            f'{snakemake.params.output}/2nd_search_database.fasta {snakemake.params.output}/1st_search_database.fasta')
 
-        self.create_decoy_database(f'{args.output}/2nd_search_database.fasta')
-        self.generate_parameters_file(f'{args.output}/2nd_params.par', protein_fdr=1)
+        self.create_decoy_database(f'{snakemake.params.output}/2nd_search_database.fasta')
+        self.generate_parameters_file(f'{snakemake.params.output}/2nd_params.par', protein_fdr=1)
 
         # TODO - check if splitting the database will be necessary
         #self.split_database(f'{args.output}/2nd_search_database_concatenated_target_decoy.fasta', n_proteins=5000000)
 
         # Protein identification and quantification
         spectracounts = pd.DataFrame(columns=['Main Accession'])
-        for name in args.names:
-            out = f'{args.output}/{name}'
+        for name in snakemake.params.names:
+            out = f'{snakemake.params.output}/{name}'
             self.compomics_run(
-                f'{args.output}/2nd_search_database.fasta', f'{out}/2nd_search', f'{out}/spectra', name,
-                f'{args.output}/2nd_params.par', threads=args.threads, max_memory=args.max_memory,
-                reports=['9', '10'])
+                f'{snakemake.params.output}/2nd_search_database.fasta', f'{out}/2nd_search', f'{out}/spectra', name,
+                f'{snakemake.params.output}/2nd_params.par', threads=snakemake.threads,
+                max_memory=snakemake.params.max_memory, reports=['9', '10'])
             spectracounts = pd.merge(spectracounts, pd.read_csv(
                 f'{out}/2nd_search/reports/{name}_Default_Protein_Report.txt', sep='\t', index_col=0
             )[['Main Accession', '#PSMs']].rename(columns={'#PSMs': name}), how='outer', on='Main Accession')
-        spectracounts.groupby('Main Accession')[args.names].sum().reset_index().fillna(value=0.0).to_csv(
-            f'{args.output}/spectracounts.tsv', sep='\t', index=False)
+        spectracounts.groupby('Main Accession')[snakemake.params.names].sum().reset_index().fillna(value=0.0).to_csv(
+            f'{snakemake.params.output}/spectracounts.tsv', sep='\t', index=False)
 
 
 if __name__ == '__main__':

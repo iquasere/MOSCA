@@ -1,7 +1,0 @@
-,Files,Sample,Data type,Condition,Name
-0,"path/to/mg_R1.fastq,path/to/mg_R2.fastq",Sample,dna,"doesn't matter, it's MG",pretty_commune
-1,"path/to/mg_R1.fastq,path/to/mg_R2.fastq",another_Sample,dna,"write your name here if you want, it's MG",
-2,"path/to/mt11_R1.fastq,path/to/mt11_R2.fastq",Sample,mrna,c1,cancer1
-3,"path/to/mt12_R1.fastq,path/to/mt12_R2.fastq",Sample,mrna,c1,cancer2
-4,"path/to/mt_blue_R1.fastq,path/to/mt1_blue_R2.fastq",Sample,mrna,c2,placebo1
-5,"path/to/mt1_placebo_R1.fastq,path/to/mt1_placebo_R2.fastq",Sample,mrna,c2,placebo2

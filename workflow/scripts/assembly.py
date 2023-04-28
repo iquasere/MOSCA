@@ -7,50 +7,16 @@ By João Sequeira
 Jun 2017
 """
 
-import argparse
-import multiprocessing
 import os
 import pathlib
 import shutil
-
 from mosca_tools import run_command, run_pipe_command, perform_alignment
-import psutil
 
 
 class Assembler:
 
     def __init__(self, **kwargs):
         self.__dict__ = kwargs
-
-    def get_arguments(self):
-        parser = argparse.ArgumentParser(description="MOSCA assembly")
-        parser.add_argument("-r", "--reads", required=True, help="Reads files for assembly")
-        parser.add_argument("-o", "--output", help="Output directory")
-        parser.add_argument(
-            "-t", "--threads", default=multiprocessing.cpu_count() - 2,
-            help="Number of threads to use [max available - 2]")
-        parser.add_argument(
-            "-a", "--assembler", choices=["metaspades", "megahit", "trinity"],
-            help="Tool for assembling the reads [metaspades]", default="metaspades")
-        parser.add_argument(
-            "-m", "--memory", default=psutil.virtual_memory().available / (1024.0 ** 3) / 3, type=float,
-            help="Maximum memory (Gb) available for assembly tools [max available memory / 3]")
-        parser.add_argument("-rl", "--read-length", default=150, help="Average length of reads [150]")
-        parser.add_argument("-is", "--insert-size", default=2500, help="Average insert size [2500]")
-        parser.add_argument(
-            "-stdi", "--std-insert", default=10, help="Standard deviation of insert size [2500]")
-        parser.add_argument(
-            "-bq", "--base-qual", default='phred33', choices=['phred33', 'phred64'],
-            help="Quality format of base call of reads files")
-        parser.add_argument(
-            "-mrn", "--max-ref-number", type=int, default=50, help="Maximum references to be downloaded by MetaQUAST")
-
-        args = parser.parse_args()
-        args.output = args.output.rstrip('/')
-        args.reads = args.reads.split(',')
-        if args.assembler == 'megahit':     # Megahit reads max memory in byte
-            args.memory *= 10e9
-        return args
 
     def run_assembler_mg(self, reads, out_dir, assembler, threads='12', memory=None):
         run_command(
@@ -82,47 +48,53 @@ class Assembler:
             f'--thread {threads} --base_qual {base_qual}')
 
     def run(self):
-        args = self.get_arguments()
-
         # Assembly
-        if args.assembler == 'megahit':  # snakemake workflow creates output directory, and megahit don't like it
-            if os.path.isdir(args.output):
-                shutil.rmtree(args.output)
+        if snakemake.params.assembler == 'megahit':     # snakemake workflow creates output directory, and megahit don't like it
+            if os.path.isdir(snakemake.params.output):
+                shutil.rmtree(snakemake.params.output)
 
-        if args.assembler != 'trinity':
-            self.run_assembler_mg(args.reads, args.output, args.assembler, threads=args.threads, memory=args.memory)
+        if snakemake.params.assembler != 'trinity':
+            self.run_assembler_mg(
+                snakemake.params.reads, snakemake.params.output, snakemake.params.assembler, threads=snakemake.threads,
+                memory=snakemake.params.max_memory)
         else:
-            self.run_assembler_mt(args.reads, args.output, threads=args.threads, memory=args.memory)
-        print(f'Assembler is: {args.assembler}')
-        if args.assembler == 'megahit':  # all contigs files are outputed the metaspades way
-            run_pipe_command(f"awk \'{{print $1}}\' {args.output}/final.contigs.fa",
+            self.run_assembler_mt(
+                snakemake.params.reads, snakemake.params.output, threads=snakemake.threads,
+                memory=snakemake.params.max_memory)
+        if snakemake.params.assembler == 'megahit':  # all contigs files are outputed the metaspades way
+            run_pipe_command(f"awk \'{{print $1}}\' {snakemake.params.output}/final.contigs.fa",
                              # k141_714 flag=1 multi=1.0000 len=369 -> k141_714
-                             output=f'{args.output}/contigs.fasta')
-            shutil.copyfile(f'{args.output}/contigs.fasta', f'{args.output}/scaffolds.fasta'
-                            )   # TODO - put SOAPdenovo producing scaffolds from Megahit
-        elif args.assembler == 'trinity':
-            run_pipe_command(f"awk \'{{print $1}}\' {args.output}/trinity/Trinity.fasta",
+                             output=f'{snakemake.params.output}/contigs.fasta')
+            shutil.copyfile(f'{snakemake.params.output}/contigs.fasta', f'{snakemake.params.output}/scaffolds.fasta')   # TODO - put SOAPdenovo producing scaffolds from Megahit
+        elif snakemake.params.assembler == 'trinity':
+            run_pipe_command(f"awk \'{{print $1}}\' {snakemake.params.output}/trinity/Trinity.fasta",
                              # >TRINITY_DN19419_c0_g1_i1 len=248 path=[0:0-247] -> TRINITY_DN19419_c0_g1_i1
-                             output=f'{args.output}/contigs.fasta')
-            shutil.copyfile(f'{args.output}/contigs.fasta', f'{args.output}/scaffolds.fasta')
+                             output=f'{snakemake.params.output}/contigs.fasta')
+            shutil.copyfile(f'{snakemake.params.output}/contigs.fasta', f'{snakemake.params.output}/scaffolds.fasta')
 
-        self.close_gaps(f'{args.output}/scaffolds.fasta', f'{args.output}/contigs.fasta', f'{args.output}/gap_close',
-                        args.reads[0], args.reads[1], read_length=args.read_length, insert_size=args.insert_size,
-                        std_insert=args.std_insert, threads=args.threads, base_qual=args.base_qual)
+        # TODO - reactivate gap closing
+        '''
+        self.close_gaps(
+            f'{snakemake.params.output}/scaffolds.fasta', f'{snakemake.params.output}/contigs.fasta',
+            f'{snakemake.params.output}/gap_close', snakemake.params.reads[0], snakemake.params.reads[1],
+            read_length=snakemake.params.read_length, insert_size=snakemake.params.insert_size,
+            std_insert=snakemake.params.std_insert, threads=snakemake.params.threads,
+            base_qual=snakemake.params.base_qual)
+        '''
 
         # Quality control
-        pathlib.Path(f'{args.output}/quality_control').mkdir(parents=True, exist_ok=True)
+        pathlib.Path(f'{snakemake.params.output}/quality_control').mkdir(parents=True, exist_ok=True)
 
-        self.run_metaquast(f'{args.output}/contigs.fasta', f'{args.output}/quality_control')
-        perform_alignment(f'{args.output}/contigs.fasta', args.reads, f'{args.output}/quality_control/alignment',
-                          threads=args.threads)
-        percentage_of_reads = self.percentage_of_reads(f'{args.output}/quality_control/alignment.log')
+        self.run_metaquast(f'{snakemake.params.output}/contigs.fasta', f'{snakemake.params.output}/quality_control')
+        perform_alignment(
+            f'{snakemake.params.output}/contigs.fasta', snakemake.params.reads,
+            f'{snakemake.params.output}/quality_control/alignment', threads=snakemake.threads)
+        percentage_of_reads = self.percentage_of_reads(f'{snakemake.params.output}/quality_control/alignment.log')
 
-        if os.path.isfile(f'{args.output}/quality_control/combined_reference/report.tsv'
-                          ):  # if metaquast finds references to contigs, it will output results to different folders
-            shutil.copyfile(f'{args.output}/quality_control/combined_reference/report.tsv',
-                            f'{args.output}/quality_control/report.tsv')
-        with open(args.output + '/quality_control/report.tsv', 'a') as f:
+        if os.path.isfile(f'{snakemake.params.output}/quality_control/combined_reference/report.tsv'):  # if metaquast finds references to contigs, it will output results to different folders
+            shutil.copyfile(f'{snakemake.params.output}/quality_control/combined_reference/report.tsv',
+                            f'{snakemake.params.output}/quality_control/report.tsv')
+        with open(snakemake.params.output + '/quality_control/report.tsv', 'a') as f:
             f.write(f'Reads aligned (%)\t{percentage_of_reads}\n')
 
 

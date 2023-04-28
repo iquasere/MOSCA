@@ -4,7 +4,7 @@
   <img width="40%" src="resources/mosca_logo.png" alt="Logo" title="Logo by Sérgio A. Silva">
 </p>
 
-[![Development CI](https://github.com/iquasere/MOSCA/actions/workflows/main.yml/badge.svg?branch=development)](
+[![Development CI](https://github.com/iquasere/MOSCA/actions/workflows/main.yml/badge.svg)](
 https://github.com/iquasere/MOSCA/actions/workflows/main.yml) [
 ![GitHub release](https://img.shields.io/github/release/iquasere/MOSCA.svg)](
 https://github.com/iquasere/MOSCA/releases/latest) [

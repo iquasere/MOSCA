@@ -1,3 +1,18 @@
+#!/bin/bash
+
+usage() {
+  cat <<EOF
+Usage: $(basename "$0") [-h] [--conda_dir DIR] [--mosca_env ENV]
+
+Sets up MOSCA in a Conda environment.
+
+Optional arguments:
+  -h, --help            Show this help message and exit
+  --conda_dir DIR       Specify the path to the Conda installation directory. Default is $(conda info --base)
+  --mosca_env ENV       Specify the name of the Conda environment to install MOSCA in. Default is mosca in the base environment.
+EOF
+}
+
 # Set default values for conda_dir and mosca_dir
 conda_dir=$(conda info --base)
 mosca_env="${conda_dir}/envs/mosca"
@@ -36,9 +51,8 @@ echo "Storing MOSCA's files in the Conda environment at: ${mosca_env}"
 # create folders for storing MOSCA's YAMLs and scripts
 mkdir -p "${mosca_env}/share/MOSCA" "${mosca_env}/bin"
 # copy YAMLs and scripts to the MOSCA Conda environment
-cp -r MOSCA/workflow/scripts/* MOSCA/workflow/Snakefile MOSCA/workflow/mosca.py MOSCA/resources MOSCA/workflow/envs  \
-  "${mosca_env}/share/MOSCA"
+cp -r MOSCA/workflow/* "${mosca_env}/share/MOSCA"
 # make MOSCA's main script executable
 chmod +x "${mosca_env}/share/MOSCA/mosca.py"
 # create a symbolic link to MOSCA's main script in the bin folder
-ln -s "${mosca_env}/share/MOSCA/mosca.py" "${mosca_env}/bin/"
+ln -s "${mosca_env}/share/MOSCA/mosca.py" "${mosca_env}/bin/mosca"

@@ -9,12 +9,12 @@ import json
 import yaml
 from time import gmtime, strftime, time
 
-__version__ = '2.0.0'
+__version__ = '2.1.0'
 
 parser = argparse.ArgumentParser(description="MOSCA's main script")
 parser.add_argument("-s", "--snakefile", default=f'{sys.path[0]}/Snakefile', help="Snakefile file")
 parser.add_argument(
-    "-c", "--configfile", default='config.json',
+    "-c", "--configfile", required=True,
     help="Configuration file for MOSCA (JSON or YAML). Obtain one at https://iquasere.github.io/MOSGUITO")
 parser.add_argument(
     '--unlock', action='store_true', default=False,

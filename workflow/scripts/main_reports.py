@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 MOSCA's script for producing Protein and Entry reports
 
@@ -9,23 +8,9 @@ Dec 2022
 
 from pathlib import Path
 from tqdm import tqdm
-import argparse
 import pandas as pd
 import numpy as np
 from mosca_tools import run_command, timed_message, multi_sheet_excel, blast_cols
-
-
-def get_arguments():
-    parser = argparse.ArgumentParser(description="MOSCA main reports")
-
-    parser.add_argument("-o", "--output", help="Output directory (and input!).")
-    parser.add_argument("-e", "--experiments", help="Filename of exps.")
-    parser.add_argument("--protein-report", help="Make protein report.", action='store_true', default=False)
-    parser.add_argument("--entry-report", help="Make entry report.", action='store_true', default=False)
-
-    args = parser.parse_args()
-    args.output = args.output.rstrip('/')
-    return args
 
 
 def make_protein_report(out, exps):
@@ -41,8 +26,8 @@ def make_protein_report(out, exps):
         report = report.groupby('qseqid')[report.columns.tolist()[1:]].first().reset_index()
         report = report[report['DB ID'].str.startswith('COG') == True].rename(columns={'DB ID': 'COG ID'})
         report = pd.merge(
-            pd.read_csv(f'{out}/Annotation/{sample}/UPIMAPI_results.tsv', sep='\t'), report, on='qseqid',
-            how='outer')
+            pd.read_csv(f'{out}/Annotation/{sample}/UPIMAPI_results.tsv', sep='\t', low_memory=False),
+            report, on='qseqid', how='outer')
         for col in report.columns:
             if '.' in col:      # some columns of UPIMAPI are repeated
                 del report[col]
@@ -55,28 +40,26 @@ def make_protein_report(out, exps):
         mp_names = exps[(exps['Sample'] == sample) & (exps['Data type'] == 'protein')]['Name'].tolist()
         for mg_name in mg_names:
             readcounts = pd.read_csv(
-                f'{out}/Quantification/{mg_name}.readcounts', sep='\t', header=None,
-                names=['Contig', mg_name])
+                f'{out}/Quantification/{mg_name}.readcounts', sep='\t', header=None, names=['Contig', mg_name])
             readcounts['Contig'] = readcounts['Contig'].apply(lambda x: x.split('_')[1])
             report = pd.merge(report, readcounts, on='Contig', how='left')
         for mt_name in mt_names:
-            readcounts = pd.read_csv(f'{out}/Quantification/{mt_name}.readcounts', sep='\t', header=None,
-                                     names=['qseqid', mt_name])
+            readcounts = pd.read_csv(
+                f'{out}/Quantification/{mt_name}.readcounts', sep='\t', header=None, names=['qseqid', mt_name])
             report = pd.merge(report, readcounts, on='qseqid', how='left')
         if len(mt_names) > 0:
             report[['qseqid'] + mt_names].to_csv(f'{out}/Quantification/{sample}/mt.readcounts', sep='\t', index=False)
             print('Wrote MT readcounts.')
-        for mp_name in mp_names:
-            spectracounts = pd.read_csv(
-                f'{out}/Metaproteomics/{sample}/{mp_name}/2nd_search/reports/{mp_name}_Default_Protein_Report.txt',
-                sep='\t', usecols=['Main Accession', '#Validated PSMs'])
-            spectracounts.columns = ['qseqid', mp_name]
-            spectracounts = spectracounts.groupby('qseqid')[mp_name].sum().reset_index()
-            report = pd.merge(report, spectracounts, on='qseqid', how='left')
         if len(mp_names) > 0:
+            spectracounts = pd.read_csv(f'{out}/Metaproteomics/{sample}/spectracounts.tsv', sep='\t')
+            print(report.head())
+            spectracounts.rename(columns={'Main Accession': 'qseqid'}, inplace=True)
+            print(spectracounts.head())
+            report = pd.merge(report, spectracounts, on='qseqid', how='left')
             report[['qseqid'] + mp_names][report[mp_names].isnull().sum(
                 axis=1) < len(mp_names)].drop_duplicates().to_csv(
                 f'{out}/Metaproteomics/{sample}/mp.spectracounts', sep='\t', index=False)
+            print(report.head())
             print('Wrote MP spectracounts.')
         report[mg_names + mt_names + mp_names] = report[mg_names + mt_names + mp_names].fillna(value=0).astype(int)
         multi_sheet_excel(f'{out}/MOSCA_Protein_Report.xlsx', report, sheet_name=sample)
@@ -143,14 +126,12 @@ def make_entry_report(protein_report, out, exps):
 
 
 def run():
-    args = get_arguments()
-    exps = pd.read_csv(args.experiments, sep='\t')
+    exps = pd.read_csv(snakemake.params.exps, sep='\t')
 
-    if args.protein_report:
-        make_protein_report(args.output, exps)
-
-    if args.entry_report:
-        make_entry_report(f"{args.output}/MOSCA_Protein_Report.xlsx", args.output, exps)
+    if snakemake.params.report == 'protein':
+        make_protein_report(snakemake.params.output, exps)
+    elif snakemake.params.report == 'entry':
+        make_entry_report(f"{snakemake.params.output}/MOSCA_Protein_Report.xlsx", snakemake.params.output, exps)
 
 
 if __name__ == '__main__':

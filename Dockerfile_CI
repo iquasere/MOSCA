@@ -1,3 +1,7 @@
+# This Dockerfile should only be used for testing purposes
+# It differs from the main Dockerfile by including the download of MOSCARDO's files to be run with MOSCA
+# Also includes the creation of a named_volume automatically, neccessary for MP spectra conversion
+
 FROM continuumio/miniconda3
 
 VOLUME ["named_volume"]
@@ -13,8 +17,13 @@ RUN buildDeps='build-essential zlib1g-dev' \
 # Install MOSCA
 && git clone https://github.com/iquasere/MOSCA.git -b development \
 && bash MOSCA/install.bash --mosca_env "$(conda info --base)" \
+# Fix AttributeError: module 'lib' has no attribute 'X509_V_FLAG_CB_ISSUER_CHECK' \
+# https://stackoverflow.com/questions/74981558/error-updating-python3-pip-attributeerror-module-lib-has-no-attribute-openss
+# https://stackoverflow.com/questions/73830524/attributeerror-module-lib-has-no-attribute-x509-v-flag-cb-issuer-check
+&& pip install cryptography==38.0.4 \
+&& pip install pyopenssl --upgrade \
 && conda clean --all \
-&& apt-get install -y packagekit-gtk3-module libasound2 libdbus-glib-1-2 libx11-xcb1 curl \
+&& apt-get install -y curl \
 && curl -fsSL https://get.docker.com -o get-docker.sh \
 && sh get-docker.sh \
 && apt-get purge -y --auto-remove $buildDeps

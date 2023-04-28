@@ -7,7 +7,6 @@ By João Sequeira
 Oct 2019
 """
 
-import argparse
 from glob import glob
 import pandas as pd
 from zipfile import ZipFile
@@ -18,13 +17,6 @@ class Reporter:
     def __init__(self, **kwargs):
         self.report = None
         self.__dict__ = kwargs
-
-    def get_arguments(self):
-        parser = argparse.ArgumentParser(description="MOSCA's technical and quality control reports")
-        parser.add_argument("-o", "--output", help="Output directory")
-        args = parser.parse_args()
-        args.output = args.output.rstrip('/')
-        return args
 
     def write_technical_report(self, output):
         """
@@ -87,11 +79,12 @@ class Reporter:
             self.report['# genes'] = count_on_file('>', file)
         for upi_res in upimapi_res:
             sample = file.split('/')[-2]
-            self.report.loc[sample, '# annotations (UPIMAPI)'] = pd.read_csv(upi_res, sep='\t')['qseqid'].unique().sum()
+            self.report.loc[sample, '# annotations (UPIMAPI)'] = pd.read_csv(
+                upi_res, sep='\t', low_memory=False)['qseqid'].unique().sum()
         for recog_res in recognizer_res:
             sample = file.split('/')[-2]
             self.report.loc[sample, '# annotations (reCOGnizer)'] = pd.read_csv(
-                recog_res, sep='\t')['qseqid'].unique().sum()
+                recog_res, sep='\t', low_memory=False)['qseqid'].unique().sum()
 
     def info_from_mt_quantification(self, out_dir):
         reports = glob(f'{out_dir}/Quantification/*.log')
@@ -130,25 +123,23 @@ class Reporter:
                     archive.write(file, arcname=f'{k}/{prefix}{file.split("/")[-1]}')
 
     def run(self):
-        args = self.get_arguments()
-
         timed_message('Writting final reports.')
 
-        self.write_technical_report(f'{args.output}/technical_report.tsv')
+        self.write_technical_report(f'{snakemake.params.output}/technical_report.tsv')
 
         self.report = pd.DataFrame(columns=[
             'Initial reads', 'Qual trim params', 'Final reads', '# contigs', 'N50', 'Reads aligned (%)',
             '# high-quality MAGs', '# medium-quality MAGs', '# low-quality MAGs', '# genes',
             '# annotations (UPIMAPI)', '# annotations (reCOGnizer)', '# differentially expressed'])
-        self.info_from_preprocessing(args.output)
-        self.info_from_assembly(args.output)
-        self.info_from_binning(args.output)
-        self.info_from_annotation(args.output)
-        self.info_from_mt_quantification(args.output)
-        self.info_from_differential_expression(args.output)
-        self.report.dropna(how='all', axis=1).to_csv(f'{args.output}/MOSCA_General_Report.tsv', sep='\t')
+        self.info_from_preprocessing(snakemake.params.output)
+        self.info_from_assembly(snakemake.params.output)
+        self.info_from_binning(snakemake.params.output)
+        self.info_from_annotation(snakemake.params.output)
+        self.info_from_mt_quantification(snakemake.params.output)
+        self.info_from_differential_expression(snakemake.params.output)
+        self.report.dropna(how='all', axis=1).to_csv(f'{snakemake.params.output}/MOSCA_General_Report.tsv', sep='\t')
 
-        self.zip_outputs(args.output)
+        self.zip_outputs(snakemake.params.output)
 
 
 if __name__ == '__main__':

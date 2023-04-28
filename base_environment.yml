@@ -6,6 +6,4 @@ channels:
   - defaults
 dependencies:
   - python >=3.9
-  - pandas
-  - snakemake-minimal
-  - mamba
+  - snakemake
