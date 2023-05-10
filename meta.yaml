@@ -21,7 +21,7 @@ requirements:
 
 test:
   commands:
-    - mosca.py -v
+    - mosca -v
 
 about:
   home: https://github.com/iquasere/MOSCA

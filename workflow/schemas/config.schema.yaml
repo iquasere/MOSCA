@@ -147,6 +147,7 @@ required:
   - recognizer_databases
   - normalization_method
   - minimum_differential_expression
+  - metaproteomics_add_reference_proteomes
   - use_crap
   - proteomics_contaminants_database
   - reference_proteomes_taxa_level
