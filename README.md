@@ -6,12 +6,13 @@
 
 [![Development CI](https://github.com/iquasere/MOSCA/actions/workflows/main.yml/badge.svg)](
 https://github.com/iquasere/MOSCA/actions/workflows/main.yml) [
-![GitHub release](https://img.shields.io/github/release/iquasere/MOSCA.svg)](
+![GitHub Release](https://img.shields.io/github/release/iquasere/MOSCA.svg)](
 https://github.com/iquasere/MOSCA/releases/latest) [
-![Latest Release](https://img.shields.io/github/release-date/iquasere/MOSCA.svg)](
-https://github.com/iquasere/MOSCA/releases)
+![Release Data](https://img.shields.io/github/release-date/iquasere/MOSCA.svg)](
+https://github.com/iquasere/MOSCA/releases) [
+![Bioconda Release](https://anaconda.org/bioconda/mosca/badges/version.svg)](https://anaconda.org/bioconda/mosca)
 
-Welcome to the Meta-Omics Software for Community Analysis (MOSCA) Pipeline! :fly:
+Welcome to the Meta-Omics Software for Community Analysis (MOSCA) Pipeline!
 
 This pipeline is a powerful tool for analyzing and interpreting meta-omics data, including metagenomics, metatranscriptomics, and metaproteomics. It integrates a variety of state-of-the-art algorithms and visualizations, allowing you to easily and efficiently analyze your data.
 

@@ -1,4 +1,4 @@
-name: CI
+name: Continuous Integration
 
 on:
   push:
@@ -15,14 +15,11 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
-
       - name: Build and push
         uses: docker/build-push-action@v2
         with:
@@ -30,10 +27,8 @@ jobs:
           file: ./Dockerfile_CI
           tags: mosca:latest
           outputs: type=docker,dest=/tmp/mosca.tar
-
       - name: Create named volume
         run: docker volume create named_volume
-
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
@@ -46,18 +41,15 @@ jobs:
     steps:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
-
       - name: Download artifact
         uses: actions/download-artifact@v2
         with:
           name: mosca
           path: /tmp
-
       - name: Load Docker image
         run: |
           docker load --input /tmp/mosca.tar
           docker image ls -a
-
       - name: MGMT workflow
         run: docker run mosca /bin/bash -c "mosca -c MOSCARDO/configs/mgmt_config.json"
 
@@ -67,21 +59,17 @@ jobs:
     steps:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
-
       - name: Download artifact
         uses: actions/download-artifact@v2
         with:
           name: mosca
           path: /tmp
-
       - name: Load Docker image
         run: |
           docker load --input /tmp/mosca.tar
           docker image ls -a
-
       - name: Create named volume
         run: docker volume create named_volume
-
       - name: MGMP workflow
         run: >
           docker run -v named_volume:/data -v /var/run/docker.sock:/var/run/docker.sock mosca /bin/bash

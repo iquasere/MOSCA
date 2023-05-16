@@ -8,7 +8,7 @@ rule de_analysis:
         expand("{output}/Metaproteomics/{sample}/condition_treated_results.tsv", output=OUTPUT,
             sample=set(mp_exps['Sample']))
     threads:
-        15
+        1
     params:
         conditions = (lambda wildcards, input: ",".join(not_mg_exps[not_mg_exps['Sample'] == os.path.basename(
             os.path.dirname(input[0]))]['Condition'].tolist())),

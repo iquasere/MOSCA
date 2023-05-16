@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
-import pathlib
 
+import pathlib
 import snakemake
 import argparse
 import sys
