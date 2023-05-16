@@ -4,11 +4,11 @@ on:
   push:
     branches:
       - development
-      - master
+      - master        # master test only useful for badges
   pull_request:
     branches:
       - development
-      - master
+      - master        # master test only useful for badges
 
   workflow_dispatch:
 
