@@ -8,13 +8,14 @@ import json
 import yaml
 from time import gmtime, strftime, time
 
-__version__ = '2.1.0'
+__version__ = '2.2.0'
 
 parser = argparse.ArgumentParser(description="MOSCA's main script")
 parser.add_argument("-s", "--snakefile", default=f'{sys.path[0]}/Snakefile', help="Snakefile file")
 parser.add_argument(
     "-c", "--configfile", required=True,
     help="Configuration file for MOSCA (JSON or YAML). Obtain one at https://iquasere.github.io/MOSGUITO")
+parser.add_argument("--use-singularity", action="store_true", default=False, help="Use singularity")
 parser.add_argument(
     '--unlock', action='store_true', default=False,
     help='If user forced termination of workflow, this might be required')
@@ -60,6 +61,6 @@ save_config(config, f'{config["output"]}/config.json', output_format=config_form
 
 snakemake.main(
     f"-s {args.snakefile} --printshellcmds --cores {config['threads']} --configfile {args.configfile} "
-    f"--use-conda {' --unlock' if args.unlock else ''}")
+    f"--use-conda{' --use-singularity' if args.use_singularity else ''}{' --unlock' if args.unlock else ''}")
 
 print(f'MOSCA analysis finished in {human_time(time() - start_time)}')
