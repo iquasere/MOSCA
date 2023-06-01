@@ -45,7 +45,7 @@ do_assembly:
   type: boolean
 
 max_memory:
-  type: integer
+  type: float
 
 assembler:
   type: string
@@ -62,8 +62,8 @@ do_binning:
 do_iterative_binning:
   type: boolean
 
-split_gene_calling:
-  type: integer
+upimapi_search_mode:
+  type: string
 
 upimapi_database:
   type: string
@@ -123,37 +123,7 @@ keggcharter_maps:
   type: array
 
 required:
-  - version
   - output
   - resources_directory
   - threads
   - experiments
-  - minimum_read_length
-  - minimum_read_average_quality
-  - do_assembly
-  - max_memory
-  - assembler
-  - error_model
-  - markerset
-  - do_binning
-  - do_iterative_binning
-  - split_gene_calling
-  - upimapi_database
-  - upimapi_max_target_seqs
-  - upimapi_taxids
-  - upimapi_check_db
-  - uniprot_columns
-  - download_cdd_resources
-  - recognizer_databases
-  - normalization_method
-  - minimum_differential_expression
-  - metaproteomics_add_reference_proteomes
-  - use_crap
-  - proteomics_contaminants_database
-  - reference_proteomes_taxa_level
-  - protease
-  - protease_file
-  - false_discovery_rate
-  - keggcharter_taxa_level
-  - keggcharter_number_of_taxa
-  - keggcharter_maps

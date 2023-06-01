@@ -40,7 +40,6 @@
       "Name": ""
     }
   ],
-  "suffix": "",
   "minimum_read_length": 50,
   "minimum_read_average_quality": 20,
   "do_assembly": true,
@@ -50,7 +49,7 @@
   "markerset": "40",
   "do_binning": false,
   "do_iterative_binning": false,
-  "split_gene_calling": 1,
+  "upimapi_search_mode": "fast",
   "upimapi_database": "uniprot",
   "upimapi_max_target_seqs": 1,
   "upimapi_taxids": "196137,143067,2159,213465,213422,213421,68298",
