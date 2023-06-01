@@ -17,6 +17,6 @@ rule upimapi:
     conda:
         "../envs/upimapi.yaml"
     shell:
-        'upimapi -i {input} -t {threads} -o {OUTPUT}/Annotation/{wildcards.sample}/{wildcards.part} '
+        'upimapi -i {input} -t {threads} -o {OUTPUT}/Annotation/{wildcards.sample} '
         '-rd {params.rd} -db {params.upimapi_database} -mts {params.max_target_seqs}{params.taxids} '
         '-cols "{params.cols}" --max-memory {params.memory} --diamond-mode {params.diamond_mode}{params.check_db}'
