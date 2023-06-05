@@ -1,0 +1,40 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+  - family-names: "Sequeira"
+    given-names: "João C."
+    orcid: "https://orcid.org/0000-0002-2691-9950"
+  - family-names: "Rocha"
+    given-names: "Miguel"
+    orcid: "https://orcid.org/0000-0001-8439-8172"
+  - family-names: "Alves"
+    given-names: "M. Madalena"
+    orcid: "https://orcid.org/0000-0002-9078-3613"
+  - family-names: "Salvador"
+    given-names: "Andreia F."
+    orcid: "https://orcid.org/0000-0001-6037-4248"
+title: "Meta-Omics Software for Community Analysis"
+version: 1.0.0
+date-released: 2019-01-01
+url: "https://github.com/iquasere/MOSCA"
+preferred-citation:
+  type: article
+  authors:
+    - family-names: "Sequeira"
+      given-names: "João C."
+      orcid: "https://orcid.org/0000-0002-2691-9950"
+    - family-names: "Rocha"
+      given-names: "Miguel"
+      orcid: "https://orcid.org/0000-0001-8439-8172"
+    - family-names: "Alves"
+      given-names: "M. Madalena"
+      orcid: "https://orcid.org/0000-0002-9078-3613"
+    - family-names: "Salvador"
+      given-names: "Andreia F."
+      orcid: "https://orcid.org/0000-0001-6037-4248"
+  doi: "10.1007/978-3-319-98702-6_22"
+  journal: "Practical Applications of Computational Biology and Bioinformatics, 12th International Conference"
+  start: 183
+  end: 191
+  title: "MOSCA: An Automated Pipeline for Integrated Metagenomics and Metatranscriptomics Data Analysis"
+  year: 2019
