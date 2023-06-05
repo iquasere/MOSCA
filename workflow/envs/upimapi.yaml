@@ -91,7 +91,7 @@ dependencies:
   - tk=8.6.12=h27826a3_0
   - tqdm=4.65.0=pyhd8ed1ab_1
   - tzdata=2023c=h71feb2d_0
-  - upimapi=1.11.0
+  - upimapi>=1.11.1
   - urllib3=1.26.15=pyhd8ed1ab_0
   - wget=1.20.3=ha35d2d1_1
   - wheel=0.40.0=pyhd8ed1ab_0
