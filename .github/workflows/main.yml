@@ -56,7 +56,7 @@ jobs:
           snakemake -R --until preprocess -s MOSCA/workflow/Snakefile 
           --configfile MOSCARDO/configs/rules_config.json --cores 15 --use-conda"
 
- assembly:
+  assembly:
     runs-on: ubuntu-latest
     needs: build
     steps:
@@ -79,7 +79,7 @@ jobs:
           snakemake -R --until assembly -s MOSCA/workflow/Snakefile 
           --configfile MOSCARDO/configs/rules_config.json --cores 15 --use-conda"
 
- binning:
+  binning:
     runs-on: ubuntu-latest
     needs: build
     steps:
