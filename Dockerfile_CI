@@ -12,6 +12,7 @@ RUN buildDeps='build-essential zlib1g-dev' \
 # Set up CI files
 && git clone https://github.com/iquasere/MOSCARDO.git \
 && gunzip -v MOSCARDO/input/*/mp*.RAW.gz \
+&& gunzip -r MOSCARDO/output_rules \
 && mkdir resources_directory \
 && mv MOSCARDO/data/cdd.tar.gz MOSCARDO/data/uniprot.fasta resources_directory \
 # Install MOSCA

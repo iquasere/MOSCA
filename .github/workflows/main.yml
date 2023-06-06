@@ -35,6 +35,71 @@ jobs:
           name: mosca
           path: /tmp/mosca.tar
 
+  preprocess:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      - name: Download artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: mosca
+          path: /tmp
+      - name: Load Docker image
+        run: |
+          docker load --input /tmp/mosca.tar
+          docker image ls -a
+      - name: run preprocess
+        run: |
+          docker run mosca /bin/bash -c "rm -r MOSCARDO/output_rules/Preprocess;
+          snakemake -R --until preprocess -s MOSCA/workflow/Snakefile 
+          --configfile MOSCARDO/configs/rules_config.json --cores 15 --use-conda"
+
+ assembly:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      - name: Download artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: mosca
+          path: /tmp
+      - name: Load Docker image
+        run: |
+          docker load --input /tmp/mosca.tar
+          docker image ls -a
+      - name: run assembly
+        run: |
+          docker run mosca /bin/bash -c "rm -r MOSCARDO/output_rules/Assembly; 
+          touch MOSCARDO/output_rules/Preprocess/Trimmomatic/quality_trimmed_mg_forward_paired.fq;
+          touch MOSCARDO/output_rules/Preprocess/Trimmomatic/quality_trimmed_mg_reverse_paired.fq;
+          snakemake -R --until assembly -s MOSCA/workflow/Snakefile 
+          --configfile MOSCARDO/configs/rules_config.json --cores 15 --use-conda"
+
+ binning:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      - name: Download artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: mosca
+          path: /tmp
+      - name: Load Docker image
+        run: |
+          docker load --input /tmp/mosca.tar
+          docker image ls -a
+      - name: run binning
+        run: |
+          docker run mosca /bin/bash -c "touch MOSCARDO/output_rules/Assembly/sample/contigs.fasta MOSCARDO/output_rules/Assembly/sample/scaffolds.fasta;
+          snakemake -R --until binning -s MOSCA/workflow/Snakefile 
+          --configfile MOSCARDO/configs/rules_config.json --cores 15 --use-conda --ignore-incomplete"
+
   mgmt-workflow:
     runs-on: ubuntu-latest
     needs: build
