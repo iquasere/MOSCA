@@ -53,8 +53,8 @@ jobs:
       - name: run preprocess
         run: |
           docker run mosca /bin/bash -c "rm -r MOSCARDO/output_rules/Preprocess;
-          snakemake -R --until preprocess -s MOSCA/workflow/Snakefile 
-          --configfile MOSCARDO/configs/rules_config.json --cores 15 --use-conda"
+          snakemake --cores all -R --until preprocess -s MOSCA/workflow/Snakefile 
+          --configfile MOSCARDO/configs/rules_config.json --use-conda"
 
   assembly:
     runs-on: ubuntu-latest
@@ -76,8 +76,8 @@ jobs:
           docker run mosca /bin/bash -c "rm -r MOSCARDO/output_rules/Assembly; 
           touch MOSCARDO/output_rules/Preprocess/Trimmomatic/quality_trimmed_mg_forward_paired.fq;
           touch MOSCARDO/output_rules/Preprocess/Trimmomatic/quality_trimmed_mg_reverse_paired.fq;
-          snakemake -R --until assembly -s MOSCA/workflow/Snakefile 
-          --configfile MOSCARDO/configs/rules_config.json --cores 15 --use-conda"
+          snakemake --cores all -R --until assembly -s MOSCA/workflow/Snakefile 
+          --configfile MOSCARDO/configs/rules_config.json --use-conda"
 
   binning:
     runs-on: ubuntu-latest
@@ -96,9 +96,10 @@ jobs:
           docker image ls -a
       - name: run binning
         run: |
-          docker run mosca /bin/bash -c "touch MOSCARDO/output_rules/Assembly/sample/contigs.fasta MOSCARDO/output_rules/Assembly/sample/scaffolds.fasta;
-          snakemake -R --until binning -s MOSCA/workflow/Snakefile 
-          --configfile MOSCARDO/configs/rules_config.json --cores 15 --use-conda --ignore-incomplete"
+          docker run mosca /bin/bash -c "touch MOSCARDO/output_rules/Assembly/sample/contigs.fasta;
+          touch MOSCARDO/output_rules/Assembly/sample/scaffolds.fasta;
+          snakemake --cores all -R --until binning -s MOSCA/workflow/Snakefile 
+          --configfile MOSCARDO/configs/rules_config.json --use-conda --ignore-incomplete"
 
   mgmt-workflow:
     runs-on: ubuntu-latest
@@ -116,7 +117,7 @@ jobs:
           docker load --input /tmp/mosca.tar
           docker image ls -a
       - name: MGMT workflow
-        run: docker run mosca /bin/bash -c "mosca -c MOSCARDO/configs/mgmt_config.json"
+        run: docker run mosca /bin/bash -c "rm -r MOSCARDO/output_rules; mosca -c MOSCARDO/configs/mgmt_config.json"
 
   mgmp-workflow:
     runs-on: ubuntu-latest
@@ -138,4 +139,4 @@ jobs:
       - name: MGMP workflow
         run: >
           docker run -v named_volume:/data -v /var/run/docker.sock:/var/run/docker.sock mosca /bin/bash
-          -c "mosca -c MOSCARDO/configs/mgmp_config.json; du -sh output/*; df -h"
+          -c "rm -r MOSCARDO/output_rules; mosca -c MOSCARDO/configs/mgmp_config.json"
