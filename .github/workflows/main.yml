@@ -97,6 +97,7 @@ jobs:
           docker run mosca /bin/bash -c "gunzip -r MOSCARDO/output_rules; 
           touch MOSCARDO/output_rules/Preprocess/Trimmomatic/quality_trimmed_mg_forward_paired.fq;
           touch MOSCARDO/output_rules/Preprocess/Trimmomatic/quality_trimmed_mg_reverse_paired.fq;
+          touch MOSCARDO/output_rules/Preprocess/sample_forward.fastq MOSCARDO/output_rules/Preprocess/sample_reverse.fastq;
           touch MOSCARDO/output_rules/Assembly/sample/contigs.fasta MOSCARDO/output_rules/Assembly/sample/scaffolds.fasta;
           snakemake --cores all -R --until binning -s MOSCA/workflow/Snakefile --configfile MOSCARDO/configs/rules_config.json --use-conda --ignore-incomplete"
 
