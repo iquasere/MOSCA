@@ -20,27 +20,27 @@ def run():
         mt_result = pd.DataFrame(columns=['Gene'])
         pexps = exps[(exps['Sample'] == sample)]
         for i in pexps.index:
-            if pexps.iloc[i]['Data type'] == 'mrna':
-                reference = f"{snakemake.params.output}/Annotation/{pexps.iloc[i]['Sample']}/fgs.ffn"
-            elif pexps.iloc[i]['Data type'] == 'dna':
-                reference = f"{snakemake.params.output}/Assembly/{pexps.iloc[i]['Sample']}/contigs.fasta"
+            if pexps.loc[i]['Data type'] == 'mrna':
+                reference = f"{snakemake.params.output}/Annotation/{pexps.loc[i]['Sample']}/fgs.ffn"
+            elif pexps.loc[i]['Data type'] == 'dna':
+                reference = f"{snakemake.params.output}/Assembly/{pexps.loc[i]['Sample']}/contigs.fasta"
             else:
                 continue
-            if ',' in pexps.iloc[i]['Files']:
-                reads = [f"{snakemake.params.output}/Preprocess/Trimmomatic/quality_trimmed_{pexps.iloc[i]['Name']}_{fr}_paired.fq"
+            if ',' in pexps.loc[i]['Files']:
+                reads = [f"{snakemake.params.output}/Preprocess/Trimmomatic/quality_trimmed_{pexps.loc[i]['Name']}_{fr}_paired.fq"
                          for fr in ['forward', 'reverse']]
             else:
-                reads = [f"{snakemake.params.output}/Preprocess/Trimmomatic/quality_trimmed_{pexps.iloc[i]['Name']}.fq"]
+                reads = [f"{snakemake.params.output}/Preprocess/Trimmomatic/quality_trimmed_{pexps.loc[i]['Name']}.fq"]
             perform_alignment(
-                reference, reads, f"{snakemake.params.output}/Quantification/{pexps.iloc[i]['Name']}",
+                reference, reads, f"{snakemake.params.output}/Quantification/{pexps.loc[i]['Name']}",
                 threads=snakemake.threads)
             normalize_counts_by_size(
-                f"{snakemake.params.output}/Quantification/{pexps.iloc[i]['Name']}.readcounts", reference)
+                f"{snakemake.params.output}/Quantification/{pexps.loc[i]['Name']}.readcounts", reference)
             # Read the results of alignment and add them to the readcounts result at sample level
             counts = pd.read_csv(
-                f"{snakemake.params.output}/Quantification/{pexps.iloc[i]['Name']}_normalized.readcounts", sep='\t',
-                names=['Gene' if pexps.iloc[i]['Data type'] == 'mrna' else 'Contig', pexps.iloc[i]['Name']])
-            if pexps.iloc[i]['Data type'] == 'dna':
+                f"{snakemake.params.output}/Quantification/{pexps.loc[i]['Name']}_normalized.readcounts", sep='\t',
+                names=['Gene' if pexps.loc[i]['Data type'] == 'mrna' else 'Contig', pexps.loc[i]['Name']])
+            if pexps.loc[i]['Data type'] == 'dna':
                 mg_result = pd.merge(mg_result, counts, how='outer', on='Contig')
             else:
                 mt_result = pd.merge(mt_result, counts, how='outer', on='Gene')
