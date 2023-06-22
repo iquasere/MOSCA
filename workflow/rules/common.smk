@@ -1,8 +1,9 @@
-import pathlib
-import pandas as pd
-import sys
 from snakemake.remote import FTP
 from snakemake.utils import validate
+import pathlib
+import pandas as pd
+import numpy as np
+import sys
 
 ftp = FTP.RemoteProvider()
 

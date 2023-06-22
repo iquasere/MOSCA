@@ -183,14 +183,16 @@ def add_abundance(data, readcounts, name, origin_of_data='metagenomics'):
         pass
 
 
-def multi_sheet_excel(output, data, sheet_name='Sheet', lines=1000000, index=False):
+def multi_sheet_excel(output, data, sheet_name='Sheet', max_lines=1000000, index=False):
+    k = 1
     writer = pd.ExcelWriter(output, engine='xlsxwriter')
-    if len(data) < lines:
+    if len(data) < max_lines:
         data.to_excel(writer, sheet_name=f'{sheet_name}', index=index)
     else:
-        for i in range(0, len(data), lines):
-            j = min(i + lines, len(data))
-            data.iloc[i:(i + lines)].to_excel(writer, sheet_name=f'{sheet_name} ({j})', index=index)
+        for i in range(0, len(data), max_lines):
+            j = min(i + max_lines, len(data))
+            data.iloc[i:(i + j)].to_excel(writer, sheet_name=f'{sheet_name} ({k})', index=index)
+            k += 1
     writer.close()
 
 

@@ -59,8 +59,10 @@ config, config_format = read_config(args.configfile)
 pathlib.Path(config["output"]).mkdir(parents=True, exist_ok=True)
 save_config(config, f'{config["output"]}/config.json', output_format=config_format)
 
-snakemake.main(
+command = (
     f"-s {args.snakefile} --printshellcmds --cores {config['threads']} --configfile {args.configfile} "
     f"--use-conda{' --use-singularity' if args.use_singularity else ''}{' --unlock' if args.unlock else ''}")
 
+print(f"MOSCA command: snakemake {command}")
+snakemake.main(command)
 print(f'MOSCA analysis finished in {human_time(time() - start_time)}')

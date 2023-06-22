@@ -1,8 +1,8 @@
 rule keggcharter:
     input:
-        f"{OUTPUT}/MOSCA_Entry_Report.xlsx"
+        f"{OUTPUT}/MOSCA_{sample}_Entry_Report.tsv"
     output:
-        f"{OUTPUT}/KEGG_maps/KEGGCharter_results.tsv"
+        f"{OUTPUT}/KEGG_maps/{sample}/KEGGCharter_results.tsv"
     threads:
         1
     params:

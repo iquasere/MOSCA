@@ -93,30 +93,34 @@ class MetaproteomicsAnalyser:
                 ['database.fasta', 'predatabase.fasta'] + ['ref_proteomes.fasta'] if add_reference_proteomes else []):
             os.remove(f'{output}/{file}')
 
-    def raw_to_mgf(self, file, out_dir):
+    def raw_to_mgf(self, file, out_dir, inside_container=False):
         """
         Convert raw file to mgf
         :param file:
         :param out_dir:
-        :param outfmt:
-        :param peak_picking:
+        :param inside_container:
         :return:
         """
-        folder, filename = os.path.split(file)
-        shutil.copyfile(f'{folder}/{filename}', f'data/{filename}')
+        folder = os.path.dirname(os.path.abspath(file))
+        file = os.path.basename(file)
+        if inside_container:
+            shutil.copyfile(f'{folder}/{file}', f'/data/{file}')
         run_pipe_command(
-            f'docker run --rm -e WINEDEBUG=-all -v named_volume:/data '
-            f'chambm/pwiz-skyline-i-agree-to-the-vendor-licenses wine msconvert /data/{filename} --mgf '
+            f'docker run --rm -e WINEDEBUG=-all -v {"named_volume" if inside_container else folder}:/data '
+            f'chambm/pwiz-skyline-i-agree-to-the-vendor-licenses wine msconvert /data/{file} --mgf '
             f'--filter "peakPicking cwt"')
-        shutil.copyfile(
-            f'/data/{".".join(filename.split(".")[:-1])}.mgf', f'{out_dir}/{".".join(filename.split(".")[:-1])}.mgf')
+        shutil.move(
+            # if inside container, file is in the container's /data folder, else it will be in the original folder
+            f'{"/data" if inside_container else folder}/{".".join(file.split(".")[:-1])}.mgf',
+            f'{out_dir}/{".".join(file.split(".")[:-1])}.mgf')
 
-    def spectra_in_proper_state(self, folder, out_dir, threads=1):
+    def spectra_in_proper_state(self, folder, out_dir, threads=1, inside_container=False):
         """
         Convert raw spectra files to MGF, and put all spectra in out_dir
-        :param threads:
         :param folder:
         :param out_dir:
+        :param threads:
+        :param inside_container:
         :return:
         """
         already_mgfs, files2convert = [], []
@@ -130,7 +134,8 @@ class MetaproteomicsAnalyser:
                 else:
                     files2convert.append(file)
         if len(files2convert) > 0:
-            multiprocess_fun(self.raw_to_mgf, [(file, out_dir) for file in files2convert], threads=threads)
+            multiprocess_fun(
+                self.raw_to_mgf, [(file, out_dir, inside_container) for file in files2convert], threads=threads)
         for file in set(already_mgfs):
             shutil.copyfile(f'{folder}/{file}', f'{out_dir}/{file}')
 
@@ -288,6 +293,7 @@ class MetaproteomicsAnalyser:
             output=f'{output}/2nd_search_database.fasta')
 
     def run(self):
+        """
         Path(snakemake.params.output).mkdir(parents=True, exist_ok=True)
         # 1st database construction
         self.database_generation(
@@ -301,13 +307,16 @@ class MetaproteomicsAnalyser:
             self.generate_parameters_file(f'{snakemake.params.output}/1st_params.par', protein_fdr=100)
         except:
             print('An illegal reflective access operation has occurred. But MOSCA can handle it.')
+        """
         # 2nd database construction
         proteins_for_second_search = []
         for i in range(len(snakemake.params.names)):
             out = f'{snakemake.params.output}/{snakemake.params.names[i]}'
             for foldername in ['spectra', '2nd_search']:
                 Path(f'{out}/{foldername}').mkdir(parents=True, exist_ok=True)
-            self.spectra_in_proper_state(snakemake.params.spectra_folders[i], f'{out}/spectra/')
+            self.spectra_in_proper_state(
+                snakemake.params.spectra_folders[i], f'{out}/spectra/',
+                inside_container=snakemake.params.inside_container)
             j = 1
             for database in sorted(glob(f'{snakemake.params.output}/1st_search_database_*.part_*.fasta')):
                 Path(f'{out}_{j}/1st_search').mkdir(parents=True, exist_ok=True)

@@ -16,7 +16,8 @@ rule metaproteomics:
         protease = config["protease"] if config["protease_file"] == "" else config["protease_file"],
         max_memory = config["max_memory"],
         resources = config["resources_directory"],
-        add_reference_proteomes = config["metaproteomics_add_reference_proteomes"]
+        add_reference_proteomes = config["metaproteomics_add_reference_proteomes"],
+        inside_container = config["inside_container"]
     conda:
         "../envs/metaproteomics.yaml"
     script:

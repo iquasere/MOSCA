@@ -3,7 +3,7 @@
 # Sep 2017
 
 # problems with libreadline.so.6 might be solved with cd /lib/x86_64-linux-gnu/; sudo ln -s libreadline.so.7.0 libreadline.so.6
-method = 'differential' # snakemake@params$method TODO - think about reintegrating the method by baseMean
+method <- 'differential' # snakemake@params$method TODO - think about reintegrating the method by baseMean
 
 paste("Counts:", snakemake@input[[1]], sep=' ')
 paste("Conditions:", snakemake@params$conditions, sep=' ')
@@ -98,3 +98,5 @@ if(snakemake@params$datatype == "rna_seq") {
     dev.off()
   }
 }
+
+print("DE analysis finished.")
