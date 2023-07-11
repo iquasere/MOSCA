@@ -37,13 +37,13 @@ def run():
             normalize_counts_by_size(
                 f"{snakemake.params.output}/Quantification/{pexps.loc[i]['Name']}.readcounts", reference)
             # Read the results of alignment and add them to the readcounts result at sample level
-            counts = pd.read_csv(
-                f"{snakemake.params.output}/Quantification/{pexps.loc[i]['Name']}_normalized.readcounts", sep='\t',
+            normalized_by_gene_size = pd.read_csv(
+                f"{snakemake.params.output}/Quantification/{pexps.loc[i]['Name']}.readcounts.norm", sep='\t',
                 names=['Gene' if pexps.loc[i]['Data type'] == 'mrna' else 'Contig', pexps.loc[i]['Name']])
             if pexps.loc[i]['Data type'] == 'dna':
-                mg_result = pd.merge(mg_result, counts, how='outer', on='Contig')
+                mg_result = pd.merge(mg_result, normalized_by_gene_size, how='outer', on='Contig')
             else:
-                mt_result = pd.merge(mt_result, counts, how='outer', on='Gene')
+                mt_result = pd.merge(mt_result, normalized_by_gene_size, how='outer', on='Gene')
         Path(f"{snakemake.params.output}/Quantification/{sample}").mkdir(parents=True, exist_ok=True)
         if len(mg_result) > 0:
             mg_result.to_csv(f"{snakemake.params.output}/Quantification/{sample}/mg.readcounts", sep='\t', index=False)

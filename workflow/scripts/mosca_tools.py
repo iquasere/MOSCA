@@ -151,13 +151,13 @@ def fastq2fasta(fastq, output):
 
 
 def timed_message(message):
-    print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + ': ' + message)
+    print(f'{time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())}: {message}')
 
 
 def normalize_counts_by_size(readcounts, reference):
     run_pipe_command(
         f"seqkit fx2tab {reference} | sort | awk '{{print $1\"\\t\"length($2)}}' | join - {readcounts} | "
-        f"awk '{{print $1\"\\t\"$3/$2}}'", output=readcounts.replace('.readcounts', '_normalized.readcounts'))
+        f"awk '{{print $1\"\\t\"$3/$2}}'", output=readcounts.replace('.readcounts', '.readcounts.norm'))
 
 
 def add_abundance(data, readcounts, name, origin_of_data='metagenomics'):

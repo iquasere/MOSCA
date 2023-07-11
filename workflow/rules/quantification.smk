@@ -5,7 +5,9 @@ rule quantification:
         expand("{output}/Assembly/{sample}/contigs.fasta", output=OUTPUT, sample=set(EXPS["Sample"])),
         expand("{output}/Annotation/{sample}/fgs.ffn", output=OUTPUT, sample=set(EXPS["Sample"]))
     output:
-        expand("{output}/Quantification/{name}.readcounts", output=OUTPUT, name=set(not_mp_exps['Name']))
+        expand("{output}/Quantification/{name}.readcounts", output=OUTPUT, name=set(not_mp_exps['Name'])),
+        expand("{output}/Quantification/{sample}/mg.readcounts.norm", output=OUTPUT, sample=set(mg_exps['Sample'])),
+        expand("{output}/Quantification/{sample}/mt.readcounts.norm", output=OUTPUT, sample=set(mt_exps['Sample']))
     threads:
         config["threads"]
     params:

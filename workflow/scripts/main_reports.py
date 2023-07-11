@@ -10,11 +10,14 @@ from pathlib import Path
 from tqdm import tqdm
 import pandas as pd
 import numpy as np
+import csv
 from mosca_tools import run_command, timed_message, multi_sheet_excel, blast_cols
 
+functional_columns = ['General functional category', 'Functional category', 'Protein description', 'COG ID']
 
-def make_protein_report(out, exps, sample):
-    timed_message(f'Joining data for sample: {sample}')
+
+def make_protein_report(out, exps, sample, mg_preport, mt_preport, mp_preport):
+    timed_message(f'Joining data for sample: {sample}.')
     with open(f'{out}/Annotation/{sample}/fgs.faa') as f:
         lines = f.readlines()
     headers = [line.strip()[1:] for line in lines if line.startswith(">")]
@@ -37,34 +40,36 @@ def make_protein_report(out, exps, sample):
     mp_names = exps[(exps['Sample'] == sample) & (exps['Data type'] == 'protein')]['Name'].tolist()
     for mg_name in mg_names:
         readcounts = pd.read_csv(
-            f'{out}/Quantification/{mg_name}.readcounts', sep='\t', header=None, names=['Contig', mg_name])
+            f'{out}/Quantification/{mg_name}.readcounts.norm', sep='\t', header=None, names=['Contig', mg_name])
         readcounts['Contig'] = readcounts['Contig'].apply(lambda x: x.split('_')[1])
         report = pd.merge(report, readcounts, on='Contig', how='left')
     for mt_name in mt_names:
         readcounts = pd.read_csv(
-            f'{out}/Quantification/{mt_name}.readcounts', sep='\t', header=None, names=['qseqid', mt_name])
+            f'{out}/Quantification/{mt_name}.readcounts.norm', sep='\t', header=None, names=['qseqid', mt_name])
         report = pd.merge(report, readcounts, on='qseqid', how='left')
-    if len(mt_names) > 0:
-        report[['qseqid'] + mt_names].to_csv(f'{out}/Quantification/{sample}/mt.readcounts', sep='\t', index=False)
-        print('Wrote MT readcounts.')
     if len(mp_names) > 0:
         spectracounts = pd.read_csv(f'{out}/Metaproteomics/{sample}/spectracounts.tsv', sep='\t')
         spectracounts.rename(columns={'Main Accession': 'qseqid'}, inplace=True)
         report = pd.merge(report, spectracounts, on='qseqid', how='left')
-        report[['qseqid'] + mp_names][report[mp_names].isnull().sum(
-            axis=1) < len(mp_names)].drop_duplicates().to_csv(
-            f'{out}/Metaproteomics/{sample}/mp.spectracounts', sep='\t', index=False)
-        print('Wrote MP spectracounts.')
+    if len(mg_names) > 0:
+        mg_preport = pd.merge(mg_preport, report[['Entry'] + mg_names], on='Entry', how='outer')
+    if len(mt_names) > 0:
+        mt_preport = pd.merge(mt_preport, report[['Entry'] + mt_names], on='Entry', how='outer')
+    if len(mp_names) > 0:
+        mp_preport = pd.merge(mp_preport, report[['Entry'] + mp_names], on='Entry', how='outer')
     report[mg_names + mt_names + mp_names] = report[mg_names + mt_names + mp_names].fillna(value=0).astype(int)
     report.to_csv(f'{out}/MOSCA_{sample}_Protein_Report.tsv', sep='\t', index=False)
-    print(f'Wrote protein report for sample [{sample}].')
-    return report
+    return report, mg_preport, mt_preport, mp_preport
 
 
 def make_protein_reports(out, exps, max_lines=1000000):
+    mg_report = pd.DataFrame(columns=['Entry'])
+    mt_report = pd.DataFrame(columns=['Entry'])
+    mp_report = pd.DataFrame(columns=['Entry'])
     writer = pd.ExcelWriter(f'{out}/MOSCA_Protein_Report.xlsx', engine='xlsxwriter')
     for sample in set(exps['Sample']):
-        report = make_protein_report(out, exps, sample)
+        report, mg_report, mt_report, mp_report = make_protein_report(
+            out, exps, sample, mg_report, mt_report, mp_report)
         if len(report) < max_lines:
             report.to_excel(writer, sheet_name=sample, index=False)
         else:
@@ -73,51 +78,55 @@ def make_protein_reports(out, exps, max_lines=1000000):
                 j = min(i + max_lines, len(report))
                 report.iloc[i:(i + j)].to_excel(writer, sheet_name=f'{sample} ({k})', index=False)
                 k += 1
+        timed_message(f'Wrote Protein Report for sample: {sample}.')
     writer.close()
+    # Write quantification matrices to normalize all together
+    mg_report = mg_report.groupby('Entry')[mg_report.columns.tolist()[1:]].sum().reset_index()
+    mt_report = mt_report.groupby('Entry')[mt_report.columns.tolist()[1:]].sum().reset_index()
+    mp_report = mp_report.groupby('Entry')[mp_report.columns.tolist()[1:]].sum().reset_index()
+    mg_report.to_csv(f'{out}/Quantification/mg.readcounts', sep='\t', index=False)
+    mt_report.to_csv(f'{out}/Quantification/mt.readcounts', sep='\t', index=False)
+    mp_report[mp_report[mp_report.columns.tolist()[1:]].isnull().sum(
+        axis=1) < len(mp_report.columns.tolist()[1:])].drop_duplicates().to_csv(
+        f'{out}/Metaproteomics/mp.spectracounts', sep='\t', index=False)
 
 
-def make_entry_report(protein_report, out, exps, sample):
-    timed_message(f'Organizing Entry level information for sample: {sample}')
-    timed_message('Reading Protein Report')
-    report = pd.read_csv(protein_report, sep='\t')
-    timed_message('Reading UPIMAPI report')
-    upimapi_res = pd.read_csv(f'{out}/Annotation/{sample}/UPIMAPI_results.tsv', sep='\t')
-    for col in upimapi_res.columns:
-        if '.' in col:      # some columns of UPIMAPI are repeated
-            del upimapi_res[col]
-    uniprot_cols = [col for col in upimapi_res.columns if col not in blast_cols]
-    taxonomy_columns = [col for col in upimapi_res.columns if 'Taxonomic lineage (' in col]
-    functional_columns = ['General functional category', 'Functional category', 'Protein description', 'COG ID']
-    if report['COG ID'].notnull().sum() > 0:
-        tqdm.pandas(desc=timed_message(f'Finding consensus COG for each entry of sample: {sample}'))
-        cogs_df = report.groupby('Entry')['COG ID'].progress_apply(
-            lambda x: x.value_counts().index[0] if len(x.value_counts().index) > 0 else np.nan).reset_index()
-        cogs_categories = report[functional_columns].drop_duplicates()
-    else:
-        timed_message('No COG information available')
-        cogs_df = pd.DataFrame(columns=['Entry', 'COG ID'])
-    mg_names = exps[(exps["Data type"] == 'dna') & (exps["Sample"] == sample)]['Name'].tolist()
-    mt_names = exps[(exps["Data type"] == 'mrna') & (exps["Sample"] == sample)]['Name'].tolist()
-    mp_names = exps[(exps['Sample'] == sample) & (exps['Data type'] == 'protein')]['Name'].tolist()
-    # Aggregate information for each Entry, keep UniProt information, sum MG and MT or MP quantification
-    report = report.groupby('Entry')[mg_names + mt_names + mp_names].sum().reset_index()
-    report = pd.merge(report, upimapi_res, on='Entry', how='left')
-    report = pd.merge(report, cogs_df, on='Entry', how='left')
-    if report['COG ID'].notnull().sum() > 0:
-        report = pd.merge(report, cogs_categories, on='COG ID', how='left')
-    else:
-        report = pd.concat([report, pd.DataFrame(
-            columns=['General functional category', 'Functional category', 'Protein description'],
-            index=range(len(report)))], axis=1)
-    report = report[uniprot_cols + functional_columns + mg_names + mt_names + mp_names]
-    timed_message('Writing Entry Report')
-    report = report.drop_duplicates()
-    report.to_csv(f'{out}/MOSCA_{sample}_Entry_Report.tsv', sep='\t', index=False)
+def estimate_cog_for_entries(e_report):
+    if e_report['COG ID'].notnull().sum() == 0:
+        print('No COG information available.')
+        return pd.DataFrame()
+    tqdm.pandas(desc=timed_message(f'Finding consensus COG for each entry.'), ascii=' >=')
+    cogs_df = e_report.groupby('Entry')['COG ID'].progress_apply(
+        lambda x: x.value_counts().index[0] if len(x.value_counts().index) > 0 else np.nan).reset_index()
+    cog_categories = e_report[functional_columns].drop_duplicates()
+    duplicated_cogs = cog_categories[cog_categories['COG ID'].duplicated()]['COG ID'].unique()
+    categories_df = pd.concat([
+        cog_categories[~cog_categories['COG ID'].isin(duplicated_cogs)],
+        cog_categories[cog_categories['COG ID'].isin(duplicated_cogs)][~(
+                cog_categories['General functional category'].isnull() & cog_categories['COG ID'].notnull())]])
+    categories_df = categories_df.groupby('COG ID')[functional_columns[:-1]].first().reset_index()
+    cogs_df = pd.merge(cogs_df, categories_df, on='COG ID', how='left')
+    cogs_df = cogs_df.groupby('Entry')[functional_columns].first().reset_index()    # Keep only one COG per Entry
+    return cogs_df
 
+
+def add_quantification_matrices(report, mg_names, mt_names, mp_names, out):
+    if len(mg_names) > 0:
+        readcounts = pd.read_csv(f'{out}/Quantification/mg_normalized.tsv', sep='\t')
+        report = pd.merge(report, readcounts, on='qseqid', how='left')
+    if len(mt_names) > 0:
+        readcounts = pd.read_csv(f'{out}/Quantification/mt_normalized.tsv', sep='\t')
+        report = pd.merge(report, readcounts, on='qseqid', how='left')
+    if len(mp_names) > 0:
+        spectracounts = pd.read_csv(f'{out}/Metaproteomics/mp_normalized.tsv', sep='\t')
+        report = pd.merge(report, spectracounts, on='qseqid', how='left')
+    return report
+
+
+def write_kronas(report, out, mg_names, mt_names, mp_names, tax_cols):
     timed_message('Generating krona plots')
-    tax_order = ['SUPERKINGDOM', 'KINGDOM', 'PHYLUM', 'CLASS', 'ORDER', 'FAMILY', 'GENUS', 'SPECIES']
-    tax_cols = [
-        f'Taxonomic lineage ({col})' for col in tax_order if f'Taxonomic lineage ({col})' in taxonomy_columns]
+    #tax_order = ['SUPERKINGDOM', 'KINGDOM', 'PHYLUM', 'CLASS', 'ORDER', 'FAMILY', 'GENUS', 'SPECIES']
+    #tax_cols = [f'Taxonomic lineage ({col})' for col in tax_order if f'Taxonomic lineage ({col})' in taxonomy_columns]
     for name in mg_names + mt_names + mp_names:
         Path(f'{out}/kronas').mkdir(parents=True, exist_ok=True)
         # Draw the taxonomy krona plot
@@ -129,22 +138,31 @@ def make_entry_report(protein_report, out, exps, sample):
             f'{out}/kronas/{name}_fun.tsv', sep='\t', index=False, header=False)
         run_command('ktImportText {0}/kronas/{1}_fun.tsv -o {0}/kronas/{1}_fun.html'.format(out, name))
 
-    return report
 
-
-def make_entry_reports(out, exps, max_lines=1000000):
-    writer = pd.ExcelWriter(f'{out}/MOSCA_Entry_Report.xlsx', engine='xlsxwriter')
+def make_entry_report(out, exps):
+    mg_names = exps[(exps["Data type"] == 'dna')]['Name'].tolist()
+    mt_names = exps[(exps["Data type"] == 'mrna')]['Name'].tolist()
+    mp_names = exps[(exps['Data type'] == 'protein')]['Name'].tolist()
+    with open(f"{out}/Annotation/{exps['Sample'].tolist()[0]}/uniprotinfo.tsv", 'r') as file:
+        reader = csv.reader(file, delimiter='\t')
+        up_cols = next(reader)
+    all_info = pd.DataFrame()
     for sample in set(exps['Sample']):
-        report = make_entry_report(f'{out}/MOSCA_{sample}_Protein_Report.tsv', out, exps, sample)
-        if len(report) < max_lines:
-            report.to_excel(writer, sheet_name=sample, index=False)
-        else:
-            k = 1
-            for i in range(0, len(report), max_lines):
-                j = min(i + max_lines, len(report))
-                report.iloc[i:(i + j)].to_excel(writer, sheet_name=f'{sample} ({k})', index=False)
-                k += 1
-    writer.close()
+        timed_message(f'Reading Protein Report for sample {sample}.')
+        entry_report = pd.concat([all_info, pd.read_csv(
+            f'{out}/MOSCA_{sample}_Protein_Report.tsv', sep='\t', low_memory=False)])
+    entry_report = all_info[up_cols].drop_duplicates()
+    entry_report = pd.merge(entry_report, estimate_cog_for_entries(all_info), on='Entry', how='left')
+    entry_report = pd.merge(
+        entry_report, all_info.groupby('Entry')[mg_names + mt_names + mp_names].sum().reset_index(), on='Entry',
+        how='left')
+    entry_report = add_quantification_matrices(entry_report, mg_names, mt_names, mp_names, out)
+    timed_message('Writing Entry Report.')
+    entry_report.to_csv(f'{out}/MOSCA_Entry_Report.tsv', sep='\t', index=False)
+    multi_sheet_excel(f'{out}/MOSCA_Entry_Report.xlsx', entry_report, sheet_name='Entry Report')
+    taxonomy_columns = [col for col in up_cols if 'Taxonomic lineage (' in col]
+    timed_message('Writting Krona plots.')
+    write_kronas(entry_report, out, mg_names, mt_names, mp_names, taxonomy_columns)
 
 
 def run():

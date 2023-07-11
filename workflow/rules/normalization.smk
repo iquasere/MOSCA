@@ -1,10 +1,10 @@
 rule normalization:
     input:
-        expand("{output}/Quantification/{sample}/mt.readcounts", output=OUTPUT, sample=set(mt_exps['Sample'])),
-        expand("{output}/Metaproteomics/{sample}/mp.spectracounts", output=OUTPUT, sample=set(mp_exps['Sample']))
+        f"{OUTPUT}/Quantification/mg.readcounts",
+        f"{OUTPUT}/Quantification/mt.readcounts" if len(mt_exps > 0) else f"{OUTPUT}/Metaproteomics/mp.spectracounts"
     output:
-        expand("{output}/Quantification/{sample}/mt_normalized.tsv",output=OUTPUT,sample=set(mt_exps['Sample'])),
-        expand("{output}/Metaproteomics/{sample}/mp_normalized.tsv",output=OUTPUT,sample=set(mp_exps['Sample']))
+        f"{OUTPUT}/Quantification/mg_normalized.tsv",
+        f"{OUTPUT}/Quantification/mt_normalized.tsv" if len(mt_exps > 0) else f"{OUTPUT}/Metaproteomics/mp_normalized.tsv"
     threads:
         1
     params:
