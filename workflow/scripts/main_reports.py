@@ -110,17 +110,21 @@ def estimate_cog_for_entries(e_report):
     return cogs_df
 
 
-def add_quantification_matrices(report, mg_names, mt_names, mp_names, out):
+def join_normalized_matrices(mg_names, mt_names, mp_names, out):
+    counts = pd.DataFrame()
     if len(mg_names) > 0:
-        readcounts = pd.read_csv(f'{out}/Quantification/mg_normalized.tsv', sep='\t')
-        report = pd.merge(report, readcounts, on='qseqid', how='left')
+        counts = pd.merge(counts, pd.read_csv(
+            f'{out}/Quantification/mg_normalized.tsv', sep='\t'), left_index=True, right_index=True, how='outer')
     if len(mt_names) > 0:
-        readcounts = pd.read_csv(f'{out}/Quantification/mt_normalized.tsv', sep='\t')
-        report = pd.merge(report, readcounts, on='qseqid', how='left')
+        counts = pd.merge(counts, pd.read_csv(
+            f'{out}/Quantification/mt_normalized.tsv', sep='\t'), left_index=True, right_index=True, how='outer')
     if len(mp_names) > 0:
-        spectracounts = pd.read_csv(f'{out}/Metaproteomics/mp_normalized.tsv', sep='\t')
-        report = pd.merge(report, spectracounts, on='qseqid', how='left')
-    return report
+        counts = pd.merge(counts, pd.read_csv(
+            f'{out}/Metaproteomics/mp_normalized.tsv', sep='\t'), left_index=True, right_index=True, how='outer')
+    counts.rename(columns={col: f'{col}_normalized' for col in counts.columns.tolist()}, inplace=True)
+    if 'Entry' not in counts.columns.tolist():
+        counts = counts.reset_index().rename(columns={'index': 'Entry'})
+    return counts
 
 
 def write_kronas(report, out, mg_names, mt_names, mp_names, tax_cols):
@@ -156,7 +160,8 @@ def make_entry_report(out, exps):
     entry_report = pd.merge(
         entry_report, all_info.groupby('Entry')[mg_names + mt_names + mp_names].sum().reset_index(), on='Entry',
         how='left')
-    entry_report = add_quantification_matrices(entry_report, mg_names, mt_names, mp_names, out)
+    counts = join_normalized_matrices(entry_report, mg_names, mt_names, mp_names, out)
+    entry_report = pd.merge(entry_report, counts, on='Entry', how='left')
     timed_message('Writing Entry Report.')
     entry_report.to_csv(f'{out}/MOSCA_Entry_Report.tsv', sep='\t', index=False)
     multi_sheet_excel(f'{out}/MOSCA_Entry_Report.xlsx', entry_report, sheet_name='Entry Report')
