@@ -8,7 +8,8 @@ rule normalization:
     threads:
         1
     params:
-        method = config["normalization_method"]
+        norm_method = config["normalization_method"],
+        imput_method = config["imputation_method"]
     conda:
         "../envs/normalization.yaml"
     script:

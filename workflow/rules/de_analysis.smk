@@ -1,7 +1,7 @@
 rule make_dea_input:
     input:
-        expand("{output}/Quantification/{sample}/mt.readcounts", output=OUTPUT, sample=set(mt_exps['Sample'])),
-        expand("{output}/Metaproteomics/{sample}/mp_normalized.tsv", output=OUTPUT, sample=set(mp_exps['Sample']))
+        expand("{output}/Quantification/mt.readcounts", output=OUTPUT, sample=set(mt_exps['Sample'])),
+        expand("{output}/Metaproteomics/mp_normalized.tsv", output=OUTPUT, sample=set(mp_exps['Sample']))
     output:
         f"{OUTPUT}/DE_analysis/dea_input.tsv"
     threads:

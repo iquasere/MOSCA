@@ -158,19 +158,25 @@ class MetaproteomicsAnalyser:
         """
         run_command(f'searchgui eu.isas.searchgui.cmd.FastaCLI -in {database} -decoy')
 
-    def generate_parameters_file(self, output, protein_fdr=1):
+    def generate_parameters_file(
+            self, output, protein_fdr=1, frag_tol=0.5, prec_tol=10, enzyme='Trypsin', mc=2,
+            fixed_mods=('Carbamidomethylation of C'),
+            variable_mods=('Oxidation of M', 'Acetylation of protein N-term')):
         """
-        input:
-            output: name of parameters file
-            database: name of FASTA decoy database
-            protein_fdr: float - FDR at the protein level in percent
-        output:
-            a parameters file will be produced for SearchCLI and/or PeptideShakerCLI
+        param: output: name of parameters file
+        param: protein_fdr: float - FDR at the protein level in percent
+        param: frag_tol: float - fragment ion mass tolerance in ppm
+        param: prec_tol: float - precursor ion mass tolerance in ppm
+        param: enzyme: str - enzyme used for digestion
+        param: mc: int - maximum number of missed cleavages
+        param: fixed_mods: tuple - fixed modifications
+        param: variable_mods: tuple - variable modifications
+        returns: a parameters file will be produced for SearchCLI and/or PeptideShakerCLI
         """
         run_pipe_command(
-            f'searchgui eu.isas.searchgui.cmd.IdentificationParametersCLI -out {output} -prec_tol 10 '
-            f'-frag_tol 0.02 -enzyme Trypsin -fixed_mods "Carbamidomethylation of C" -variable_mods '
-            f'"Oxidation of M, Acetylation of protein N-term" -mc 2 -protein_fdr {protein_fdr}')
+            f'''searchgui eu.isas.searchgui.cmd.IdentificationParametersCLI -out {output} -prec_tol {prec_tol} '
+            f'-frag_tol {frag_tol} -enzyme {enzyme} -fixed_mods "{', '.join(fixed_mods)}" -variable_mods '
+            f'"{', '.join(variable_mods)}" -mc {mc} -protein_fdr {protein_fdr}''')
 
     def split_database(self, database, n_proteins=5000000):
         """

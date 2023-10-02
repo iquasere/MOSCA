@@ -5,11 +5,11 @@
 # problems with libreadline.so.6 might be solved with cd /lib/x86_64-linux-gnu/; sudo ln -s libreadline.so.7.0 libreadline.so.6
 method <- 'differential' # snakemake@params$method TODO - think about reintegrating the method by baseMean
 
-paste("Counts:", snakemake@input[[1]], sep=' ')
-paste("Conditions:", snakemake@params$conditions, sep=' ')
-paste("Method:", method, sep=' ')
-paste("Output:", snakemake@params$output, sep=' ')
-paste("Minimum fold change:", snakemake@params$foldchange, sep=' ')
+paste0("Counts: ", snakemake@input[[1]])
+paste0("Conditions: ", snakemake@params$conditions)
+paste0("Method: ", method)
+paste0("Output: ", snakemake@params$output)
+paste0("Minimum fold change: ", snakemake@params$foldchange)
 
 # Input parsing
 conditions <- strsplit(snakemake@params$conditions, ",")[[1]]
@@ -31,16 +31,16 @@ if(snakemake@params$datatype == "rna_seq") {
   dds <- DESeq(dds)
   res <- results(dds, lfcThreshold = log2(snakemake@params$foldchange))
   data <- counts(estimateSizeFactors(dds), normalized=TRUE)
-  write.table(data, file=paste(file=snakemake@params$output, "normalized_counts.tsv", sep = '/'),
-              sep='\t', col.names = NA, quote=FALSE)
+  write.table(
+    data, file=paste0(file=snakemake@params$output, "/normalized_counts.tsv"), sep='\t', col.names = NA, quote=FALSE)
 
   # Bland–Altman plot
-  jpeg(paste(snakemake@params$output, "ma.jpeg", sep = '/'))
+  jpeg(paste0(snakemake@params$output, "/ma.jpeg"))
   plotMA(res, main="DESeq2", ylim=c(-2,2))
   dev.off()
 
   # Normalized counts
-  jpeg(paste(snakemake@params$output, "counts.jpeg", sep = '/'))
+  jpeg(paste0(snakemake@params$output, "/counts.jpeg"))
   plotCounts(dds, gene=which.min(res$padj), intgroup="condition")
   dev.off()
 
@@ -49,12 +49,12 @@ if(snakemake@params$datatype == "rna_seq") {
     resOrdered <- res[order(res$padj),]
   } else {
     resOrdered <- res[order(-res$baseMean),]}
-  write.table(as.data.frame(resOrdered), file=paste(
-    file=snakemake@params$output, "condition_treated_results.tsv", sep = '/'), sep='\t', col.names = NA, quote=FALSE)
+  write.table(as.data.frame(resOrdered), file=paste0(
+    snakemake@params$output, "/condition_treated_results.tsv"), sep='\t', col.names = NA, quote=FALSE)
   vsd <- varianceStabilizingTransformation(dds, blind=FALSE)
-  select <- rownames(head(resOrdered,20))
+  select <- rownames(head(resOrdered,30))
   vsd.counts <- assay(vsd)[select,]
-  jpeg(paste(snakemake@params$output, "gene_expression.jpeg", sep = '/'))
+  jpeg(paste0(snakemake@params$output, "/gene_expression.jpeg"))
   pheatmap(vsd.counts)
   dev.off()
 
@@ -64,26 +64,30 @@ if(snakemake@params$datatype == "rna_seq") {
   rownames(sampleDistMatrix) <- colnames(total)
   colnames(sampleDistMatrix) <- NULL
   colors <- colorRampPalette( rev(brewer.pal(9, "Blues")) )(255)
-  jpeg(paste(snakemake@params$output, "sample_distances.jpeg", sep = '/'))
-  pheatmap(sampleDistMatrix, clustering_distance_rows = sampleDists,
-           clustering_distance_cols = sampleDists, col = colors)
+  jpeg(paste0(snakemake@params$output, "/sample_distances.jpeg"))
+  pheatmap(
+    sampleDistMatrix, clustering_distance_rows = sampleDists, clustering_distance_cols = sampleDists, col = colors)
   dev.off()
 
   # Principal components analysis
-  jpeg(paste(snakemake@params$output, "pca.jpeg", sep = '/'))
+  jpeg(paste0(snakemake@params$output, "/pca.jpeg"))
   plotPCA(vsd, intgroup = c("condition"))
   dev.off()
 
 # Proteomics differential analysis
 } else if(snakemake@params$datatype == "proteomics") {
   library("ROTS")
+  library("tibble")
   # Reproducibility-Optimized Test Statistics
-  de = ROTS(data=total, groups=conditions, progress=TRUE)
-
-  de_results <- cbind(de$logfc, de$pvalue)
-  colnames(de_results) <- c("log2FoldChange", "pvalue")
+  total <- log2(total[!(rowSums(total == 0) > 0), ])
+  de <- ROTS(data=total, groups=conditions, progress=TRUE)
+  de_res <- cbind(de$logfc, de$pvalue, de$FDR)
+  colnames(de_res) <- c("log2FoldChange", "pvalue", "FDR")
+  sorted_res <- de_res[order(de_res[, "pvalue"]), ]
   write.table(
-    de_results, file=paste(snakemake@params$output, "condition_treated_results.tsv", sep = '/'), sep="\t", quote=FALSE)
+    tibble::rownames_to_column(as.data.frame(sorted_res), "IDs"),     # add rownames as column
+    file=paste0(snakemake@params$output, "/condition_treated_results.tsv"),
+    sep="\t", quote=FALSE, row.names=FALSE)
 
   # Write parameters of DE model
   for (col in c("B", "a1", "a2", "k", "R", "Z")){
@@ -93,8 +97,16 @@ if(snakemake@params$datatype == "rna_seq") {
 
   #summary(de, fdr = 0.05)
   for (ptype in c('volcano', 'heatmap', 'ma', 'reproducibility', 'pvalue', 'pca')){
-    jpeg(paste0(snakemake@params$output, "/", ptype, ".jpeg"))
-    plot(de, type=ptype, fdr=snakemake@params$fdr)
+    print(paste0("Plotting ", ptype, " plot."))
+    jpeg(paste0(snakemake@params$output, "/", ptype, ".jpeg"), res=300)
+
+    if (ptype == 'heatmap') {
+      # heatmap with legend requires this call, also arranges the data better
+      sorted_data <- total[order(de$pvalue), ]    # total is always equal to de$data
+      heatmap(sorted_data, Rowv = NA, Colv = NA, col = colorRampPalette(c("blue", "white", "red"))(256), legend = TRUE)
+    } else {
+      plot(de, type = ptype, fdr = snakemake@params$fdr)
+    }
     dev.off()
   }
 }

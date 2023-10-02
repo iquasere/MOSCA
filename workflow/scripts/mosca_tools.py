@@ -196,10 +196,6 @@ def multi_sheet_excel(output, data, sheet_name='Sheet', max_lines=1000000, index
     writer.close()
 
 
-def timed_message(message=None):
-    print(f'{time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())}: {message}')
-
-
 def expand_by_list_column(df, column='Pathway'):
     lens = [len(item) for item in df[column]]
     dictionary = dict()
