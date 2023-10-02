@@ -44,7 +44,7 @@ conda config --add channels anaconda
 conda config --add channels bioconda
 conda config --add channels conda-forge
 
-conda install -c conda-forge mamba
+conda install -c conda-forge mamba libarchive=3.6.2=h039dbb9_1
 mamba env update --file MOSCA/base_environment.yml --name base
 
 echo "Storing MOSCA's files in the Conda environment at: ${mosca_env}"
