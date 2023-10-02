@@ -15,10 +15,7 @@ from mosca_tools import run_pipe_command, parse_fastqc_report, count_on_file, ti
 
 class Reporter:
     def __init__(self):
-        self.report = pd.DataFrame(columns=[
-            'Initial reads', 'Qual trim params', 'Final reads', '# contigs', 'N50', 'Reads aligned (%)',
-            '# high-quality MAGs', '# medium-quality MAGs', '# low-quality MAGs', '# genes',
-            '# annotations (UPIMAPI)', '# annotations (reCOGnizer)', '# differentially expressed'])
+        self.report = pd.DataFrame()
 
     def write_technical_report(self, output):
         """
@@ -36,11 +33,10 @@ class Reporter:
         timed_message('Obtaining info from preprocessing.')
         reports = glob(f'{out_dir}/Preprocess/FastQC/*/fastqc_data.txt')
         for file in reports:
-            timed_message(f'Obtaining info from: {file}')
             if 'noadapters' in file or 'norrna' in file:
                 continue
+            timed_message(f'Obtaining info from: {"/".join(file.split("/")[-3:])}')
             name = file.split('/')[-2].split('_R')[0].split('_forward')[0].split('_reverse')[0].split('_trimmed_')[-1]
-            self.report = pd.concat([self.report, pd.Series(name=name, dtype='object')])
             if 'quality_trimmed' in file:
                 self.report.loc[name, 'Final reads'] = parse_fastqc_report(file)['Basic Statistics'][1].loc[
                     'Total Sequences', 'Value']
@@ -48,13 +44,13 @@ class Reporter:
                 self.report.loc[name, 'Initial reads'] = parse_fastqc_report(file)['Basic Statistics'][1].loc[
                     'Total Sequences', 'Value']
             with open(f'{out_dir}/Preprocess/Trimmomatic/{name}_quality_params.txt') as f:
-                self.report.loc[name, 'Qual trim params'] = ';'.join(f.read().split('\n'))
+                self.report.loc[name, 'Qual trim params'] = ';'.join([x for x in f.read().split('\n') if len(x) > 0])
 
     def info_from_assembly(self, out_dir):
         timed_message('Obtaining info from assembly.')
         reports = glob(f'{out_dir}/Assembly/*/quality_control/report.tsv')
         for file in reports:
-            timed_message(f'Obtaining info from: {file}')
+            timed_message(f'Obtaining info from: {"/".join(file.split("/")[-4:])}')
             sample = file.split('/')[-3]
             self.report = pd.concat([self.report, pd.Series(name=sample, dtype='object')])
             data = pd.read_csv(file, sep='\t', index_col='Assembly')
@@ -67,10 +63,8 @@ class Reporter:
         timed_message('Obtaining info from binning.')
         reports = glob(f'{out_dir}/Binning/*/checkm.tsv')
         for file in reports:
-            timed_message(f'Obtaining info from: {file}')
+            timed_message(f'Obtaining info from: {"/".join(file.split("/")[-3:])}')
             sample = file.split('/')[-2]
-            if sample not in self.report.index:
-                self.report = pd.concat([self.report, pd.Series(name=sample, dtype='object')])
             data = pd.read_csv(file, sep='\t')
             self.report.loc[sample, ['# high-qual MAGs', '# medium-qual MAGs', '# low-qual MAGs']] = (
                 ((data['Completeness'] >= 90) & (data['Contamination'] <= 5)).sum(),
@@ -83,60 +77,52 @@ class Reporter:
         upimapi_res = glob(f'{out_dir}/Annotation/*/UPIMAPI_results.tsv')
         recognizer_res = glob(f'{out_dir}/Annotation/*/reCOGnizer_results.tsv')
         for file in fastas:
-            timed_message(f'Obtaining info from: {file}')
+            timed_message(f'Obtaining info from: {"/".join(file.split("/")[-3:])}')
             sample = file.split('/')[-2]
-            if sample not in self.report.index:
-                self.report = pd.concat([self.report, pd.Series(name=sample, dtype='object')])
-            self.report['# genes'] = count_on_file('>', file)
-        for upi_res in upimapi_res:
-            timed_message(f'Obtaining info from: {upi_res}')
+            self.report.loc[sample, '# genes'] = count_on_file('>', file)
+        for file in upimapi_res:
+            timed_message(f'Obtaining info from: {"/".join(file.split("/")[-3:])}')
             sample = file.split('/')[-2]
             self.report.loc[sample, '# annotations (UPIMAPI)'] = pd.read_csv(
-                upi_res, sep='\t', low_memory=False)['qseqid'].unique().sum()
-        for recog_res in recognizer_res:
-            timed_message(f'Obtaining info from: {recog_res}')
+                file, sep='\t', low_memory=False)['qseqid'].unique().sum()
+        for file in recognizer_res:
+            timed_message(f'Obtaining info from: {"/".join(file.split("/")[-3:])}')
             sample = file.split('/')[-2]
             self.report.loc[sample, '# annotations (reCOGnizer)'] = pd.read_csv(
-                recog_res, sep='\t', low_memory=False)['qseqid'].unique().sum()
+                file, sep='\t', low_memory=False)['qseqid'].unique().sum()
 
-    def info_from_mt_quantification(self, out_dir):
+    def info_from_quantification(self, out_dir):
         timed_message('Obtaining info from mt quantification.')
         reports = glob(f'{out_dir}/Quantification/*.log')
         for file in reports:
-            timed_message(f'Obtaining info from: {file}')
+            timed_message(f'Obtaining info from: {"/".join(file.split("/")[-2:])}')
             name = file.split('/')[-1].split('.log')[0]
-            if name not in self.report.index:
-                self.report = pd.concat([self.report, pd.Series(name=name, dtype='object')])
             with open(file) as f:
                 self.report.loc[name, 'Reads aligned (%)'] = f.readlines()[-1].split('%')[0]
 
-    def info_from_differential_expression(self, out_dir, cutoff=0.01):
-        timed_message('Obtaining info from differential expression.')
-        reports = glob(f'{out_dir}/Quantification/*/condition_treated_results.tsv')
-        for file in reports:
-            timed_message(f'Obtaining info from: {file}')
-            sample = file.split('/')[-2]
-            if sample not in self.report.index:
-                self.report = pd.concat([self.report, pd.Series(name=sample, dtype='object')])
-            de_results = pd.read_csv(f'{out_dir}/Quantification/{sample}/condition_treated_results.tsv', sep='\t')
-            self.report.loc[sample, '# differentially expressed'] = (de_results['padj'] < cutoff).sum()
+    def info_from_differential_expression(self, out_dir, cutoff=0.01, mp=False):
+        file = f'{out_dir}/DE_analysis/condition_treated_results.tsv'
+        timed_message(f'Obtaining info from: {"/".join(file.split("/")[-2:])}')
+        de_results = pd.read_csv(file, sep='\t', index_col=0)
+        self.report['# differentially expressed'] = (       # cutoff applies to both pvalue and FDR/padj
+                (de_results['pvalue'] < cutoff) & (de_results['FDR' if mp else 'padj'] < cutoff)).sum()
 
     def zip_outputs(self, out_dir):
         files_n_folders = {
             'fastqc_reports': [file for file in glob(f'{out_dir}/Preprocess/FastQC/*.html') if (
                 'noadapters' not in file and 'norrna' not in file)],
             'assembly_reports': glob(f'{out_dir}/Assembly/*/quality_control/report.tsv'),
-            'taxonomy_kronas': glob(f'{out_dir}/*_tax.html'),
-            'functional_kronas': glob(f'{out_dir}/*_fun.html'),
-            'de_plots': glob(f'{out_dir}/Quantification/*/*.jpeg'),
+            'taxonomy_kronas': glob(f'{out_dir}/kronas/*_tax.html'),
+            'functional_kronas': glob(f'{out_dir}/kronas/*_fun.html'),
+            'de_plots': glob(f'{out_dir}/DE_analysis/*.jpeg'),
             'kegg_maps': glob(f'{out_dir}/KEGG_maps/*.png'),
-            'main_reports': [f'{out_dir}/{filename}' for filename in ['MOSCA_Protein_Report.xlsx',
-                    'MOSCA_Entry_Report.xlsx', 'MOSCA_General_Report.tsv', 'technical_report.tsv']]}
+            'main_reports': [f'{out_dir}/{filename}' for filename in [
+                'MOSCA_Protein_Report.xlsx', 'MOSCA_Entry_Report.xlsx', 'MOSCA_General_Report.tsv',
+                'technical_report.tsv']]}
         with ZipFile(f'{out_dir}/MOSCA_results.zip', 'w') as archive:
             for k, v in files_n_folders.items():
                 for file in v:
-                    prefix = file.split('/')[-3] + '_' if k == 'assembly_reports' else (
-                        file.split('/')[-2] + '_' if k in ['de_plots', 'kegg_maps'] else '')
+                    prefix = file.split('/')[-3] + '_' if k == 'assembly_reports' else ''   # get sample name to distinguish assembly reports
                     archive.write(file, arcname=f'{k}/{prefix}{file.split("/")[-1]}')
 
     def run(self):
@@ -146,9 +132,11 @@ class Reporter:
         self.info_from_assembly(snakemake.params.output)
         self.info_from_binning(snakemake.params.output)
         self.info_from_annotation(snakemake.params.output)
-        self.info_from_mt_quantification(snakemake.params.output)
-        self.info_from_differential_expression(snakemake.params.output)
-        self.report.dropna(how='all', axis=1).to_csv(f'{snakemake.params.output}/MOSCA_General_Report.tsv', sep='\t')
+        self.info_from_quantification(snakemake.params.output)
+        exps = pd.read_csv(f'{snakemake.params.output}/exps.tsv', sep='\t')
+        self.info_from_differential_expression(
+            snakemake.params.output, cutoff=snakemake.params.cutoff, mp='protein' in exps['Data type'].tolist())
+        self.report.to_csv(f'{snakemake.params.output}/MOSCA_General_Report.tsv', sep='\t')
         self.zip_outputs(snakemake.params.output)
 
 

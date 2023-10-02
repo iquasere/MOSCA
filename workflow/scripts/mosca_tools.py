@@ -7,7 +7,7 @@ By João Sequeira
 Jun 2017
 """
 
-import glob
+from glob import glob
 from multiprocessing import Pool
 from pathlib import Path
 import numpy as np
@@ -51,7 +51,7 @@ def parse_blast(blast):
 
 
 def check_bowtie2_index(index_prefix):
-    files = glob.glob(index_prefix + '*.bt2')
+    files = glob(index_prefix + '*.bt2')
     if len(files) < 6:
         return False
     return True
@@ -233,6 +233,10 @@ def parse_fastqc_report(filename):
 
 def count_on_file(expression, file, compressed=False):
     return int(check_output(f"{'zgrep' if compressed else 'grep'} -c '{expression}' {file}", shell=True))
+
+
+def count_lines(file):
+    return int(check_output(f"wc -l {file}", shell=True).decode('utf8').split()[0])
 
 
 def sort_alphanumeric(alphanumeric_list):

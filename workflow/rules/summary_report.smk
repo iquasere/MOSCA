@@ -11,6 +11,7 @@ rule summary_report:
         1
     params:
         output=OUTPUT,
+        cutoff=config["significance_threshold"]
     conda:
         "../envs/summary.yaml"
     script:
