@@ -18,13 +18,17 @@ normalize_gene_expression <- function(df, output_file, norm_method, imput_method
     library("pcaMethods")
     df[df == 0] <- NA
     norm <- exprs(justvsn(ExpressionSet(df)))
-    print("Performing Local Least Squares Imputation.")
-    allVariables <- FALSE
-    if (sum(complete.cases(norm)) / nrow(norm) < 0.5) {
-      allVariables <- TRUE
+    if (imput_method == "LLS") {
+      print("Performing Local Least Squares Imputation.")
+      allVariables <- FALSE
+      if (sum(complete.cases(norm)) / nrow(norm) < 0.5) {
+        allVariables <- TRUE
+      }
+      imputed <- llsImpute(t(norm), correlation = "pearson", allVariables = allVariables)
+      df <- t(completeObs(imputed))
+    } else if (imput_method == "MIN") {
+      df[is.na(df)] <- min(norm, na.rm=TRUE)
     }
-    imputed <- llsImpute(t(norm), correlation = "pearson", allVariables = allVariables)
-    df <- t(completeObs(imputed))
   } else {
     stop("Error: normalization method must be either TMM, RLE, or VSN")
   }

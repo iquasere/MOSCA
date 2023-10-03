@@ -6,11 +6,7 @@ FROM continuumio/miniconda3
 
 VOLUME ["named_volume"]
 
-RUN buildDeps='build-essential zlib1g-dev' \
-&& apt-get update \
-&& apt-get install -y $buildDeps --no-install-recommends \
-# Set up CI files
-&& git clone https://github.com/iquasere/MOSCARDO.git \
+RUN git clone https://github.com/iquasere/MOSCARDO.git \     # Set up CI files
 && mkdir resources_directory \
 && mv MOSCARDO/data/cdd.tar.gz MOSCARDO/data/uniprot.fasta resources_directory \
 # Install MOSCA
@@ -22,6 +18,7 @@ RUN buildDeps='build-essential zlib1g-dev' \
 && pip install cryptography==38.0.4 \
 && pip install pyopenssl --upgrade \
 && conda clean --all \
+&& apt-get update \
 && apt-get install -y curl \
 && curl -fsSL https://get.docker.com -o get-docker.sh \
 && sh get-docker.sh \

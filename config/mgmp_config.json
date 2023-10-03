@@ -111,5 +111,6 @@
   "keggcharter_number_of_taxa": 10,
   "keggcharter_maps": [
     "00680"
-  ]
+  ],
+  "inside_container": false
 }
