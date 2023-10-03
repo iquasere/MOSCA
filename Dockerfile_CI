@@ -9,7 +9,6 @@ VOLUME ["named_volume"]
 RUN git clone https://github.com/iquasere/MOSCARDO.git \
 && mkdir resources_directory \
 && mv MOSCARDO/data/cdd.tar.gz MOSCARDO/data/uniprot.fasta resources_directory \
-# Install MOSCA
 && git clone https://github.com/iquasere/MOSCA.git -b development \
 && bash MOSCA/install_ci.bash --mosca_env "$(conda info --base)" \
 # Fix AttributeError: module 'lib' has no attribute 'X509_V_FLAG_CB_ISSUER_CHECK'

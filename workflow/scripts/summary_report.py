@@ -10,24 +10,47 @@ Oct 2019
 from glob import glob
 import pandas as pd
 from zipfile import ZipFile
+
+import yaml
+
 from mosca_tools import run_pipe_command, parse_fastqc_report, count_on_file, timed_message
+
+
+def get_env_info(yaml_file):
+    hash_string = yaml_file.split('/')[-1].split('.')[0]
+    with open(yaml_file) as file_data:
+        yaml_data = yaml.safe_load(file_data)
+    deps = [dep.split('=') for dep in yaml_data['dependencies'] if type(dep) == str]
+    pip_deps = [dep for dep in yaml_data['dependencies'] if type(dep) == dict]
+    pip_deps = [dep.split('==') for dep in (pip_deps[0]['pip'] if len(pip_deps) > 0 else [])]
+    versions = pd.DataFrame.from_dict(
+        {dep[0]: dep[1:] for dep in deps + pip_deps}, orient='index', columns=['Version', 'Build'])
+    versions.index.set_names('Name', inplace=True)
+    return hash_string, yaml_data['name'], yaml_data['channels'], versions
+
+
+def write_versions_report(output):
+    """
+    Writes the report with the softwares used by MOSCA and respective versions to a file
+    param: output: str - path to output file
+    """
+    timed_message('Writting technical report.')
+    yamls = glob('.snakemake/conda/*.yaml')
+    writer = pd.ExcelWriter(output, engine='xlsxwriter')
+    conda_list = run_pipe_command('conda list', output='PIPE', print_message=False)
+    values = [line.split() for line in conda_list.split('\n')[2:]][:-1]
+    df = pd.DataFrame(values[1:], columns=values[0][1:])
+    df.to_excel(writer, sheet_name='Base env', index=False)
+    for file in yamls:
+        hash_string, name, channels, versions = get_env_info(file)
+        versions.to_excel(writer, sheet_name=name)
+    writer.close()
 
 
 class Reporter:
     def __init__(self):
         self.report = pd.DataFrame()
 
-    def write_technical_report(self, output):
-        """
-        Writes the report with the softwares used by MOSCA and respective versions to a file
-        param: output: str - path to output file
-        """
-        timed_message('Writting technical report.')
-        conda_list = run_pipe_command('conda list', output='PIPE', print_message=False).split('\n')[2:]
-        lines = [line.split() for line in conda_list]
-        lines[0] = lines[0][1:]
-        df = pd.DataFrame(lines, columns=lines.pop(0)).set_index('Name')
-        df[['Version']].to_csv(output, sep='\t')
 
     def info_from_preprocessing(self, out_dir):
         timed_message('Obtaining info from preprocessing.')
@@ -127,7 +150,7 @@ class Reporter:
 
     def run(self):
         timed_message('Writting final reports.')
-        self.write_technical_report(f'{snakemake.params.output}/technical_report.tsv')
+        write_versions_report(f'{snakemake.params.output}/MOSCA_Versions_Report.xlsx')
         self.info_from_preprocessing(snakemake.params.output)
         self.info_from_assembly(snakemake.params.output)
         self.info_from_binning(snakemake.params.output)

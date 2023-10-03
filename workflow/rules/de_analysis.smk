@@ -35,7 +35,7 @@ rule de_analysis:
     params:
         conditions = (lambda wildcards, input: ",".join(not_mg_exps['Condition'].tolist())),
         foldchange = config["minimum_differential_expression"],
-        fdr = config["false_discovery_rate"],
+        fdr = config["significance_threshold"],
         output = (lambda wildcards, input: os.path.dirname(input[0])),
         datatype = (lambda wildcards, input: "rna_seq" if len(set(mt_exps['Sample'])) > 0 else "proteomics")
     conda:
