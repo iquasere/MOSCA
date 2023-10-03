@@ -6,7 +6,7 @@ FROM continuumio/miniconda3
 
 VOLUME ["named_volume"]
 
-RUN git clone https://github.com/iquasere/MOSCARDO.git \     # Set up CI files
+RUN git clone https://github.com/iquasere/MOSCARDO.git \
 && mkdir resources_directory \
 && mv MOSCARDO/data/cdd.tar.gz MOSCARDO/data/uniprot.fasta resources_directory \
 # Install MOSCA
