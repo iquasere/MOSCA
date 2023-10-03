@@ -8,7 +8,7 @@ rule protein_report:
     output:
         f"{OUTPUT}/MOSCA_Protein_Report.xlsx",
         f"{OUTPUT}/Quantification/mg.readcounts",
-        f"{OUTPUT}/Quantification/mt.readcounts" if len(mt_exps > 0) else f"{OUTPUT}/Metaproteomics/mp.spectracounts"
+        f"{OUTPUT}/Quantification/mt.readcounts" if len(mt_exps) > 0 else f"{OUTPUT}/Metaproteomics/mp.spectracounts"
     threads:
         1
     params:

@@ -7,13 +7,12 @@ By João Sequeira
 Oct 2019
 """
 
-from glob import glob
-import pandas as pd
-from zipfile import ZipFile
-
-import yaml
-
 from mosca_tools import run_pipe_command, parse_fastqc_report, count_on_file, timed_message
+
+import pandas as pd
+import yaml
+from zipfile import ZipFile
+from glob import glob
 
 
 def get_env_info(yaml_file):
