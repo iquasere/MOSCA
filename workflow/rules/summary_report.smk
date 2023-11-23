@@ -1,6 +1,6 @@
 rule summary_report:
     input:
-        f"{OUTPUT}/MOSCA_Protein_Report.xlsx",
+        f"{OUTPUT}/MOSCA_{sample}_Protein_Report.tsv",
         f"{OUTPUT}/MOSCA_Entry_Report.xlsx",
         f"{OUTPUT}/DE_analysis/condition_treated_results.tsv"
     output:

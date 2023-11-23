@@ -1,7 +1,6 @@
 rule make_dea_input:
     input:
-        expand("{output}/Quantification/mt.readcounts", output=OUTPUT, sample=set(mt_exps['Sample'])),
-        expand("{output}/Metaproteomics/mp_normalized.tsv", output=OUTPUT, sample=set(mp_exps['Sample']))
+        f"{OUTPUT}/Quantification/mt_normalized.tsv" if len(mt_exps) > 0 else f"{OUTPUT}/Metaproteomics/mp_normalized.tsv"
     output:
         f"{OUTPUT}/DE_analysis/dea_input.tsv"
     threads:
