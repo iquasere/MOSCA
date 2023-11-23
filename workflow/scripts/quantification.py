@@ -27,8 +27,8 @@ def run():
             else:
                 continue
             if ',' in pexps.loc[i]['Files']:
-                reads = [f"{snakemake.params.output}/Preprocess/Trimmomatic/quality_trimmed_{pexps.loc[i]['Name']}_{fr}_paired.fq"
-                         for fr in ['forward', 'reverse']]
+                reads = [(f"{snakemake.params.output}/Preprocess/Trimmomatic/quality_trimmed_{pexps.loc[i]['Name']}_"
+                          f"{fr}_paired.fq") for fr in ['forward', 'reverse']]
             else:
                 reads = [f"{snakemake.params.output}/Preprocess/Trimmomatic/quality_trimmed_{pexps.loc[i]['Name']}.fq"]
             perform_alignment(
@@ -38,8 +38,8 @@ def run():
                 f"{snakemake.params.output}/Quantification/{pexps.loc[i]['Name']}.readcounts", reference)
             # Read the results of alignment and add them to the readcounts result at sample level
             normalized_by_gene_size = pd.read_csv(
-                f"{snakemake.params.output}/Quantification/{pexps.loc[i]['Name']}.readcounts.norm", sep='\t',
-                names=['Gene' if pexps.loc[i]['Data type'] == 'mrna' else 'Contig', pexps.loc[i]['Name']])
+                f"{snakemake.params.output}/Quantification/{pexps.loc[i]['Name']}.readcounts.norm",
+                sep='\t', names=['Gene' if pexps.loc[i]['Data type'] == 'mrna' else 'Contig', pexps.loc[i]['Name']])
             if pexps.loc[i]['Data type'] == 'dna':
                 mg_result = pd.merge(mg_result, normalized_by_gene_size, how='outer', on='Contig')
             else:

@@ -299,7 +299,7 @@ class MetaproteomicsAnalyser:
             output=f'{output}/2nd_search_database.fasta')
 
     def run(self):
-        """
+
         Path(snakemake.params.output).mkdir(parents=True, exist_ok=True)
         # 1st database construction
         self.database_generation(
@@ -313,7 +313,7 @@ class MetaproteomicsAnalyser:
             self.generate_parameters_file(f'{snakemake.params.output}/1st_params.par', protein_fdr=100)
         except:
             print('An illegal reflective access operation has occurred. But MOSCA can handle it.')
-        """
+
         # 2nd database construction
         proteins_for_second_search = []
         for i in range(len(snakemake.params.names)):
