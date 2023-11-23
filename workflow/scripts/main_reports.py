@@ -85,8 +85,8 @@ def make_protein_reports(out, exps, max_lines=1000000):
     mg_report = mg_report.groupby('Entry')[mg_report.columns.tolist()[1:]].sum().reset_index()
     mt_report = mt_report.groupby('Entry')[mt_report.columns.tolist()[1:]].sum().reset_index()
     mp_report = mp_report.groupby('Entry')[mp_report.columns.tolist()[1:]].sum().reset_index()
-    mg_report.to_csv(f'{out}/Quantification/mg.readcounts', sep='\t', index=False)
-    mt_report.to_csv(f'{out}/Quantification/mt.readcounts', sep='\t', index=False)
+    mg_report.to_csv(f'{out}/Quantification/mg_entries.tsv', sep='\t', index=False)
+    mt_report.to_csv(f'{out}/Quantification/mt_entries.tsv', sep='\t', index=False)
     mp_report[mp_report[mp_report.columns.tolist()[1:]].isnull().sum(
         axis=1) < len(mp_report.columns.tolist()[1:])].drop_duplicates().to_csv(
         f'{out}/Metaproteomics/mp.spectracounts', sep='\t', index=False)

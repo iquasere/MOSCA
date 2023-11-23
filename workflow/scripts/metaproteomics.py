@@ -361,7 +361,7 @@ class MetaproteomicsAnalyser:
                 f'{out}/2nd_search/reports/{name}_Default_Protein_Report.txt', sep='\t', index_col=0
             )[['Main Accession', '#PSMs']].rename(columns={'#PSMs': name}), how='outer', on='Main Accession')
         spectracounts.groupby('Main Accession')[snakemake.params.names].sum().reset_index().fillna(value=0.0).to_csv(
-            f'{snakemake.params.output}/spectracounts.tsv', sep='\t', index=False)
+            f'{snakemake.params.output}/{snakemake.wildcards.sample}_mp_spectracounts.tsv', sep='\t', index=False)
 
 
 if __name__ == '__main__':

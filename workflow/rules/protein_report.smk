@@ -2,9 +2,9 @@ rule protein_report:
     input:
         expand("{output}/Annotation/{sample}/UPIMAPI_results.tsv", output=OUTPUT, sample=set(EXPS['Sample'])),
         expand("{output}/Annotation/{sample}/reCOGnizer_results.xlsx", output=OUTPUT, sample=set(EXPS["Sample"])),
-        expand("{output}/Quantification/{sample}/mg.readcounts.norm", output=OUTPUT, sample=set(mg_exps['Sample'])),
-        expand("{output}/Quantification/{sample}/mt.readcounts.norm", output=OUTPUT, sample=set(mt_exps['Sample'])),
-        expand("{output}/Metaproteomics/{sample}/spectracounts.tsv", output=OUTPUT, sample=set(mp_exps['Sample']))
+        expand("{output}/Quantification/{sample}_mg_readcounts.tsv", output=OUTPUT, sample=set(mg_exps['Sample'])),
+        expand("{output}/Quantification/{sample}_mt_readcounts.tsv", output=OUTPUT, sample=set(mt_exps['Sample'])),
+        expand("{output}/Metaproteomics/{sample}_mp_spectracounts.tsv", output=OUTPUT, sample=set(mp_exps['Sample']))
     output:
         expand("{output}/MOSCA_{sample}_Protein_Report.tsv", output=OUTPUT, sample=set(mg_exps['Sample'])),
         f"{OUTPUT}/MOSCA_Protein_Report.xlsx",

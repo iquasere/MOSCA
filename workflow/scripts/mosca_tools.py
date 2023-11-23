@@ -142,8 +142,8 @@ def perform_alignment(reference, reads, basename, threads=1):
     else:
         print(f'{basename}.log was found!')
     run_pipe_command(
-        f"""samtools view -F 260 -S {basename}.sam | cut -f 3 | sort | uniq -c | 
-        awk '{{printf("%s\\t%s\\n", $2, $1)}}'""", output=f'{basename}.readcounts')
+        f"""samtools view -F 260 -S {basename}.sam | cut -f 3 | sort | uniq -c | \
+awk '{{printf("%s\\t%s\\n", $2, $1)}}'""", output=f'{basename}.readcounts')
 
 
 def fastq2fasta(fastq, output):
@@ -156,7 +156,7 @@ def timed_message(message):
 
 def normalize_counts_by_size(readcounts, reference):
     run_pipe_command(
-        f"seqkit fx2tab {reference} | sort | awk '{{print $1\"\\t\"length($2)}}' | join - {readcounts} | "
+        f"seqkit fx2tab {reference} | sort -k 1b,1 | awk '{{print $1\"\\t\"length($2)}}' | join - {readcounts} | "
         f"awk '{{print $1\"\\t\"$3/$2}}'", output=readcounts.replace('.readcounts', '.readcounts.norm'))
 
 
