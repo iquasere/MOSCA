@@ -1,9 +1,7 @@
 rule entry_report:
     input:
         p_reports = expand("{output}/MOSCA_{sample}_Protein_Report.tsv", output=OUTPUT, sample=set(mg_exps['Sample'])),
-        norm = (
-            expand("{output}/Quantification/mt_normalized.tsv", output=OUTPUT) +
-            expand("{output}/Metaproteomics/mp_normalized.tsv", output=OUTPUT))
+        norm = f"{OUTPUT}/Quantification/mt_normalized.tsv" if len(mt_exps) > 0 else f"{OUTPUT}/Metaproteomics/mp_normalized.tsv"
     output:
         f"{OUTPUT}/MOSCA_Entry_Report.xlsx",
         f"{OUTPUT}/MOSCA_Entry_Report.tsv"
