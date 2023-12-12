@@ -18,8 +18,7 @@ rule protein_report:
     params:
         output = OUTPUT,
         exps = f"{OUTPUT}/exps.tsv",
-        report = 'protein'
     conda:
         "../envs/reports.yaml"
     script:
-        "../scripts/main_reports.py"
+        "../scripts/protein_report.py"

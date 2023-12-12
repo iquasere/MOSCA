@@ -281,7 +281,8 @@ class MetaproteomicsAnalyser:
             name, max_memory=max_memory)
         try:
             self.generate_reports(
-                f'{output}/ps_output.psdb', f'{output}/reports', max_memory=max_memory, reports=reports)
+                f'{output}/ps_output.psdb', f'{output}/reports', max_memory=max_memory,
+                reports=reports)
         except Exception as e:
             print(f'Reporter generation sent an error: {e}\nBut likely worked!')
 
@@ -354,9 +355,9 @@ class MetaproteomicsAnalyser:
         for name in snakemake.params.names:
             out = f'{snakemake.params.output}/{name}'
             self.compomics_run(
-                f'{snakemake.params.output}/2nd_search_database.fasta', f'{out}/2nd_search', f'{out}/spectra', name,
-                f'{snakemake.params.output}/2nd_params.par', threads=snakemake.threads,
-                max_memory=snakemake.params.max_memory, reports=['9', '10'])
+                f'{snakemake.params.output}/2nd_search_database_target_decoy.fasta', f'{out}/2nd_search',
+                f'{out}/spectra', name, f'{snakemake.params.output}/2nd_params.par',
+                threads=snakemake.threads, max_memory=snakemake.params.max_memory, reports=['9', '10'])
             spectracounts = pd.merge(spectracounts, pd.read_csv(
                 f'{out}/2nd_search/reports/{name}_Default_Protein_Report.txt', sep='\t', index_col=0
             )[['Main Accession', '#PSMs']].rename(columns={'#PSMs': name}), how='outer', on='Main Accession')

@@ -12,6 +12,5 @@ rule entry_report:
     params:
         output = OUTPUT,
         exps = f"{OUTPUT}/exps.tsv",
-        report = 'entry'
     script:
-        "../scripts/main_reports.py"
+        "../scripts/entry_report.py"
