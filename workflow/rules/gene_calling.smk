@@ -1,6 +1,8 @@
 rule fastq2fasta:
     input:
-        fastq2fasta_input
+        expand("{output}/Preprocess/Trimmomatic/quality_trimmed_{name}{fr}.fq", output=OUTPUT,
+            fr=(['_forward_paired', '_reverse_paired'] if EXPS["Files"].str.contains(',').tolist() else ''),
+            name=lambda wildcards: wildcards.sample)
     output:
         f"{OUTPUT}/Preprocess/piled_{{sample}}.fasta"
     threads:
@@ -10,10 +12,11 @@ rule fastq2fasta:
 
 rule gene_calling:
     input:
-        gene_calling_input
+        (f"{OUTPUT}/Assembly/{{sample}}/scaffolds.fasta" if config['do_assembly'] else
+        f"{OUTPUT}/Preprocess/piled_{{sample}}.fasta")
     output:
-        expand("{output}/Annotation/{{sample}}/fgs.faa", output=OUTPUT),
-        expand("{output}/Annotation/{{sample}}/fgs.ffn", output=OUTPUT)
+        f"{OUTPUT}/Annotation/{{sample}}/fgs.faa",
+        f"{OUTPUT}/Annotation/{{sample}}/fgs.ffn"
     threads:
         config["threads"]
     params:

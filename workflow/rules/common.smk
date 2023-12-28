@@ -56,19 +56,3 @@ def join_reads_input(wildcards):
     return [f'{OUTPUT}/Preprocess/Trimmomatic/quality_trimmed_{df.iloc[i]["Name"]}{fr}.fq'
            for i in range(len(df))
            for fr in (['_forward_paired', '_reverse_paired'] if ',' in df.iloc[i]["Files"] else [''])]
-
-def fastq2fasta_input(wildcards):
-    return expand("{output}/Preprocess/Trimmomatic/quality_trimmed_{name}{fr}.fq", output=OUTPUT,
-        fr=(['_forward_paired', '_reverse_paired'] if EXPS["Files"].str.contains(',').tolist() else ''),
-        name=wildcards.sample)
-
-def gene_calling_input(wildcards):
-    if config['do_assembly']:
-        return expand("{output}/Assembly/{sample}/scaffolds.fasta", output=OUTPUT, sample=wildcards.sample)
-    return expand(
-        "{output}/Preprocess/piled_{name}.fasta", output=OUTPUT, name=wildcards.sample)
-
-def upimapi_input(wildcards):
-    if config['do_assembly']:
-        return expand("{output}/Annotation/{sample}/aligned.blast", output=OUTPUT, sample=set(EXPS['Sample']))
-    return expand("{output}/Annotation/{name}/aligned.blast", output=OUTPUT, name=set(EXPS['Name']))

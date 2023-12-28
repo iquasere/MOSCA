@@ -20,7 +20,7 @@ include: "rules/metaproteomics.smk"
 include: "rules/quantification.smk"
 include: "rules/normalization.smk"
 include: "rules/de_analysis.smk"
-include: "rules/protein_report.smk"
+include: "rules/general_report.smk"
 include: "rules/entry_report.smk"
 include: "rules/keggcharter.smk"
 include: "rules/summary_report.smk"
@@ -28,4 +28,9 @@ include: "rules/summary_report.smk"
 ##### target rules #####
 rule all:
     input:
-        all_input
+        [f"{OUTPUT}/MOSCA_General_Report.xlsx",
+        f"{OUTPUT}/MOSCA_Entry_Report.xlsx",
+        f"{OUTPUT}/MOSCA_Versions_Report.xlsx",
+        f"{OUTPUT}/MOSCA_Summary_Report.tsv",
+        f"{OUTPUT}/MOSCA_results.zip",
+        f"{OUTPUT}/KEGG_maps/KEGGCharter_results.tsv"]

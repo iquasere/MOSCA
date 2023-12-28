@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-General report construction and export
+Summary report construction and export
 
 By João Sequeira
 
@@ -139,7 +139,7 @@ class Reporter:
             'de_plots': glob(f'{out_dir}/DE_analysis/*.jpeg'),
             'kegg_maps': glob(f'{out_dir}/KEGG_maps/*.png'),
             'main_reports': [f'{out_dir}/{filename}' for filename in [
-                'MOSCA_Protein_Report.xlsx', 'MOSCA_Entry_Report.xlsx', 'MOSCA_General_Report.tsv']]}
+                'MOSCA_Protein_Report.xlsx', 'MOSCA_Entry_Report.xlsx', 'MOSCA_Summary_Report.tsv']]}
         with ZipFile(f'{out_dir}/MOSCA_results.zip', 'w') as archive:
             for k, v in files_n_folders.items():
                 for file in v:
@@ -157,7 +157,7 @@ class Reporter:
         exps = pd.read_csv(f'{snakemake.params.output}/exps.tsv', sep='\t')
         self.info_from_differential_expression(
             snakemake.params.output, cutoff=snakemake.params.cutoff, mp='protein' in exps['Data type'].tolist())
-        self.report.to_csv(f'{snakemake.params.output}/MOSCA_General_Report.tsv', sep='\t')
+        self.report.to_csv(f'{snakemake.params.output}/MOSCA_Summary_Report.tsv', sep='\t')
         self.zip_outputs(snakemake.params.output)
 
 

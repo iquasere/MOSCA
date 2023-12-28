@@ -1,11 +1,13 @@
 rule summary_report:
     input:
-        expand("{output}/MOSCA_{sample}_Protein_Report.tsv", output=OUTPUT, sample=set(EXPS['Sample'])),
+        expand("{output}/MOSCA_{sample}_General_Report.tsv", output=OUTPUT, sample=set(EXPS['Sample'])),
         f"{OUTPUT}/MOSCA_Entry_Report.xlsx",
-        f"{OUTPUT}/DE_analysis/condition_treated_results.tsv"
+        f"{OUTPUT}/DE_analysis/condition_treated_results.tsv",
+        (expand("{output}/Binning/{sample}/checkm.tsv", output=OUTPUT, sample=set(EXPS['Sample']))
+         if config['do_binning'] else [])
     output:
         f"{OUTPUT}/MOSCA_Versions_Report.xlsx",
-        f"{OUTPUT}/MOSCA_General_Report.tsv",
+        f"{OUTPUT}/MOSCA_Summary_Report.tsv",
         f"{OUTPUT}/MOSCA_results.zip"
     threads:
         1

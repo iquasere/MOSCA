@@ -17,7 +17,7 @@ build:
 requirements:
   run:
     - python >=3.9
-    - snakemake
+    - snakemake <8
 
 test:
   commands:

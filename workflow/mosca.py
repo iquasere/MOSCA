@@ -25,6 +25,11 @@ parser.add_argument('-v', '--version', action='version', version=f'MOSCA {__vers
 args = parser.parse_args()
 
 
+def validate_config(config_data):
+    if not config_data['do_assembly'] and config_data['do_binning']:
+        sys.exit('ERROR: Can only do binning if assembly is performed.')
+
+
 def read_config(filename):
     if filename.split('.')[-1] == 'yaml':
         with open(filename) as stream:
@@ -36,7 +41,7 @@ def read_config(filename):
         with open(filename) as f:
             return json.load(f), 'json'
     else:
-        exit('Config file must end in either ".json" or ".yaml"')
+        sys.exit('ERROR: Config file must end in either ".json" or ".yaml"')
 
 
 def save_config(config_data, filename, output_format):
@@ -73,8 +78,9 @@ def validate_exps(exps_data):
 
 start_time = time()
 config, config_format = read_config(args.configfile)
-pathlib.Path(config["output"]).mkdir(parents=True, exist_ok=True)
+validate_config(config)
 validate_exps(config["experiments"])
+pathlib.Path(config["output"]).mkdir(parents=True, exist_ok=True)
 save_config(config, f'{config["output"]}/config.json', output_format=config_format)
 
 command = (

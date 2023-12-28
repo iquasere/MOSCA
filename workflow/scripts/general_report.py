@@ -14,7 +14,7 @@ functional_columns = [
     'General functional category', 'Functional category', 'Protein description', 'COG ID', 'EC number (reCOGnizer)']
 
 
-def make_protein_report(out, exps, sample, mg_preport, mt_preport, mp_preport, de_input):
+def make_general_report(out, exps, sample, mg_preport, mt_preport, mp_preport, de_input):
     timed_message(f'Joining data for sample: {sample}.')
     with open(f'{out}/Annotation/{sample}/fgs.faa') as f:
         lines = f.readlines()
@@ -58,15 +58,15 @@ def make_protein_report(out, exps, sample, mg_preport, mt_preport, mp_preport, d
         mp_preport = pd.merge(mp_preport, report[['Entry'] + mp_names], on='Entry', how='outer')
     report[mg_names + mt_names + mp_names] = report[mg_names + mt_names + mp_names].fillna(
         value=0).astype(float).astype(int)
-    report.to_csv(f'{out}/MOSCA_{sample}_Protein_Report.tsv', sep='\t', index=False)
+    report.to_csv(f'{out}/MOSCA_{sample}_General_Report.tsv', sep='\t', index=False)
     return report, mg_preport, mt_preport, mp_preport, de_input
 
 
-def make_protein_reports(out, exps, max_lines=1000000):
+def make_general_reports(out, exps, max_lines=1000000):
     mg_report = mt_report = mp_report = de_input = pd.DataFrame(columns=['Entry'])
-    writer = pd.ExcelWriter(f'{out}/MOSCA_Protein_Report.xlsx', engine='xlsxwriter')
+    writer = pd.ExcelWriter(f'{out}/MOSCA_General_Report.xlsx', engine='xlsxwriter')
     for sample in set(exps['Sample']):
-        report, mg_report, mt_report, mp_report, de_input = make_protein_report(
+        report, mg_report, mt_report, mp_report, de_input = make_general_report(
             out, exps, sample, mg_report, mt_report, mp_report, de_input)
         timed_message(f'Writing Protein Report for sample: {sample}.')
         if len(report) < max_lines:
@@ -103,7 +103,7 @@ def make_protein_reports(out, exps, max_lines=1000000):
 
 def run():
     exps = pd.read_csv(snakemake.params.exps, sep='\t')
-    make_protein_reports(snakemake.params.output, exps)
+    make_general_reports(snakemake.params.output, exps)
 
 
 if __name__ == '__main__':

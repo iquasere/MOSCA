@@ -8,8 +8,8 @@ rule protein_report:
         expand("{output}/Quantification/{sample}_mt_norm.tsv", output=OUTPUT, sample=set(mg_exps['Sample'])),
         expand("{output}/Metaproteomics/{sample}_mp.spectracounts", output=OUTPUT, sample=set(mp_exps['Sample']))
     output:
-        expand("{output}/MOSCA_{sample}_Protein_Report.tsv", output=OUTPUT, sample=set(mg_exps['Sample'])),
-        f"{OUTPUT}/MOSCA_Protein_Report.xlsx",
+        expand("{output}/MOSCA_{sample}_General_Report.tsv", output=OUTPUT, sample=set(mg_exps['Sample'])),
+        f"{OUTPUT}/MOSCA_General_Report.xlsx",
         f"{OUTPUT}/Quantification/dea_input.tsv",
         f"{OUTPUT}/Quantification/mg_entry_quant.tsv",
         f"{OUTPUT}/Quantification/mt_entry_quant.tsv" if len(mt_exps) > 0 else f"{OUTPUT}/Metaproteomics/mp_entry_quant.tsv"
@@ -21,4 +21,4 @@ rule protein_report:
     conda:
         "../envs/reports.yaml"
     script:
-        "../scripts/protein_report.py"
+        "../scripts/general_report.py"
