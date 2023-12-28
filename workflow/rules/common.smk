@@ -42,7 +42,7 @@ def all_input(wildcards):
         return (
             [f"{OUTPUT}/MOSCA_Protein_Report.xlsx",
             f"{OUTPUT}/MOSCA_Entry_Report.xlsx",
-            f"{OUTPUT}/technical_report.tsv",
+            f"{OUTPUT}/MOSCA_Versions_Report.xlsx",
             f"{OUTPUT}/MOSCA_General_Report.tsv",
             f"{OUTPUT}/MOSCA_results.zip",
             f"{OUTPUT}/KEGG_maps/KEGGCharter_results.tsv"] +

@@ -7,8 +7,10 @@ import sys
 import json
 import yaml
 from time import gmtime, strftime, time
+import pandas as pd
+import re
 
-__version__ = '2.3.0'
+__version__ = '2.2.0'
 
 parser = argparse.ArgumentParser(description="MOSCA's main script")
 parser.add_argument("-s", "--snakefile", default=f'{sys.path[0]}/Snakefile', help="Path to Snakefile")
@@ -42,7 +44,7 @@ def save_config(config_data, filename, output_format):
         if output_format == 'json':
             json.dump(config_data, f, ensure_ascii=False, indent=2)
         elif output_format == 'yaml':
-            yaml.dump(config_data, f, ensure_ascii=False, indent=2)
+            yaml.dump(config_data, f, indent=2)
         else:
             return NotImplementedError
 
@@ -54,9 +56,25 @@ def human_time(seconds):
     return strftime("%Hh%Mm%Ss", gmtime(seconds))
 
 
+def validate_exps(exps_data):
+    exps = pd.DataFrame(exps_data)
+    reserved_words = [
+        'if', 'else', 'repeat', 'while', 'function', 'for', 'in', 'next', 'break', 'TRUE', 'FALSE', 'NULL', 'Inf',
+        'NaN', 'NA', 'NA_integer_', 'NA_real_', 'NA_complex_', 'NA_character_']
+    good_pattern=re.compile(r'^(?!^\d)(?!^\.\d)([\w.]+)$')
+    for name in exps['Name']:
+        if not name:        # if name is None, or empty string, MOSCA should be able to build one that is fine
+            continue
+        if name in reserved_words:
+            sys.exit(f'INVALID "NAME" in "experiments": {name} is a reserved R word.')
+        if not bool(good_pattern.match(name)):
+            sys.exit(f'INVALID "NAME" in "experiments": {name} starts with a number or has a special character.')
+
+
 start_time = time()
 config, config_format = read_config(args.configfile)
 pathlib.Path(config["output"]).mkdir(parents=True, exist_ok=True)
+validate_exps(config["experiments"])
 save_config(config, f'{config["output"]}/config.json', output_format=config_format)
 
 command = (

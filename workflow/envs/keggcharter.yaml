@@ -32,7 +32,7 @@ dependencies:
   - freetype=2.12.1=hca18f0e_1
   - gettext=0.21.1=h27087fc_0
   - icu=72.1=hcb278e6_0
-  - keggcharter=0.6
+  - keggcharter=1
   - keyutils=1.6.1=h166bdaf_0
   - kiwisolver=1.4.4=py311h4dd048b_1
   - krb5=1.20.1=h81ceb04_0

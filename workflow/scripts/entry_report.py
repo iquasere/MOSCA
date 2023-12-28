@@ -106,6 +106,10 @@ def make_entry_report(out, exps):
         up_cols[up_cols.index('EC number')] = 'EC number (UPIMAPI)'
     entry_report = all_info[up_cols].drop_duplicates()
     entry_report = pd.merge(entry_report, estimate_cog_for_entries(all_info), on='Entry', how='left')
+    entry_report['EC number'] = entry_report['EC number (UPIMAPI)'].combine_first(
+        entry_report['EC number (reCOGnizer)'])
+    entry_report['KEGG'] = entry_report['KEGG'].str.rstrip(';').str.replace(';', ',')   # mfi:XXX;mfc:XXX; -> mfi:XXX,mfc:XXX
+    entry_report['EC number'] = entry_report['EC number'].str.replace('; ', ',')        # 1.1.1.1; 1.1.1.2 -> 1.1.1.1,1.1.1.2
     timed_message('Adding quantification at the entry level.')
     entry_report = pd.merge(
         entry_report, all_info.groupby('Entry')[mg_names + mt_names + mp_names].sum().reset_index(), on='Entry',
@@ -115,16 +119,18 @@ def make_entry_report(out, exps):
         entry_report, join_normalized_matrices(mg_names, mt_names, mp_names, out), on='Entry', how='left')
     timed_message('Writing Entry Report.')
     entry_report.to_csv(f'{out}/MOSCA_Entry_Report.tsv', sep='\t', index=False)
+    entry_report[entry_report[mt_names + mp_names].sum(axis=1) > 0].to_csv(
+        f'{out}/MOSCA_Expression_Report.tsv', sep='\t', index=False)
     multi_sheet_excel(f'{out}/MOSCA_Entry_Report.xlsx', entry_report, sheet_name='Entry Report')
     taxonomy_columns = [col for col in up_cols if 'Taxonomic lineage (' in col and 'IDS' not in col.upper()]
-    timed_message('Writing KEGGcharter input.')
-    entry_report.to_csv(f'{out}/keggcharter_input.tsv', sep='\t', index=False)
-    timed_message('Writing Krona plots.')
     for i in range(len(taxonomy_columns)):
         entry_report[taxonomy_columns[i]] = entry_report.apply(
             lambda x: get_lowest_otu(x, taxonomy_columns[:i + 1]), axis=1)
-    entry_report['Taxonomic lineage (SPECIES)'] = entry_report.apply(
-        lambda x: get_lowest_otu(x, taxonomy_columns), axis=1)
+    #entry_report['Taxonomic lineage (SPECIES)'] = entry_report.apply(  # don't think this is needed, not sure for now
+    #    lambda x: get_lowest_otu(x, taxonomy_columns), axis=1)
+    timed_message('Writing KEGGcharter input.')
+    entry_report.to_csv(f'{out}/keggcharter_input.tsv', sep='\t', index=False)
+    timed_message('Writing Krona plots.')
     write_kronas(
         entry_report, out, [f'{name}_normalized' for name in mg_names],
         [f'{name}_normalized' for name in mt_names],

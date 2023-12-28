@@ -6,6 +6,7 @@ By João Sequeira
 Dec 2022
 """
 
+import shutil
 import pandas as pd
 from mosca_tools import timed_message, blast_cols
 
@@ -13,7 +14,7 @@ functional_columns = [
     'General functional category', 'Functional category', 'Protein description', 'COG ID', 'EC number (reCOGnizer)']
 
 
-def make_protein_report(out, exps, sample, mg_preport, mt_preport, mp_preport):
+def make_protein_report(out, exps, sample, mg_preport, mt_preport, mp_preport, de_input):
     timed_message(f'Joining data for sample: {sample}.')
     with open(f'{out}/Annotation/{sample}/fgs.faa') as f:
         lines = f.readlines()
@@ -45,22 +46,29 @@ def make_protein_report(out, exps, sample, mg_preport, mt_preport, mp_preport):
             report, pd.read_csv(f'{out}/Quantification/{sample}_mt_norm.tsv', sep='\t', names=[
                 'qseqid'] + mt_names), on='qseqid', how='left')
         mt_preport = pd.merge(mt_preport, report[['Entry'] + mt_names], on='Entry', how='outer')
+        # MT readcounts come normalized by gene size, and therefore not fit for DE (as they are floats).
+        # DE input are the non-normalized readcounts.
+        de_input = pd.merge(
+            de_input, pd.read_csv(f'{out}/Quantification/{sample}_mt.readcounts', sep='\t').rename(
+                columns={'Gene': 'Entry'}), on='Entry', how='outer')
     if len(mp_names) > 0:
         spectracounts = pd.read_csv(f'{out}/Metaproteomics/{sample}/spectracounts.tsv', sep='\t')
         spectracounts.rename(columns={'Main Accession': 'qseqid'}, inplace=True)
         report = pd.merge(report, spectracounts, on='qseqid', how='left')
         mp_preport = pd.merge(mp_preport, report[['Entry'] + mp_names], on='Entry', how='outer')
-    report[mg_names + mt_names + mp_names] = report[mg_names + mt_names + mp_names].fillna(value=0).astype(float).astype(int)
+    report[mg_names + mt_names + mp_names] = report[mg_names + mt_names + mp_names].fillna(
+        value=0).astype(float).astype(int)
     report.to_csv(f'{out}/MOSCA_{sample}_Protein_Report.tsv', sep='\t', index=False)
-    return report, mg_preport, mt_preport, mp_preport
+    return report, mg_preport, mt_preport, mp_preport, de_input
 
 
 def make_protein_reports(out, exps, max_lines=1000000):
-    mg_report = mt_report = mp_report = pd.DataFrame(columns=['Entry'])
+    mg_report = mt_report = mp_report = de_input = pd.DataFrame(columns=['Entry'])
     writer = pd.ExcelWriter(f'{out}/MOSCA_Protein_Report.xlsx', engine='xlsxwriter')
     for sample in set(exps['Sample']):
-        report, mg_report, mt_report, mp_report = make_protein_report(
-            out, exps, sample, mg_report, mt_report, mp_report)
+        report, mg_report, mt_report, mp_report, de_input = make_protein_report(
+            out, exps, sample, mg_report, mt_report, mp_report, de_input)
+        timed_message(f'Writing Protein Report for sample: {sample}.')
         if len(report) < max_lines:
             report.to_excel(writer, sheet_name=sample, index=False)
         else:
@@ -69,39 +77,33 @@ def make_protein_reports(out, exps, max_lines=1000000):
                 j = min(i + max_lines, len(report))
                 report.iloc[i:(i + j)].to_excel(writer, sheet_name=f'{sample} ({k})', index=False)
                 k += 1
-        timed_message(f'Wrote Protein Report for sample: {sample}.')
     writer.close()
     # Write quantification matrices to normalize all together
+    timed_message('Writing quantification matrices.')
     if len(mg_report) > 0:
+        mg_report[mg_report.columns.tolist()[1:]] = mg_report[mg_report.columns.tolist()[1:]].astype(float)
         mg_report = mg_report.groupby('Entry')[mg_report.columns.tolist()[1:]].sum().reset_index()
         mg_report.to_csv(f'{out}/Quantification/mg_entry_quant.tsv', sep='\t', index=False)
     if len(mt_report) > 0:
+        mt_report[mt_report.columns.tolist()[1:]] = mt_report[mt_report.columns.tolist()[1:]].astype(float)
         mt_report = mt_report.groupby('Entry')[mt_report.columns.tolist()[1:]].sum().reset_index()
         mt_report.to_csv(f'{out}/Quantification/mt_entry_quant.tsv', sep='\t', index=False)
+        # MT readcounts come normalized by gene size, and therefore not fit for DE (as they are floats).
+        # DE input are the non-normalized readcounts.
+        de_input.to_csv(f'{out}/Quantification/dea_input.tsv', sep='\t', index=False)
     if len(mp_report) > 0:
+        mp_report[mp_report.columns.tolist()[1:]] = mp_report[mp_report.columns.tolist()[1:]].astype(float)
         mp_report = mp_report.groupby('Entry')[mp_report.columns.tolist()[1:]].sum().reset_index()
         mp_report[mp_report[mp_report.columns.tolist()[1:]].isnull().sum(
             axis=1) < len(mp_report.columns.tolist()[1:])].drop_duplicates().to_csv(
             f'{out}/Metaproteomics/mp_entry_quant', sep='\t', index=False)
-
-
-def write_dea_input(out, exps):
-    mt_samples = exps[(exps['Sample'] == sample) & (exps['Data type'] == 'mrna')]['Name'].unique().tolist()
-    mp_samples = exps[(exps['Sample'] == sample) & (exps['Data type'] == 'protein')]['Name'].unique().tolist()
-    if len(mt_samples) > 0:
-        col, samples, folder, term, tdata = 'Gene', mt_samples, 'Quantification', 'readcounts', 'mt'
-    else:
-        col, samples, folder, term, tdata = 'Main Accession', mp_samples, 'Metaproteomics', 'spectracounts', 'mp'
-    dea_input = pd.DataFrame(columns=[col])
-    for sample in samples:
-        dea_input = pd.merge(pd.read_csv(f'{out}/{folder}/{sample}_{tdata}.{term}'))
-    dea_input.to_csv(f'{out}/dea_input.tsv', sep='\t')
+        # in the case of MP, there is no normalization by protein size. So it can be done this way
+        shutil.copyfile(f'{out}/Metaproteomics/mp_entry_quant', f'{out}/Quantification/dea_input.tsv')
 
 
 def run():
     exps = pd.read_csv(snakemake.params.exps, sep='\t')
     make_protein_reports(snakemake.params.output, exps)
-    write_dea_input(snakemake.params.output, exps)
 
 
 if __name__ == '__main__':

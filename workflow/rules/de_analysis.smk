@@ -9,7 +9,7 @@ rule de_analysis:
         conditions = (lambda wildcards, input: ",".join(not_mg_exps['Condition'].tolist())),
         foldchange = config["minimum_differential_expression"],
         fdr = config["significance_threshold"],
-        output = (lambda wildcards, input: os.path.dirname(input[0])),
+        output = f"{OUTPUT}/DE_analysis",
         datatype = (lambda wildcards, input: "rna_seq" if len(set(mt_exps['Sample'])) > 0 else "proteomics")
     conda:
         "../envs/de_analysis.yaml"

@@ -4,7 +4,7 @@ rule summary_report:
         f"{OUTPUT}/MOSCA_Entry_Report.xlsx",
         f"{OUTPUT}/DE_analysis/condition_treated_results.tsv"
     output:
-        f"{OUTPUT}/technical_report.tsv",
+        f"{OUTPUT}/MOSCA_Versions_Report.xlsx",
         f"{OUTPUT}/MOSCA_General_Report.tsv",
         f"{OUTPUT}/MOSCA_results.zip"
     threads:

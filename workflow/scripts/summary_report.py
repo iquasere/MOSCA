@@ -8,7 +8,6 @@ Oct 2019
 """
 
 from mosca_tools import run_pipe_command, parse_fastqc_report, count_on_file, timed_message
-
 import pandas as pd
 import yaml
 from zipfile import ZipFile
@@ -50,9 +49,8 @@ class Reporter:
     def __init__(self):
         self.report = pd.DataFrame()
 
-
     def info_from_preprocessing(self, out_dir):
-        timed_message('Obtaining info from preprocessing.')
+        timed_message('Processing results of: preprocessing.')
         reports = glob(f'{out_dir}/Preprocess/FastQC/*/fastqc_data.txt')
         for file in reports:
             if 'noadapters' in file or 'norrna' in file:
@@ -69,7 +67,7 @@ class Reporter:
                 self.report.loc[name, 'Qual trim params'] = ';'.join([x for x in f.read().split('\n') if len(x) > 0])
 
     def info_from_assembly(self, out_dir):
-        timed_message('Obtaining info from assembly.')
+        timed_message('Processing results of: assembly.')
         reports = glob(f'{out_dir}/Assembly/*/quality_control/report.tsv')
         for file in reports:
             timed_message(f'Obtaining info from: {"/".join(file.split("/")[-4:])}')
@@ -82,7 +80,7 @@ class Reporter:
                 data.loc['Reads aligned (%)', 'contigs'])
 
     def info_from_binning(self, out_dir):
-        timed_message('Obtaining info from binning.')
+        timed_message('Processing results of: binning.')
         reports = glob(f'{out_dir}/Binning/*/checkm.tsv')
         for file in reports:
             timed_message(f'Obtaining info from: {"/".join(file.split("/")[-3:])}')
@@ -94,7 +92,7 @@ class Reporter:
                 ((data['Completeness'] < 50) & (data['Contamination'] <= 10)).sum())
 
     def info_from_annotation(self, out_dir):
-        timed_message('Obtaining info from annotation.')
+        timed_message('Processing results of: annotation.')
         fastas = glob(f'{out_dir}/Annotation/*/fgs.faa')
         upimapi_res = glob(f'{out_dir}/Annotation/*/UPIMAPI_results.tsv')
         recognizer_res = glob(f'{out_dir}/Annotation/*/reCOGnizer_results.tsv')
@@ -114,7 +112,7 @@ class Reporter:
                 file, sep='\t', low_memory=False)['qseqid'].unique().sum()
 
     def info_from_quantification(self, out_dir):
-        timed_message('Obtaining info from mt quantification.')
+        timed_message('Processing results of: MT quantification.')
         reports = glob(f'{out_dir}/Quantification/*.log')
         for file in reports:
             timed_message(f'Obtaining info from: {"/".join(file.split("/")[-2:])}')
@@ -123,6 +121,7 @@ class Reporter:
                 self.report.loc[name, 'Reads aligned (%)'] = f.readlines()[-1].split('%')[0]
 
     def info_from_differential_expression(self, out_dir, cutoff=0.01, mp=False):
+        timed_message('Processing results of: DE analysis.')
         file = f'{out_dir}/DE_analysis/condition_treated_results.tsv'
         timed_message(f'Obtaining info from: {"/".join(file.split("/")[-2:])}')
         de_results = pd.read_csv(file, sep='\t', index_col=0)
@@ -130,6 +129,7 @@ class Reporter:
                 (de_results['pvalue'] < cutoff) & (de_results['FDR' if mp else 'padj'] < cutoff)).sum()
 
     def zip_outputs(self, out_dir):
+        timed_message(f'Zipping results to the file: {out_dir}/MOSCA_results.zip')
         files_n_folders = {
             'fastqc_reports': [file for file in glob(f'{out_dir}/Preprocess/FastQC/*.html') if (
                 'noadapters' not in file and 'norrna' not in file)],
@@ -139,8 +139,7 @@ class Reporter:
             'de_plots': glob(f'{out_dir}/DE_analysis/*.jpeg'),
             'kegg_maps': glob(f'{out_dir}/KEGG_maps/*.png'),
             'main_reports': [f'{out_dir}/{filename}' for filename in [
-                'MOSCA_Protein_Report.xlsx', 'MOSCA_Entry_Report.xlsx', 'MOSCA_General_Report.tsv',
-                'technical_report.tsv']]}
+                'MOSCA_Protein_Report.xlsx', 'MOSCA_Entry_Report.xlsx', 'MOSCA_General_Report.tsv']]}
         with ZipFile(f'{out_dir}/MOSCA_results.zip', 'w') as archive:
             for k, v in files_n_folders.items():
                 for file in v:
