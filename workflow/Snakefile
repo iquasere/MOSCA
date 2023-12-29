@@ -28,9 +28,9 @@ include: "rules/summary_report.smk"
 ##### target rules #####
 rule all:
     input:
-        [f"{OUTPUT}/MOSCA_General_Report.xlsx",
+        f"{OUTPUT}/MOSCA_General_Report.xlsx",
         f"{OUTPUT}/MOSCA_Entry_Report.xlsx",
         f"{OUTPUT}/MOSCA_Versions_Report.xlsx",
         f"{OUTPUT}/MOSCA_Summary_Report.tsv",
         f"{OUTPUT}/MOSCA_results.zip",
-        f"{OUTPUT}/KEGG_maps/KEGGCharter_results.tsv"]
+        f"{OUTPUT}/KEGG_maps/KEGGCharter_results.tsv"

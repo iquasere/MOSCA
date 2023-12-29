@@ -8,9 +8,9 @@ VOLUME ["named_volume"]
 
 RUN git clone https://github.com/iquasere/MOSCARDO.git \
 && mkdir resources_directory \
-&& mv MOSCARDO/data/cdd.tar.gz MOSCARDO/data/uniprot.fasta resources_directory \
+&& cp MOSCARDO/data/cdd.tar.gz MOSCARDO/data/uniprot.fasta resources_directory \
 && git clone https://github.com/iquasere/MOSCA.git -b development \
-&& bash MOSCA/install_ci.bash --mosca_env "$(conda info --base)" \
+&& bash MOSCA/cicd/install_ci.bash --mosca_env "$(conda info --base)" \
 # Fix AttributeError: module 'lib' has no attribute 'X509_V_FLAG_CB_ISSUER_CHECK'
 # https://stackoverflow.com/questions/74981558/error-updating-python3-pip-attributeerror-module-lib-has-no-attribute-openss
 # https://stackoverflow.com/questions/73830524/attributeerror-module-lib-has-no-attribute-x509-v-flag-cb-issuer-check

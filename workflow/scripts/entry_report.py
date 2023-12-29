@@ -14,7 +14,8 @@ import csv
 from mosca_tools import run_command, timed_message, multi_sheet_excel
 
 functional_columns = [
-    'General functional category', 'Functional category', 'Protein description', 'COG ID', 'EC number (reCOGnizer)']
+    'General functional category', 'Functional category', 'Protein description', 'COG ID', 'EC number (reCOGnizer)',
+    'KO']
 
 
 def estimate_cog_for_entries(e_report):
@@ -101,7 +102,7 @@ def make_entry_report(out, exps):
     for sample in set(exps['Sample']):
         timed_message(f'Reading Protein Report for sample: {sample}.')
         all_info = pd.concat([all_info, pd.read_csv(
-            f'{out}/MOSCA_{sample}_Protein_Report.tsv', sep='\t', low_memory=False)])
+            f'{out}/MOSCA_{sample}_General_Report.tsv', sep='\t', low_memory=False)])
     if 'EC number' in up_cols:
         up_cols[up_cols.index('EC number')] = 'EC number (UPIMAPI)'
     entry_report = all_info[up_cols].drop_duplicates()

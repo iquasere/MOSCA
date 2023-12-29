@@ -139,7 +139,7 @@ class Reporter:
             'de_plots': glob(f'{out_dir}/DE_analysis/*.jpeg'),
             'kegg_maps': glob(f'{out_dir}/KEGG_maps/*.png'),
             'main_reports': [f'{out_dir}/{filename}' for filename in [
-                'MOSCA_Protein_Report.xlsx', 'MOSCA_Entry_Report.xlsx', 'MOSCA_Summary_Report.tsv']]}
+                'MOSCA_General_Report.xlsx', 'MOSCA_Entry_Report.xlsx', 'MOSCA_Summary_Report.tsv']]}
         with ZipFile(f'{out_dir}/MOSCA_results.zip', 'w') as archive:
             for k, v in files_n_folders.items():
                 for file in v:

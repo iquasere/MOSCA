@@ -11,7 +11,6 @@ rule upimapi:
         taxids = f' --taxids {config["upimapi_taxids"]}' if config["upimapi_database"] == 'taxids' else '',
         max_target_seqs = config["upimapi_max_target_seqs"],
         cols = '&'.join(config['uniprot_columns']),
-        check_db = '' if config['upimapi_check_db'] else ' --skip-db-check',
         diamond_mode = config["upimapi_search_mode"],
         memory = config["max_memory"]
     conda:
@@ -19,4 +18,4 @@ rule upimapi:
     shell:
         'upimapi -i {input} -t {threads} -o {OUTPUT}/Annotation/{wildcards.sample} '
         '-rd {params.rd} -db {params.upimapi_database} -mts {params.max_target_seqs}{params.taxids} '
-        '-cols "{params.cols}" --max-memory {params.memory} --diamond-mode {params.diamond_mode}{params.check_db}'
+        '-cols "{params.cols}" --max-memory {params.memory} --diamond-mode {params.diamond_mode}'

@@ -24,7 +24,7 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           context: .
-          file: ./Dockerfile_CI
+          file: ./cicd/Dockerfile_CI
           tags: mosca:latest
           outputs: type=docker,dest=/tmp/mosca.tar
       - name: Create named volume

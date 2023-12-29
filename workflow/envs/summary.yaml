@@ -38,6 +38,7 @@ dependencies:
   - tqdm=4.64.1=pyhd8ed1ab_0
   - tzdata=2022g=h191b570_0
   - wheel=0.38.4=pyhd8ed1ab_0
+  - xlsxwriter=3.0.6=pyhd8ed1ab_0
   - xz=5.2.6=h166bdaf_0
   - pip:
     - numpy==1.24.0

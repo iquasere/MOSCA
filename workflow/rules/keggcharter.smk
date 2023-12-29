@@ -16,5 +16,5 @@ rule keggcharter:
         "../envs/keggcharter.yaml"
     shell:
         "keggcharter -f {input} -o {params.outdir} {params.quant_part} -tc 'Taxonomic lineage ({params.taxa_level})' "
-        "-not {params.number_of_taxa} -keggc KEGG -ecc 'EC number' -cogc 'COG ID' "     # TODO - missing KO column
+        "-not {params.number_of_taxa} -keggc KEGG -koc KO -ecc 'EC number' -cogc 'COG ID' "
         "-rd {params.resources_directory}{params.metabolic_maps}"
