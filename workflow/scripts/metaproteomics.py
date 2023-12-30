@@ -160,8 +160,7 @@ class MetaproteomicsAnalyser:
 
     def generate_parameters_file(
             self, output, protein_fdr=1, frag_tol=0.5, prec_tol=10, enzyme='Trypsin', mc=2,
-            fixed_mods=('Carbamidomethylation of C'),
-            variable_mods=('Oxidation of M', 'Acetylation of protein N-term')):
+            fixed_mods='Carbamidomethylation of C', variable_mods='Oxidation of M,Acetylation of protein N-term'):
         """
         param: output: name of parameters file
         param: protein_fdr: float - FDR at the protein level in percent
@@ -169,14 +168,15 @@ class MetaproteomicsAnalyser:
         param: prec_tol: float - precursor ion mass tolerance in ppm
         param: enzyme: str - enzyme used for digestion
         param: mc: int - maximum number of missed cleavages
-        param: fixed_mods: tuple - fixed modifications
-        param: variable_mods: tuple - variable modifications
+        param: fixed_mods: str - fixed modifications comma-separated
+        param: variable_mods: str - variable modifications comma-separated
         returns: a parameters file will be produced for SearchCLI and/or PeptideShakerCLI
         """
+        fixed_mods, variable_mods = fixed_mods.split(','), variable_mods.split(',')
         run_pipe_command(
-            f'''searchgui eu.isas.searchgui.cmd.IdentificationParametersCLI -out {output} -prec_tol {prec_tol} '
-            f'-frag_tol {frag_tol} -enzyme {enzyme} -fixed_mods "{', '.join(fixed_mods)}" -variable_mods '
-            f'"{', '.join(variable_mods)}" -mc {mc} -protein_fdr {protein_fdr}''')
+            f'''searchgui eu.isas.searchgui.cmd.IdentificationParametersCLI -out {output} -prec_tol {prec_tol} ''' +
+            f'''-frag_tol {frag_tol} -enzyme {enzyme} -fixed_mods "{', '.join(fixed_mods)}" ''' +
+            f'''-variable_mods "{', '.join(variable_mods)}" -mc {mc} -protein_fdr {protein_fdr}''')
 
     def split_database(self, database, n_proteins=5000000):
         """

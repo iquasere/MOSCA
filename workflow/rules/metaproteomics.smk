@@ -1,9 +1,9 @@
 rule metaproteomics:
     input:
         [directory(folder) for folder in mp_exps[mp_exps['Sample'] == (lambda wildcards: wildcards.sample)]['Files']],
-        "{output}/Annotation/{sample}/UPIMAPI_results.tsv"
+        "{out_dir}/Annotation/{sample}/UPIMAPI_results.tsv"
     output:
-        "{output}/Metaproteomics/{sample}_mp_spectracounts.tsv"
+        "{out_dir}/Metaproteomics/{sample}_mp.spectracounts"
     threads:
         config["threads"]
     params:
