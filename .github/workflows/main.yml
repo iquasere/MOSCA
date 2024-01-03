@@ -99,7 +99,7 @@ jobs:
   mgmt-workflow:
     runs-on: ubuntu-latest
     needs: build
-    if: github.ref == 'refs/heads/development'  # this step works on development, but for master if fails with "no space on device"
+    if: false  # Blocked for now, since GHA don't provide enough disk space to run this step
     steps:
       - name: Download artifact
         uses: actions/download-artifact@v3
