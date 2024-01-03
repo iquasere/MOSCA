@@ -79,7 +79,6 @@ if(snakemake@params$datatype == "rna_seq") {
   library("ROTS")
   library("tibble")
   # Reproducibility-Optimized Test Statistics
-  total <- log2(total[!(rowSums(total == 0) > 0), ])
   de <- ROTS(data=total, groups=conditions, progress=TRUE)
   de_res <- cbind(de$logfc, de$pvalue, de$FDR)
   colnames(de_res) <- c("log2FoldChange", "pvalue", "FDR")
@@ -95,19 +94,33 @@ if(snakemake@params$datatype == "rna_seq") {
           file=paste0(snakemake@params$output, '/report.txt'), append=TRUE)
   }
 
+  sorted_data <- head(as.matrix(total[order(de$pvalue), ]), 30)
   #summary(de, fdr = 0.05)
-  for (ptype in c('volcano', 'heatmap', 'ma', 'reproducibility', 'pvalue', 'pca')){
+  for (ptype in c('volcano', 'heatmap', 'ma', 'reproducibility', 'pvalue', 'pca')) {
     print(paste0("Plotting ", ptype, " plot."))
-    jpeg(paste0(snakemake@params$output, "/", ptype, ".jpeg"), res=300)
+    jpeg_file <- paste0(ptype, ".jpeg")
 
-    if (ptype == 'heatmap') {
-      # heatmap with legend requires this call, also arranges the data better
-      sorted_data <- total[order(de$pvalue), ]    # total is always equal to de$data
-      heatmap(sorted_data, Rowv = NA, Colv = NA, col = colorRampPalette(c("blue", "white", "red"))(256), legend = TRUE)
-    } else {
-      plot(de, type = ptype, fdr = snakemake@params$fdr)
-    }
-    dev.off()
+    tryCatch({
+      if (ptype == 'heatmap') {
+        pheatmap(sorted_data, Rowv = NA, Colv = NA, col = colorRampPalette(c("blue", "white", "red"))(256), legend = TRUE)
+      } else {
+        jpeg(jpeg_file, res = 300)
+        plot(de, type = ptype, fdr = 0.05)
+        dev.off()
+      }
+    }, error = function(e) {
+      tryCatch({
+        if (ptype == 'heatmap') {
+          pheatmap(sorted_data, Rowv = NA, Colv = NA, col = colorRampPalette(c("blue", "white", "red"))(256), legend = TRUE)
+        } else {
+          jpeg(jpeg_file)     # If plot generation fails due to margin size, try without specifying res
+          plot(de, type = ptype, fdr = 0.05)
+          dev.off()
+        }
+      }, error = function(inner_e) {
+        cat("Error in plotting", ptype, "plot:", conditionMessage(inner_e), "\n")
+      })
+    })
   }
 }
 

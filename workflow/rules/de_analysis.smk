@@ -1,8 +1,8 @@
 rule de_analysis:
     input:
-        f"{OUTPUT}/Quantification/dea_input.tsv"
+        f"{OUTPUT}/Quantification/dea_input.tsv" if len(mt_exps) > 0 else f"{OUTPUT}/Metaproteomics/mp_normalized.tsv"
     output:
-        f"{OUTPUT}/DE_analysis/condition_treated_results.tsv",
+        f"{OUTPUT}/DE_analysis/condition_treated_results.tsv"
     threads:
         1
     params:

@@ -300,7 +300,6 @@ class MetaproteomicsAnalyser:
             output=f'{output}/2nd_search_database.fasta')
 
     def run(self):
-
         Path(snakemake.params.output).mkdir(parents=True, exist_ok=True)
         # 1st database construction
         self.database_generation(
@@ -355,14 +354,14 @@ class MetaproteomicsAnalyser:
         for name in snakemake.params.names:
             out = f'{snakemake.params.output}/{name}'
             self.compomics_run(
-                f'{snakemake.params.output}/2nd_search_database_target_decoy.fasta', f'{out}/2nd_search',
-                f'{out}/spectra', name, f'{snakemake.params.output}/2nd_params.par',
+                f'{snakemake.params.output}/2nd_search_database_concatenated_target_decoy.fasta',
+                f'{out}/2nd_search', f'{out}/spectra', name, f'{snakemake.params.output}/2nd_params.par',
                 threads=snakemake.threads, max_memory=snakemake.params.max_memory, reports=['9', '10'])
             spectracounts = pd.merge(spectracounts, pd.read_csv(
                 f'{out}/2nd_search/reports/{name}_Default_Protein_Report.txt', sep='\t', index_col=0
             )[['Main Accession', '#PSMs']].rename(columns={'#PSMs': name}), how='outer', on='Main Accession')
         spectracounts.groupby('Main Accession')[snakemake.params.names].sum().reset_index().fillna(value=0.0).to_csv(
-            f'{snakemake.params.output}/{snakemake.wildcards.sample}_mp_spectracounts.tsv', sep='\t', index=False)
+            f'{snakemake.params.output}_mp.spectracounts', sep='\t', index=False)
 
 
 if __name__ == '__main__':

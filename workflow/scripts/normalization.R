@@ -17,6 +17,7 @@ normalize_gene_expression <- function(df, output_file, norm_method, imput_method
     library("vsn")
     library("pcaMethods")
     df[df == 0] <- NA
+    df <- df[rowSums(is.na(df)) < ncol(df), ]
     norm <- exprs(justvsn(ExpressionSet(df)))
     if (imput_method == "LLS") {
       print("Performing Local Least Squares Imputation.")

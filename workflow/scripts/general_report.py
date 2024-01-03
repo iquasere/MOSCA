@@ -52,7 +52,7 @@ def make_general_report(out, exps, sample, mg_preport, mt_preport, mp_preport, d
             de_input, pd.read_csv(f'{out}/Quantification/{sample}_mt.readcounts', sep='\t').rename(
                 columns={'Gene': 'Entry'}), on='Entry', how='outer')
     if len(mp_names) > 0:
-        spectracounts = pd.read_csv(f'{out}/Metaproteomics/{sample}/spectracounts.tsv', sep='\t')
+        spectracounts = pd.read_csv(f'{out}/Metaproteomics/{sample}_mp.spectracounts', sep='\t')
         spectracounts.rename(columns={'Main Accession': 'qseqid'}, inplace=True)
         report = pd.merge(report, spectracounts, on='qseqid', how='left')
         mp_preport = pd.merge(mp_preport, report[['Entry'] + mp_names], on='Entry', how='outer')
@@ -96,9 +96,9 @@ def make_general_reports(out, exps, max_lines=1000000):
         mp_report = mp_report.groupby('Entry')[mp_report.columns.tolist()[1:]].sum().reset_index()
         mp_report[mp_report[mp_report.columns.tolist()[1:]].isnull().sum(
             axis=1) < len(mp_report.columns.tolist()[1:])].drop_duplicates().to_csv(
-            f'{out}/Metaproteomics/mp_entry_quant', sep='\t', index=False)
+            f'{out}/Metaproteomics/mp_entry_quant.tsv', sep='\t', index=False)
         # in the case of MP, there is no normalization by protein size. So it can be done this way
-        shutil.copyfile(f'{out}/Metaproteomics/mp_entry_quant', f'{out}/Quantification/dea_input.tsv')
+        shutil.copyfile(f'{out}/Metaproteomics/mp_entry_quant.tsv', f'{out}/Quantification/dea_input.tsv')
 
 
 def run():
