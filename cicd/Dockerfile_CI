@@ -1,16 +1,16 @@
 # This Dockerfile should only be used for testing purposes
 # It differs from the main Dockerfile by including the download of MOSCARDO's files to be run with MOSCA
-# Also includes the creation of a named_volume automatically, neccessary for MP spectra conversion
 
 FROM continuumio/miniconda3
 
+# the creation of a named_volume is neccessary for MP spectra conversion
 VOLUME ["named_volume"]
 
 RUN git clone https://github.com/iquasere/MOSCARDO.git \
 && mkdir resources_directory \
 && cp MOSCARDO/data/cdd.tar.gz MOSCARDO/data/uniprot.fasta resources_directory \
 && git clone https://github.com/iquasere/MOSCA.git -b development \
-&& bash MOSCA/cicd/install_ci.bash --mosca_env "$(conda info --base)" \
+&& bash MOSCA/cicd/install.bash --mosca_env "$(conda info --base)" \
 # Fix AttributeError: module 'lib' has no attribute 'X509_V_FLAG_CB_ISSUER_CHECK'
 # https://stackoverflow.com/questions/74981558/error-updating-python3-pip-attributeerror-module-lib-has-no-attribute-openss
 # https://stackoverflow.com/questions/73830524/attributeerror-module-lib-has-no-attribute-x509-v-flag-cb-issuer-check

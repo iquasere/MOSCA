@@ -1,12 +1,15 @@
 FROM continuumio/miniconda3
 
-RUN buildDeps='build-essential zlib1g-dev' \
-&& apt-get update \
-&& apt-get install -y $buildDeps --no-install-recommends \
-&& rm -rf /var/lib/apt/lists/* \
-&& git clone https://github.com/iquasere/MOSCA.git \
-&& bash MOSCA/install.bash \
+# the creation of a named_volume is neccessary for MP spectra conversion
+VOLUME ["named_volume"]
+
+RUN git clone https://github.com/iquasere/MOSCA.git -b development \
+&& bash MOSCA/cicd/install.bash --mosca_env "$(conda info --base)" \
 && conda clean --all \
-&& apt-get purge -y --auto-remove $buildDeps
+# all instructions ahead are only for MP spectra conversion with docker
+&& apt-get update \
+&& apt-get install -y curl \
+&& curl -fsSL https://get.docker.com -o get-docker.sh \
+&& sh get-docker.sh
 
 CMD [ "python", "bin/mosca.py" ]

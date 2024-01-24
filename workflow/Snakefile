@@ -1,4 +1,6 @@
 from snakemake.utils import min_version
+from time import time
+import sys
 
 ##### set minimum snakemake version #####
 min_version("6.4.1")
@@ -25,6 +27,13 @@ include: "rules/entry_report.smk"
 include: "rules/keggcharter.smk"
 include: "rules/summary_report.smk"
 
+start_time = time()
+
+onstart:
+    with open(f'{sys.path[0]}/../mosca_logo.txt') as f:
+        print(f.read())
+    print('MOSCA analysis has begun.')
+
 ##### target rules #####
 rule all:
     input:
@@ -34,3 +43,7 @@ rule all:
         f"{OUTPUT}/MOSCA_Summary_Report.tsv",
         f"{OUTPUT}/MOSCA_results.zip",
         f"{OUTPUT}/KEGG_maps/KEGGCharter_results.tsv"
+onsuccess:
+    print(f'MOSCA analysis finished successfully in {human_time(time() - start_time)}.')
+onerror:
+    print(f'MOSCA analysis broke after {human_time(time() - start_time)}.')

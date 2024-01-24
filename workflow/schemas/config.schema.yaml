@@ -74,14 +74,8 @@ upimapi_max_target_seqs:
 upimapi_taxids:
   type: string
 
-upimapi_check_db:
-  type: boolean
-
 uniprot_columns:
   type: array
-
-download_cdd_resources:
-  type: boolean
 
 recognizer_databases:
   type: array

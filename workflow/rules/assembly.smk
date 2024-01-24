@@ -1,6 +1,6 @@
 rule join_reads:
     input:
-        join_reads_input
+        sample_to_reads
     output:
         expand("{output}/Preprocess/{{sample}}{fr}.fastq", output=OUTPUT,
             fr=(['_forward', '_reverse'] if EXPS["Files"].str.contains(',').tolist() else ''))

@@ -1,6 +1,6 @@
 {% set name = "mosca" %}
-{% set version = "2.0.0" %}
-{% set sha256 = "87cbca039ea9b9c85f417543f2426b2b2acffebe58179878ee6872a32ae949ba" %}
+{% set version = "2.2.0" %}
+{% set sha256 = "575d17f70b7ff1860789bc352055d32af06b6c5fbe16e2169d762ae3d49a7ca2" %}
 
 package:
   name: {{ name|lower }}
@@ -13,10 +13,13 @@ source:
 build:
   noarch: generic
   number: 0
+  run_exports:
+    - {{ pin_subpackage("mosca", max_pin="x.x") }}
 
 requirements:
   run:
-    - python >=3.9
+    - python >=3.9, <3.12
+    - pandas
     - snakemake <8
 
 test:

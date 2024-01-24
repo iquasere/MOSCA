@@ -2,7 +2,8 @@ rule upimapi:
     input:
         expand("{output}/Annotation/{{sample}}/fgs.faa", output=OUTPUT)
     output:
-        expand("{output}/Annotation/{{sample}}/UPIMAPI_results.tsv", output=OUTPUT)
+        expand("{output}/Annotation/{{sample}}/UPIMAPI_results.tsv", output=OUTPUT),
+        expand("{output}/Annotation/{{sample}}/aligned.blast", output=OUTPUT)
     threads:
         config["threads"]
     params:

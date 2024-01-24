@@ -6,11 +6,10 @@ import argparse
 import sys
 import json
 import yaml
-from time import gmtime, strftime, time
 import pandas as pd
 import re
 
-__version__ = '2.2.0'
+__version__ = '2.3.0'
 
 parser = argparse.ArgumentParser(description="MOSCA's main script")
 parser.add_argument("-s", "--snakefile", default=f'{sys.path[0]}/Snakefile', help="Path to Snakefile")
@@ -49,13 +48,6 @@ def save_config(config_data, filename, output_format):
             return NotImplementedError
 
 
-def human_time(seconds):
-    days = seconds // 86400
-    if days > 0:
-        return strftime(f"{days}d%Hh%Mm%Ss", gmtime(seconds))
-    return strftime("%Hh%Mm%Ss", gmtime(seconds))
-
-
 def validate_exps(exps_data):
     exps = pd.DataFrame(exps_data)
     reserved_words = [
@@ -77,7 +69,6 @@ def validate_config(config_data):
     validate_exps(config["experiments"])
 
 
-start_time = time()
 user_config, config_format = read_config(args.configfile)
 config = read_config(f'{sys.path[0]}/default_config.json')[0]       # default configurations
 for key in config.keys():                                           # set default values
@@ -93,4 +84,3 @@ command = (
 
 print(f"MOSCA command: snakemake {command}")
 snakemake.main(command)
-print(f'MOSCA analysis finished in {human_time(time() - start_time)}')

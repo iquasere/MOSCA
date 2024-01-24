@@ -46,19 +46,22 @@ class Preprocesser:
     def select_adapters(self, adapters, paired):
         if paired:
             return [adapter for adapter in adapters if 'PE' in adapter]
-        else:
-            return [adapter for adapter in adapters if 'SE' in adapter]
+        return [adapter for adapter in adapters if 'SE' in adapter]
 
     def download_resources(self, resources_directory):
-        if not os.path.isfile(f'{resources_directory}/downloaded_timestamp.txt'):
-            run_pipe_command(
-                f'svn export https://github.com/biocore/sortmerna/trunk/data/rRNA_databases '
-                f'"{resources_directory}/rRNA_databases" --force')
-            run_pipe_command(f'cp {self.get_adapters_dir()}/*.fa {resources_directory}/adapters')
-            with open(f'{resources_directory}/downloaded_timestamp.txt', 'w') as f:
-                f.write(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))
-        else:
+        if os.path.isfile(f'{resources_directory}/downloaded_timestamp.txt'):
             print(f'{resources_directory}/downloaded_timestamp.txt found! Not downloading resources.')
+            return
+        print(f'{resources_directory}/downloaded_timestamp.txt not found! Downloading resources.')
+        run_pipe_command(
+            f"wget https://github.com/biocore/sortmerna/releases/download/v4.3.4/database.tar.gz "
+            f"-P {resources_directory}/rRNA_databases/")
+        run_pipe_command(
+            f'tar -xzvf {resources_directory}/rRNA_databases/database.tar.gz -C {resources_directory}/rRNA_databases')
+        run_pipe_command(f'cp {self.get_adapters_dir()}/*.fa {resources_directory}/adapters')
+        with open(f'{resources_directory}/downloaded_timestamp.txt', 'w') as f:
+            f.write(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))
+
 
     def get_adapters_dir(self):
         return glob(f"{'/'.join(check_output('which trimmomatic', shell=True).decode('utf8').split('/')[:-2])}/share/"
@@ -220,7 +223,14 @@ class Preprocesser:
 
         # rRNA removal
         if snakemake.params.data_type == 'mrna':
-            rrna_databases = glob(f'{rrna_databases_dir}/*.fa*')
+            rrna_dbs_options = ['fast', 'default', 'sensitive', 'sensitive_with_rfam']
+            lista = [
+                'smr_v4.3_default_db.fasta', 'smr_v4.3_sensitive_db_rfam_seeds.fasta', 'smr_v4.3_fast_db.fasta',
+                'smr_v4.3_sensitive_db.fasta']
+            if not snakemake.params.rrna_db in rrna_dbs_options:
+                exit(f'rrna_db must be one of {rrna_dbs_options}')
+            rrna_db_name = snakemake.params.rrna_db.replace("sensitive_with_rfam", "sensitive_db_rfam_seeds")
+            rrna_databases = [f'{rrna_databases_dir}/smr_v4.3_{rrna_db_name}_db.fasta']
             self.rrna_removal(
                 reads, f'{snakemake.params.output}/SortMeRNA', name, rrna_databases, rrna_databases_dir,
                 tmp_dir=f'{snakemake.params.output}/SortMeRNA/tmp', threads=snakemake.threads)

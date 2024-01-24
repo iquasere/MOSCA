@@ -1,6 +1,6 @@
 rule fastq2fasta:
     input:
-        fastq2fasta_input,
+        sample_to_reads
     output:
         expand("{output}/Preprocess/piled_{{sample}}.fasta", output=OUTPUT)
     threads:
