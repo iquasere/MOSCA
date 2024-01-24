@@ -1,0 +1,15 @@
+name: de_analysis
+channels:
+  - conda-forge
+  - bioconda
+  - anaconda
+  - defaults
+dependencies:
+  - bioconductor-annotationdbi      # check if needed
+  - bioconductor-deseq2
+  - bioconductor-genomeinfodb
+  - bioconductor-genomeinfodbdata   # check if needed
+  - bioconductor-genomicranges      # check if needed
+  - bioconductor-rots
+  - r-base=4                        # check if needed
+  - r-pheatmap

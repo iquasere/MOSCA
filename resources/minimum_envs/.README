@@ -1,0 +1,8 @@
+This folder contains the minimum tools required for each MOSCA environment.
+
+When updating a new environment, the following commands should be run from this directory, assigning the correct value for the `ENV_NAME` variable:
+`bash
+ENV_NAME=env_name
+mamba create $ENV_NAME.yml
+mamba env export --from-history -f $ENV_NAME.yml > $ENV_NAME.yml
+`

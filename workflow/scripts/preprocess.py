@@ -9,10 +9,8 @@ By João Sequeira
 March 2017
 '''
 
-import argparse
 import shutil
 from glob import glob
-from multiprocessing import cpu_count
 import os
 import pathlib
 import time

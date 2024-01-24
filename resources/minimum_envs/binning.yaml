@@ -1,0 +1,9 @@
+name: binning
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - checkm-genome
+  - maxbin2
+  - pandas

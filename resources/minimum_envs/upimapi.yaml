@@ -1,0 +1,8 @@
+name: upimapi
+channels:
+  - conda-forge
+  - bioconda
+  - anaconda
+  - defaults
+dependencies:
+  - upimapi>=1.13.1

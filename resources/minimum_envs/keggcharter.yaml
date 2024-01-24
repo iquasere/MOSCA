@@ -1,0 +1,8 @@
+name: keggcharter
+channels:
+  - conda-forge
+  - bioconda
+  - anaconda
+  - defaults
+dependencies:
+  - keggcharter>=1.1.2

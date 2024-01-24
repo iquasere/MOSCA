@@ -1,0 +1,11 @@
+name: preprocess
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - fastqc
+  - pandas
+  - numpy
+  - sortmerna=4
+  - trimmomatic=0.39

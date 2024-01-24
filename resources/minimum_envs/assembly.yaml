@@ -1,0 +1,13 @@
+name: assembly
+channels:
+  - conda-forge
+  - bioconda
+  - anaconda
+  - defaults
+dependencies:
+  - bowtie2
+  - gmcloser
+  - megahit
+  - quast
+  - samtools
+  - spades

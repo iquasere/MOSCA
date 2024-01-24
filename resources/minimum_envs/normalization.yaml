@@ -1,0 +1,11 @@
+name: normalization
+channels:
+  - conda-forge
+  - bioconda
+  - anaconda
+  - defaults
+dependencies:
+  - bioconductor-limma          # check if needed
+  - bioconductor-pcamethods
+  - bioconductor-vsn
+  - r-base=4                    # check if needed

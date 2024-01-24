@@ -1,0 +1,11 @@
+name: quantification
+channels:
+  - conda-forge
+  - bioconda
+  - anaconda
+  - defaults
+dependencies:
+  - bowtie2
+  - numpy
+  - pandas
+  - samtools

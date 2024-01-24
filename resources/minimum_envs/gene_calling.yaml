@@ -1,0 +1,7 @@
+name: gene_calling
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - fraggenescan

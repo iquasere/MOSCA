@@ -1,0 +1,9 @@
+name: summary
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - numpy
+  - openpyxl
+  - pandas
+  - tqdm

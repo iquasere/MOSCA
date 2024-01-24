@@ -1,0 +1,12 @@
+name: reports
+channels:
+  - conda-forge
+  - bioconda
+  - anaconda
+  - defaults
+dependencies:
+  - numpy
+  - openpyxl
+  - pandas
+  - tqdm
+  - xlsxwriter
