@@ -35,7 +35,10 @@ experiments:
     required: [Files, Sample, "Data type"]
   minItems: 1
 
-minimum_read_length:
+minimum_mg_read_length:
+  type: integer
+
+minimum_mt_read_length:
   type: integer
 
 minimum_read_average_quality:

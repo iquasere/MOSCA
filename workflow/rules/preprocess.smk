@@ -12,7 +12,9 @@ rule preprocess:
         reads = lambda wildcards: EXPS.loc[EXPS['Name'] == wildcards.name, 'Files'].iloc[0],
         resources_directory = config["resources_directory"],
         data_type = lambda wildcards: EXPS.loc[EXPS['Name'] == wildcards.name, 'Data type'].iloc[0],
-        minlen = config["minimum_read_length"],
+        rrna_db = config["sortmerna_database"],
+        mg_minlen = config["minimum_mg_read_length"],
+        mt_minlen= config["minimum_mt_read_length"],
         avgqual = config["minimum_read_average_quality"]
     conda:
         "../envs/preprocess.yaml"

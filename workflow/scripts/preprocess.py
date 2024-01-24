@@ -60,10 +60,9 @@ class Preprocesser:
         with open(f'{resources_directory}/downloaded_timestamp.txt', 'w') as f:
             f.write(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))
 
-
     def get_adapters_dir(self):
-        return glob(f"{'/'.join(check_output('which trimmomatic', shell=True).decode('utf8').split('/')[:-2])}/share/"
-                    f"trimmomatic-*/adapters")[0]
+        return glob(f"{'/'.join(check_output('which trimmomatic', shell=True).decode('utf8').split('/')[:-2])}"
+                    f"/share/trimmomatic-*/adapters")[0]
 
     def remove_adapters(self, files, out_dir, name, adapters, threads='12'):
         adapter_contaminated = False
@@ -100,11 +99,11 @@ class Preprocesser:
         return 'Failed'
 
     # SortMeRNA - rRNA removal
-    def rrna_removal(self, reads, out_dir, name, databases, indexes_dir, tmp_dir, threads=12):
+    def rrna_removal(self, reads, out_dir, name, database, indexes_dir, tmp_dir, threads=12):
         if os.path.isdir(tmp_dir):
             shutil.rmtree(tmp_dir)
         run_pipe_command(
-            f"sortmerna -ref {' -ref '.join(databases)} --reads {' --reads '.join(reads)} --idx-dir {indexes_dir} "
+            f"sortmerna -ref {database} --reads {' --reads '.join(reads)} --idx-dir {indexes_dir} "
             f"--workdir {tmp_dir} --aligned {out_dir}/rrna_{name} --other {out_dir}/norrna_{name} -out2 --fastx "
             f"--paired_in --threads {threads} 1>{out_dir}/{name}_sortmerna.log 2>{out_dir}/{name}_sortmerna.err")
         shutil.rmtree(tmp_dir)
@@ -221,16 +220,14 @@ class Preprocesser:
 
         # rRNA removal
         if snakemake.params.data_type == 'mrna':
+            rrna_db = snakemake.params.rrna_db
             rrna_dbs_options = ['fast', 'default', 'sensitive', 'sensitive_with_rfam']
-            lista = [
-                'smr_v4.3_default_db.fasta', 'smr_v4.3_sensitive_db_rfam_seeds.fasta', 'smr_v4.3_fast_db.fasta',
-                'smr_v4.3_sensitive_db.fasta']
-            if not snakemake.params.rrna_db in rrna_dbs_options:
+            if rrna_db not in rrna_dbs_options:
                 exit(f'rrna_db must be one of {rrna_dbs_options}')
-            rrna_db_name = snakemake.params.rrna_db.replace("sensitive_with_rfam", "sensitive_db_rfam_seeds")
-            rrna_databases = [f'{rrna_databases_dir}/smr_v4.3_{rrna_db_name}_db.fasta']
+            rrna_database = 'sensitive_db_rfam_seeds' if rrna_db == 'sensitive_with_rfam' else f'{rrna_db}_db'
+            rrna_database = f'{rrna_databases_dir}/smr_v4.3_{rrna_database}.fasta'
             self.rrna_removal(
-                reads, f'{snakemake.params.output}/SortMeRNA', name, rrna_databases, rrna_databases_dir,
+                reads, f'{snakemake.params.output}/SortMeRNA', name, rrna_database, rrna_databases_dir,
                 tmp_dir=f'{snakemake.params.output}/SortMeRNA/tmp', threads=snakemake.threads)
 
             reads = ([f'{snakemake.params.output}/SortMeRNA/norrna_{name}_{fr}.fq.gz' for fr in ['fwd', 'rev']] if
@@ -240,7 +237,8 @@ class Preprocesser:
 
         self.quality_trimming(
             reads, snakemake.params.output, name, threads=snakemake.threads, avgqual=snakemake.params.avgqual,
-            minlen=snakemake.params.minlen, type_of_data=snakemake.params.data_type)
+            minlen=snakemake.params.mt_minlen if snakemake.params.data_type == 'mrna' else snakemake.params.mg_minlen,
+            type_of_data=snakemake.params.data_type)
 
         reads = ([f'{snakemake.params.output}/Trimmomatic/quality_trimmed_{name}_{fr}_paired.fq'
                   for fr in ['forward', 'reverse']]
