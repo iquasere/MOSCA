@@ -6,8 +6,7 @@ import sys
 min_version("6.4.1")
 
 ##### setup singularity #####
-# this container defines the underlying OS for each job when using the workflow
-# with --use-conda --use-singularity
+# this container defines the underlying OS for each job when using the workflow with --use-conda --use-singularity
 container: "docker://continuumio/miniconda3"
 
 ##### load rules #####
@@ -34,7 +33,7 @@ onstart:
         print(f.read())
     print('MOSCA analysis has begun.')
 
-##### target rules #####
+##### target rule #####
 rule all:
     input:
         f"{OUTPUT}/MOSCA_General_Report.xlsx",

@@ -21,6 +21,7 @@ requirements:
     - python >=3.9, <3.12
     - pandas
     - snakemake <8
+    - pyarrow
 
 test:
   commands:

@@ -1,5 +1,5 @@
 """
-MOSCA's script for producing Protein report
+MOSCA's script for producing General report
 
 By João Sequeira
 
@@ -57,7 +57,7 @@ def make_general_report(out, exps, sample, mg_preport, mt_preport, mp_preport, d
         report = pd.merge(report, spectracounts, on='qseqid', how='left')
         mp_preport = pd.merge(mp_preport, report[['Entry'] + mp_names], on='Entry', how='outer')
     report[mg_names + mt_names + mp_names] = report[mg_names + mt_names + mp_names].fillna(
-        value=0).astype(float).astype(int)
+        value=0).astype(float)
     report.to_csv(f'{out}/MOSCA_{sample}_General_Report.tsv', sep='\t', index=False)
     return report, mg_preport, mt_preport, mp_preport, de_input
 
@@ -68,7 +68,7 @@ def make_general_reports(out, exps, max_lines=1000000):
     for sample in set(exps['Sample']):
         report, mg_report, mt_report, mp_report, de_input = make_general_report(
             out, exps, sample, mg_report, mt_report, mp_report, de_input)
-        timed_message(f'Writing Protein Report for sample: {sample}.')
+        timed_message(f'Writing General Report for sample: {sample}.')
         if len(report) < max_lines:
             report.to_excel(writer, sheet_name=sample, index=False)
         else:
@@ -78,7 +78,7 @@ def make_general_reports(out, exps, max_lines=1000000):
                 report.iloc[i:(i + j)].to_excel(writer, sheet_name=f'{sample} ({k})', index=False)
                 k += 1
     writer.close()
-    # Write quantification matrices to normalize all together
+    # Write quantification matrices to normalize all together - these reports have counts from the entire experiment, not just a single "sample"
     timed_message('Writing quantification matrices.')
     if len(mg_report) > 0:
         mg_report[mg_report.columns.tolist()[1:]] = mg_report[mg_report.columns.tolist()[1:]].astype(float)

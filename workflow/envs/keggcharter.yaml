@@ -7,114 +7,127 @@ channels:
 dependencies:
   - _libgcc_mutex=0.1=conda_forge
   - _openmp_mutex=4.5=2_gnu
-  - biopython=1.81=py311h2582759_0
-  - boost-cpp=1.78.0=h6582d0a_3
-  - brotli=1.0.9=h166bdaf_8
-  - brotli-bin=1.0.9=h166bdaf_8
-  - bzip2=1.0.8=h7f98852_4
-  - c-ares=1.18.1=h7f98852_0
-  - ca-certificates=2022.12.7=ha878542_0
-  - cairo=1.16.0=h35add3b_1015
-  - certifi=2022.12.7=pyhd8ed1ab_0
+  - biopython=1.83=py312h98912ed_0
+  - brotli=1.1.0=hd590300_1
+  - brotli-bin=1.1.0=hd590300_1
+  - brotli-python=1.1.0=py312h30efb56_1
+  - bzip2=1.0.8=hd590300_5
+  - c-ares=1.25.0=hd590300_0
+  - ca-certificates=2023.11.17=hbcca054_0
+  - cairo=1.18.0=h3faef2a_0
+  - certifi=2023.11.17=pyhd8ed1ab_0
+  - chardet=5.2.0=py312h7900ff3_1
+  - charset-normalizer=3.3.2=pyhd8ed1ab_0
   - colorama=0.4.6=pyhd8ed1ab_0
-  - contourpy=1.0.7=py311ha3edf6b_0
-  - cycler=0.11.0=pyhd8ed1ab_0
+  - contourpy=1.2.0=py312h8572e83_0
+  - cycler=0.12.1=pyhd8ed1ab_0
   - et_xmlfile=1.1.0=pyhd8ed1ab_0
   - expat=2.5.0=hcb278e6_1
   - font-ttf-dejavu-sans-mono=2.37=hab24e00_0
   - font-ttf-inconsolata=3.000=h77eed37_0
   - font-ttf-source-code-pro=2.038=h77eed37_0
-  - font-ttf-ubuntu=0.83=hab24e00_0
+  - font-ttf-ubuntu=0.83=h77eed37_1
   - fontconfig=2.14.2=h14ed4e7_0
   - fonts-conda-ecosystem=1=0
   - fonts-conda-forge=1=0
-  - fonttools=4.39.3=py311h2582759_0
-  - freetype=2.12.1=hca18f0e_1
+  - fonttools=4.47.2=py312h98912ed_0
+  - freetype=2.12.1=h267a509_2
+  - freetype-py=2.3.0=pyhd8ed1ab_0
   - gettext=0.21.1=h27087fc_0
-  - icu=72.1=hcb278e6_0
-  - keggcharter=1.0.2
+  - icu=73.2=h59595ed_0
+  - idna=3.6=pyhd8ed1ab_0
+  - keggcharter=1.1.2=hdfd78af_0
   - keyutils=1.6.1=h166bdaf_0
-  - kiwisolver=1.4.4=py311h4dd048b_1
-  - krb5=1.20.1=h81ceb04_0
-  - lcms2=2.15=haa2dc70_1
+  - kiwisolver=1.4.5=py312h8572e83_1
+  - krb5=1.21.2=h659d440_0
+  - lcms2=2.16=hb7c19ff_0
   - ld_impl_linux-64=2.40=h41732ed_0
   - lerc=4.0.0=h27087fc_0
-  - libblas=3.9.0=16_linux64_openblas
-  - libbrotlicommon=1.0.9=h166bdaf_8
-  - libbrotlidec=1.0.9=h166bdaf_8
-  - libbrotlienc=1.0.9=h166bdaf_8
-  - libcblas=3.9.0=16_linux64_openblas
-  - libcurl=8.0.1=h588be90_0
-  - libdeflate=1.18=h0b41bf4_0
+  - libblas=3.9.0=21_linux64_openblas
+  - libbrotlicommon=1.1.0=hd590300_1
+  - libbrotlidec=1.1.0=hd590300_1
+  - libbrotlienc=1.1.0=hd590300_1
+  - libcblas=3.9.0=21_linux64_openblas
+  - libcurl=8.5.0=hca28451_0
+  - libdeflate=1.19=hd590300_0
   - libedit=3.1.20191231=he28a2e2_2
-  - libev=4.33=h516909a_1
+  - libev=4.33=hd590300_2
   - libexpat=2.5.0=hcb278e6_1
   - libffi=3.4.2=h7f98852_5
-  - libgcc-ng=12.2.0=h65d4601_19
-  - libgfortran-ng=12.2.0=h69a702a_19
-  - libgfortran5=12.2.0=h337968e_19
-  - libglib=2.76.1=ha491796_0
-  - libgomp=12.2.0=h65d4601_19
-  - libiconv=1.17=h166bdaf_0
-  - libjpeg-turbo=2.1.5.1=h0b41bf4_0
-  - liblapack=3.9.0=16_linux64_openblas
-  - libnghttp2=1.52.0=h61bc06f_0
-  - libnsl=2.0.0=h7f98852_0
-  - libopenblas=0.3.21=pthreads_h78a6416_3
+  - libgcc-ng=13.2.0=h807b86a_3
+  - libgfortran-ng=13.2.0=h69a702a_3
+  - libgfortran5=13.2.0=ha4646dd_3
+  - libglib=2.78.3=h783c2da_0
+  - libgomp=13.2.0=h807b86a_3
+  - libiconv=1.17=hd590300_2
+  - libjpeg-turbo=3.0.0=hd590300_1
+  - liblapack=3.9.0=21_linux64_openblas
+  - libnghttp2=1.58.0=h47da74e_1
+  - libnsl=2.0.1=hd590300_0
+  - libopenblas=0.3.26=pthreads_h413a1c8_0
   - libpng=1.6.39=h753d276_0
-  - libsqlite=3.40.0=h753d276_0
-  - libssh2=1.10.0=hf14f497_3
-  - libstdcxx-ng=12.2.0=h46fd767_19
-  - libtiff=4.5.0=ha587672_6
+  - libsqlite=3.44.2=h2797004_0
+  - libssh2=1.11.0=h0841786_0
+  - libstdcxx-ng=13.2.0=h7e041cc_3
+  - libtiff=4.6.0=ha9c0a0a_2
   - libuuid=2.38.1=h0b41bf4_0
-  - libwebp-base=1.3.0=h0b41bf4_0
-  - libxcb=1.13=h7f98852_1004
-  - libzlib=1.2.13=h166bdaf_4
-  - matplotlib-base=3.7.1=py311h8597a09_0
+  - libwebp-base=1.3.2=hd590300_0
+  - libxcb=1.15=h0b41bf4_0
+  - libxcrypt=4.4.36=hd590300_1
+  - libxml2=2.12.4=h232c23b_1
+  - libxslt=1.1.39=h76b75d6_0
+  - libzlib=1.2.13=hd590300_5
+  - lxml=5.1.0=py312h37b5203_0
+  - matplotlib-base=3.8.2=py312he5832f3_0
   - mscorefonts=0.0.1=3
   - munkres=1.1.4=pyh9f0ad1d_0
-  - ncurses=6.3=h27087fc_1
+  - ncurses=6.4=h59595ed_2
   - nspr=4.35=h27087fc_0
-  - nss=3.89=he45b914_0
-  - numpy=1.24.2=py311h8e6699e_0
-  - openjpeg=2.5.0=hfec8fc6_2
-  - openpyxl=3.1.1=py311h2582759_0
-  - openssl=3.1.0=h0b41bf4_0
-  - packaging=23.1=pyhd8ed1ab_0
-  - pandas=2.0.0=py311h2872171_0
-  - pcre2=10.40=hc3806b6_0
-  - pillow=9.5.0=py311h573f0d3_0
-  - pip=23.1=pyhd8ed1ab_0
-  - pixman=0.40.0=h36c2ea0_0
-  - poppler=23.04.0=hf052cbe_1
+  - nss=3.97=h1d7d5a4_0
+  - numpy=1.26.3=py312heda63a1_0
+  - openjpeg=2.5.0=h488ebb8_3
+  - openpyxl=3.1.2=py312h98912ed_1
+  - openssl=3.2.0=hd590300_1
+  - packaging=23.2=pyhd8ed1ab_0
+  - pandas=2.2.0=py312hfb8ada1_0
+  - pcre2=10.42=hcad00b1_0
+  - pillow=10.2.0=py312hf3581a9_0
+  - pip=23.3.2=pyhd8ed1ab_0
+  - pixman=0.43.0=h59595ed_0
+  - poppler=24.01.0=h590f24d_0
   - poppler-data=0.4.12=hd8ed1ab_0
   - pthread-stubs=0.4=h36c2ea0_1001
-  - pyparsing=3.0.9=pyhd8ed1ab_0
-  - python=3.11.3=h2755cc3_0_cpython
+  - pycairo=1.25.1=py312he48a392_0
+  - pyparsing=3.1.1=pyhd8ed1ab_0
+  - pysocks=1.7.1=pyha2e5f31_6
+  - python=3.12.1=hab00c5b_1_cpython
   - python-dateutil=2.8.2=pyhd8ed1ab_0
-  - python-tzdata=2023.3=pyhd8ed1ab_0
-  - python_abi=3.11=3_cp311
-  - pytz=2023.3=pyhd8ed1ab_0
+  - python-tzdata=2023.4=pyhd8ed1ab_0
+  - python_abi=3.12=4_cp312
+  - pytz=2023.3.post1=pyhd8ed1ab_0
   - readline=8.2=h8228510_1
-  - reportlab=3.6.12=py311h2eb0c47_2
-  - setuptools=67.7.1=pyhd8ed1ab_0
+  - reportlab=4.0.9=py312h98912ed_0
+  - requests=2.31.0=pyhd8ed1ab_0
+  - rlpycairo=0.2.0=pyhd8ed1ab_0
+  - setuptools=69.0.3=pyhd8ed1ab_0
   - six=1.16.0=pyh6c4a22f_0
-  - tk=8.6.12=h27826a3_0
-  - tqdm=4.65.0=pyhd8ed1ab_1
-  - tzdata=2023c=h71feb2d_0
-  - wheel=0.40.0=pyhd8ed1ab_0
+  - tk=8.6.13=noxft_h4845f30_101
+  - tqdm=4.66.1=pyhd8ed1ab_0
+  - tzdata=2023d=h0c530f3_0
+  - urllib3=2.1.0=pyhd8ed1ab_0
+  - wheel=0.42.0=pyhd8ed1ab_0
   - xorg-kbproto=1.0.7=h7f98852_1002
-  - xorg-libice=1.0.10=h7f98852_0
-  - xorg-libsm=1.2.3=hd9c2040_1000
-  - xorg-libx11=1.8.4=h0b41bf4_0
-  - xorg-libxau=1.0.9=h7f98852_0
+  - xorg-libice=1.1.1=hd590300_0
+  - xorg-libsm=1.2.4=h7391055_0
+  - xorg-libx11=1.8.7=h8ee46fc_0
+  - xorg-libxau=1.0.11=hd590300_0
   - xorg-libxdmcp=1.1.3=h7f98852_0
   - xorg-libxext=1.3.4=h0b41bf4_2
-  - xorg-libxrender=0.9.10=h7f98852_1003
+  - xorg-libxrender=0.9.11=hd590300_0
   - xorg-renderproto=0.11.1=h7f98852_1002
   - xorg-xextproto=7.3.0=h0b41bf4_1003
   - xorg-xproto=7.0.31=h7f98852_1007
   - xz=5.2.6=h166bdaf_0
-  - zlib=1.2.13=h166bdaf_4
-  - zstd=1.5.2=h3eb15da_6
+  - zlib=1.2.13=hd590300_5
+  - zstd=1.5.5=hfc55251_0
 prefix: /opt/conda/envs/keggcharter

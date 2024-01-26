@@ -51,7 +51,7 @@ echo "Storing MOSCA's files in the Conda environment at: ${mosca_env}"
 # create folders for storing MOSCA's YAMLs and scripts
 mkdir -p "${mosca_env}/share/MOSCA" "${mosca_env}/bin"
 # copy YAMLs and scripts and default values to the MOSCA Conda environment
-cp -r MOSCA/workflow/* MOSCA/resources/*.json "${mosca_env}/share/MOSCA"
+cp -r -v MOSCA/workflow/* MOSCA/resources/*.json MOSCA/resources/*.txt "${mosca_env}/share/MOSCA"
 # make MOSCA's main script executable
 chmod +x "${mosca_env}/share/MOSCA/mosca.py"
 # create a symbolic link to MOSCA's main script in the bin folder
