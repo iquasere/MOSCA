@@ -29,8 +29,8 @@ include: "rules/summary_report.smk"
 start_time = time()
 
 onstart:
-    with open(f'{sys.path[0]}/../../mosca_logo.txt') as f:
-        print(f.read())
+    #with open(f'{sys.path[0]}/../mosca_logo.txt') as f:        # TODO - makes no sense this doesn't work, but wtv
+    #    print(f.read())
     print('MOSCA analysis has begun.')
 
 ##### target rule #####
