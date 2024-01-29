@@ -11,18 +11,19 @@ import pandas as pd
 from mosca_tools import perform_alignment, normalize_counts_by_size
 
 
-def quantification_with_assembly(exps: pd.DataFrame, output: str, sample: str) -> tuple:
+def quantification(exps: pd.DataFrame, output: str, sample: str, did_assembly: bool = True) -> tuple:
     """
     Perform quantification of reads with contigs as reference
     :param exps: DataFrame with the experiments
     :param output: Output directory
     :param sample: Sample name
+    :param did_assembly: Whether assembly was performed or not
     """
     mg_result = mg_result_norm = pd.DataFrame(columns=['Contig'])
     mt_result = mt_result_norm = pd.DataFrame(columns=['Gene'])
     pexps = exps[(exps['Sample'] == sample)]
     for i in pexps.index:
-        if pexps.loc[i]['Data type'] == 'mrna':
+        if pexps.loc[i]['Data type'] == 'mrna' or not did_assembly:
             reference = f"{output}/Annotation/{pexps.loc[i]['Sample']}/fgs.ffn"
         elif pexps.loc[i]['Data type'] == 'dna':
             reference = f"{output}/Assembly/{pexps.loc[i]['Sample']}/contigs.fasta"
@@ -53,38 +54,25 @@ def quantification_with_assembly(exps: pd.DataFrame, output: str, sample: str) -
     return mg_result, mg_result_norm, mt_result, mt_result_norm
 
 
-def quantification_without_assembly(exps: pd.DataFrame, output: str, sample: str) -> tuple:
-    mg_result = mg_result_norm = pd.DataFrame(columns=['Contig'])
-    mt_result = mt_result_norm = pd.DataFrame(columns=['Gene'])
-    pexps = exps[(exps['Sample'] == sample)]
-    for i in pexps.index:
-        if pexps.loc[i]['Data type'] in ['mrna', 'dna']:
-            reference = f"{output}/Annotation/{pexps.loc[i]['Sample']}/fgs.ffn"
-        else:
-            continue
-    return mg_result, mg_result_norm, mt_result, mt_result_norm
-
-
 def run():
     exps = pd.read_csv(snakemake.params.exps, sep='\t')
+    did_assembly=snakemake.params.did_assembly
 
     for sample in set(exps['Sample']):
-        if snakemake.params.did_assembly:
-            mg_result, mg_result_norm, mt_result, mt_result_norm = quantification_with_assembly(
-                exps, snakemake.params.output, sample)
-        else:
-            mg_result, mg_result_norm, mt_result, mt_result_norm = quantification_without_assembly(
-                exps, snakemake.params.output, sample)
+        mg_result, mg_result_norm, mt_result, mt_result_norm = quantification(
+                exps, snakemake.params.output, sample, did_assembly=did_assembly)
         if len(mg_result) > 0:
             mg_result.to_csv(
                 f"{snakemake.params.output}/Quantification/{sample}_mg.readcounts", sep='\t', index=False)
-            mg_result_norm.to_csv(
-                f"{snakemake.params.output}/Quantification/{sample}_mg_norm.tsv", sep='\t', index=False)
+            if did_assembly:
+                mg_result_norm.to_csv(
+                    f"{snakemake.params.output}/Quantification/{sample}_mg_norm.tsv", sep='\t', index=False)
         if len(mt_result) > 0:
             mt_result.to_csv(
                 f"{snakemake.params.output}/Quantification/{sample}_mt.readcounts", sep='\t', index=False)
-            mt_result_norm.astype(int, errors='ignore').to_csv(
-                f"{snakemake.params.output}/Quantification/{sample}_mt_norm.tsv", sep='\t', index=False)
+            if did_assembly:
+                mt_result_norm.astype(int, errors='ignore').to_csv(
+                    f"{snakemake.params.output}/Quantification/{sample}_mt_norm.tsv", sep='\t', index=False)
 
 
 if __name__ == '__main__':

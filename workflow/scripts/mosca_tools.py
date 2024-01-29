@@ -143,7 +143,7 @@ def perform_alignment(reference, reads, basename, threads=1):
         print(f'{basename}.log was found!')
     run_pipe_command(
         f"""samtools view -F 260 -S {basename}.sam | cut -f 3 | sort | uniq -c | \
-awk '{{printf("%s\\t%s\\n", $2, $1)}}'""", output=f'{basename}.readcounts')
+        awk '{{printf("%s\\t%s\\n", $2, $1)}}'""", output=f'{basename}.readcounts')
 
 
 def fastq2fasta(fastq, output):

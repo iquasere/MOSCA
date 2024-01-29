@@ -14,7 +14,7 @@ functional_columns = [
     'General functional category', 'Functional category', 'Protein description', 'COG ID', 'EC number (reCOGnizer)']
 
 
-def make_general_report(out, exps, sample, mg_preport, mt_preport, mp_preport, de_input):
+def make_general_report(out, exps, sample, mg_preport, mt_preport, mp_preport, de_input, did_assembly=True):
     timed_message(f'Joining data for sample: {sample}.')
     with open(f'{out}/Annotation/{sample}/fgs.faa') as f:
         lines = f.readlines()
@@ -32,18 +32,23 @@ def make_general_report(out, exps, sample, mg_preport, mt_preport, mp_preport, d
     report = report.rename(columns={
         **{f'{col}_x': f'{col} (UPIMAPI)' for col in rename_cols},
         **{f'{col}_y': f'{col} (reCOGnizer)' for col in rename_cols}})
-    report['Contig'] = report['qseqid'].apply(lambda x: x.split('_')[1])
+    if did_assembly:
+        report['Contig'] = report['qseqid'].apply(lambda x: x.split('_')[1])
     mg_names = exps[(exps['Sample'] == sample) & (exps['Data type'] == 'dna')]['Name'].tolist()
     mt_names = exps[(exps['Sample'] == sample) & (exps['Data type'] == 'mrna')]['Name'].tolist()
     mp_names = exps[(exps['Sample'] == sample) & (exps['Data type'] == 'protein')]['Name'].tolist()
     if len(mg_names) > 0:
-        mg_counts = pd.read_csv(f'{out}/Quantification/{sample}_mg_norm.tsv', sep='\t')
-        mg_counts['Contig'] = mg_counts['Contig'].apply(lambda x: x.split('_')[1])
-        report = pd.merge(report, mg_counts, on='Contig', how='left')
+        mg_counts = pd.read_csv((f'{out}/Quantification/{sample}_mg_norm.tsv' if did_assembly else
+                                 f'{out}/Quantification/{sample}_mg.readcounts'), sep='\t', names=[
+                                'qseqid'] + mg_names, skiprows=1)
+        if did_assembly:
+            mg_counts['Contig'] = mg_counts['Contig'].apply(lambda x: x.split('_')[1])
+        report = pd.merge(report, mg_counts, on=('Contig' if did_assembly else 'qseqid'), how='left')
         mg_preport = pd.merge(mg_preport, report[['Entry'] + mg_names], on='Entry', how='outer')
     if len(mt_names) > 0:
         report = pd.merge(
-            report, pd.read_csv(f'{out}/Quantification/{sample}_mt_norm.tsv', sep='\t', names=[
+            report, pd.read_csv((f'{out}/Quantification/{sample}_mt_norm.tsv' if did_assembly else
+                                 f'{out}/Quantification/{sample}_mt.readcounts'), sep='\t', names=[
                 'qseqid'] + mt_names), on='qseqid', how='left')
         mt_preport = pd.merge(mt_preport, report[['Entry'] + mt_names], on='Entry', how='outer')
         # MT readcounts come normalized by gene size, and therefore not fit for DE (as they are floats).
@@ -62,12 +67,12 @@ def make_general_report(out, exps, sample, mg_preport, mt_preport, mp_preport, d
     return report, mg_preport, mt_preport, mp_preport, de_input
 
 
-def make_general_reports(out, exps, max_lines=1000000):
+def make_general_reports(out, exps, max_lines=1000000, did_assembly=True):
     mg_report = mt_report = mp_report = de_input = pd.DataFrame(columns=['Entry'])
     writer = pd.ExcelWriter(f'{out}/MOSCA_General_Report.xlsx', engine='xlsxwriter')
     for sample in set(exps['Sample']):
         report, mg_report, mt_report, mp_report, de_input = make_general_report(
-            out, exps, sample, mg_report, mt_report, mp_report, de_input)
+            out, exps, sample, mg_report, mt_report, mp_report, de_input, did_assembly=did_assembly)
         timed_message(f'Writing General Report for sample: {sample}.')
         if len(report) < max_lines:
             report.to_excel(writer, sheet_name=sample, index=False)
@@ -103,7 +108,7 @@ def make_general_reports(out, exps, max_lines=1000000):
 
 def run():
     exps = pd.read_csv(snakemake.params.exps, sep='\t')
-    make_general_reports(snakemake.params.output, exps)
+    make_general_reports(snakemake.params.output, exps, did_assembly=snakemake.params.did_assembly)
 
 
 if __name__ == '__main__':

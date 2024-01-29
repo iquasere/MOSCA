@@ -7,9 +7,9 @@ rule quantification:
     output:
         expand("{output}/Quantification/{name}.readcounts", output=OUTPUT, name=set(not_mp_exps['Name'])),
         expand("{output}/Quantification/{sample}_mg.readcounts", output=OUTPUT, sample=set(mg_exps['Sample'])) if len(mg_exps) > 0 else [],
-        expand("{output}/Quantification/{sample}_mg_norm.tsv", output=OUTPUT, sample=set(mg_exps['Sample'])) if (len(mg_exps) > 0 or not config['assembly']) else [],
+        expand("{output}/Quantification/{sample}_mg_norm.tsv", output=OUTPUT, sample=set(mg_exps['Sample'])) if (len(mg_exps) > 0 and config['do_assembly']) else [],
         expand("{output}/Quantification/{sample}_mt.readcounts", output=OUTPUT, sample=set(mt_exps['Sample'])) if len(mt_exps) > 0 else [],
-        expand("{output}/Quantification/{sample}_mt_norm.tsv", output=OUTPUT, sample=set(mg_exps['Sample'])) if (len(mt_exps) > 0 or not config['assembly']) else []
+        expand("{output}/Quantification/{sample}_mt_norm.tsv", output=OUTPUT, sample=set(mg_exps['Sample'])) if (len(mt_exps) > 0 and config['do_assembly']) else []
     threads:
         config["threads"]
     params:

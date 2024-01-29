@@ -1,6 +1,22 @@
+rule merge_reads:
+    input:
+        forward_reads=f"{OUTPUT}/Preprocess/Trimmomatic/quality_trimmed_{{name}}_forward_paired.fq",
+        reverse_reads=f"{OUTPUT}/Preprocess/Trimmomatic/quality_trimmed_{{name}}_reverse_paired.fq"
+    output:
+        expand("{output}/Preprocess/Trimmomatic/{{name}}.assembled.fastq", output=OUTPUT)
+    threads:
+        config["threads"]
+    params:
+        memory = config["max_memory"]
+    conda:
+        "../envs/merge_reads.yaml"
+    shell:
+        "pear -f {input.forward_reads} -r {input.reverse_reads} -o {OUTPUT}/Preprocess/Trimmomatic/{wildcards.name} "
+        "-j {threads} -y {params.memory}G"
+
 rule fastq2fasta:
     input:
-        sample_to_reads
+        gene_calling_input
     output:
         expand("{output}/Preprocess/piled_{{sample}}.fasta", output=OUTPUT)
     threads:

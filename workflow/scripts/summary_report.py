@@ -48,6 +48,7 @@ def write_versions_report(output):
 class Reporter:
     def __init__(self):
         self.report = pd.DataFrame()
+        self.sample2name = {}
 
     def info_from_preprocessing(self, out_dir):
         timed_message('Processing results of: preprocessing.')
@@ -74,7 +75,7 @@ class Reporter:
             sample = file.split('/')[-3]
             self.report = pd.concat([self.report, pd.Series(name=sample, dtype='object')])
             data = pd.read_csv(file, sep='\t', index_col='Assembly')
-            self.report.loc[sample, ['# contigs', 'N50', 'Reads aligned (%)']] = (
+            self.report.loc[self.sample2name[sample], ['# contigs', 'N50', 'Reads aligned (%)']] = (
                 int(data.loc['# contigs', 'contigs']),
                 int(data.loc['N50', 'contigs']),
                 data.loc['Reads aligned (%)', 'contigs'])
@@ -86,7 +87,7 @@ class Reporter:
             timed_message(f'Obtaining info from: {"/".join(file.split("/")[-3:])}')
             sample = file.split('/')[-2]
             data = pd.read_csv(file, sep='\t')
-            self.report.loc[sample, ['# high-qual MAGs', '# medium-qual MAGs', '# low-qual MAGs']] = (
+            self.report.loc[self.sample2name[sample], ['# high-qual MAGs', '# medium-qual MAGs', '# low-qual MAGs']] = (
                 ((data['Completeness'] >= 90) & (data['Contamination'] <= 5)).sum(),
                 ((data['Completeness'] >= 50) & (data['Completeness'] < 90) & (data['Contamination'] <= 10)).sum(),
                 ((data['Completeness'] < 50) & (data['Contamination'] <= 10)).sum())
@@ -99,17 +100,17 @@ class Reporter:
         for file in fastas:
             timed_message(f'Obtaining info from: {"/".join(file.split("/")[-3:])}')
             sample = file.split('/')[-2]
-            self.report.loc[sample, '# genes'] = count_on_file('>', file)
+            self.report.loc[self.sample2name[sample], '# genes'] = count_on_file('>', file)
         for file in upimapi_res:
             timed_message(f'Obtaining info from: {"/".join(file.split("/")[-3:])}')
             sample = file.split('/')[-2]
-            self.report.loc[sample, '# annotations (UPIMAPI)'] = pd.read_csv(
-                file, sep='\t', low_memory=False)['qseqid'].unique().sum()
+            self.report.loc[self.sample2name[sample], '# annotations (UPIMAPI)'] = len(pd.read_csv(
+                file, sep='\t', low_memory=False)['qseqid'].unique())
         for file in recognizer_res:
             timed_message(f'Obtaining info from: {"/".join(file.split("/")[-3:])}')
             sample = file.split('/')[-2]
-            self.report.loc[sample, '# annotations (reCOGnizer)'] = pd.read_csv(
-                file, sep='\t', low_memory=False)['qseqid'].unique().sum()
+            self.report.loc[self.sample2name[sample], '# annotations (reCOGnizer)'] = len(pd.read_csv(
+                file, sep='\t', low_memory=False)['qseqid'].unique())
 
     def info_from_quantification(self, out_dir):
         timed_message('Processing results of: MT quantification.')
@@ -149,15 +150,19 @@ class Reporter:
     def run(self):
         timed_message('Writting final reports.')
         write_versions_report(f'{snakemake.params.output}/MOSCA_Versions_Report.xlsx')
+        exps = pd.read_csv(f'{snakemake.params.output}/exps.tsv', sep='\t')
+        for sample in exps['Sample'].unique():
+            self.sample2name = {sample: exps[exps['Sample'] == sample]['Name'].tolist()}
         self.info_from_preprocessing(snakemake.params.output)
         self.info_from_assembly(snakemake.params.output)
         self.info_from_binning(snakemake.params.output)
         self.info_from_annotation(snakemake.params.output)
         self.info_from_quantification(snakemake.params.output)
-        exps = pd.read_csv(f'{snakemake.params.output}/exps.tsv', sep='\t')
         self.info_from_differential_expression(
             snakemake.params.output, cutoff=snakemake.params.cutoff, mp='protein' in exps['Data type'].tolist())
-        self.report.to_csv(f'{snakemake.params.output}/MOSCA_Summary_Report.tsv', sep='\t')
+        self.report[['Initial reads', 'Qual trim params', 'Final reads', '# genes', '# annotations (UPIMAPI)',
+                     '# annotations (reCOGnizer)', 'Reads aligned (%)', '# differentially expressed'
+                     ]].to_csv(f'{snakemake.params.output}/MOSCA_Summary_Report.tsv', sep='\t')
         self.zip_outputs(snakemake.params.output)
 
 

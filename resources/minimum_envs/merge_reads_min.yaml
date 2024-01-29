@@ -1,0 +1,8 @@
+name: merge_reads
+channels:
+  - conda-forge
+  - bioconda
+  - anaconda
+  - defaults
+dependencies:
+  - pear

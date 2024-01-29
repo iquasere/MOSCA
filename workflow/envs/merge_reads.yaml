@@ -1,0 +1,16 @@
+name: merge_reads
+channels:
+  - conda-forge
+  - bioconda
+  - anaconda
+  - defaults
+dependencies:
+  - _libgcc_mutex=0.1=conda_forge
+  - _openmp_mutex=4.5=2_gnu
+  - bzip2=1.0.8=hd590300_5
+  - libgcc-ng=13.2.0=h807b86a_4
+  - libgomp=13.2.0=h807b86a_4
+  - libzlib=1.2.13=hd590300_5
+  - pear=0.9.6=h9d449c0_10
+  - zlib=1.2.13=hd590300_5
+prefix: /opt/conda/envs/merge_reads

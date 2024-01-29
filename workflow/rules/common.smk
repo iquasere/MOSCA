@@ -50,3 +50,14 @@ def sample_to_reads(wildcards):
     df = mg_exps[mg_exps['Sample'] == wildcards.sample].reset_index()
     return [f'{OUTPUT}/Preprocess/Trimmomatic/quality_trimmed_{df.iloc[row]["Name"]}{fr}.fq' for row in range(len(df))
            for fr in (['_forward_paired', '_reverse_paired'] if ',' in df.iloc[row]["Files"] else [''])]
+
+
+def gene_calling_input(wildcards):
+    df = mg_exps[mg_exps['Sample'] == wildcards.sample].reset_index()
+    result = []
+    for row in range(len(df)):
+        if ',' in df.iloc[row]["Files"]:
+            result.append(f'{OUTPUT}/Preprocess/Trimmomatic/{df.iloc[row]["Name"]}.assembled.fastq')
+        else:
+            result.append(f'{OUTPUT}/Preprocess/Trimmomatic/quality_trimmed_{df.iloc[row]["Name"]}.fq')
+    return result
