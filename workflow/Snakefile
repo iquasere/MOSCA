@@ -29,7 +29,7 @@ include: "rules/summary_report.smk"
 start_time = time()
 
 onstart:
-    with open(f'{sys.path[0]}/../mosca_logo.txt') as f:
+    with open(f'{sys.path[0]}/../../mosca_logo.txt') as f:
         print(f.read())
     print('MOSCA analysis has begun.')
 
