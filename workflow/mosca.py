@@ -71,9 +71,9 @@ def validate_config(config_data):
 
 user_config, config_format = read_config(args.configfile)
 config = read_config(f'{sys.path[0]}/default_config.json')[0]       # default configurations
-for key in config.keys():                                           # set default values
+for key in config.keys():
     if key in user_config.keys():
-        config[key] = user_config[key]
+        config[key] = user_config[key]                              # set default values
 validate_config(config)
 pathlib.Path(config["output"]).mkdir(parents=True, exist_ok=True)
 save_config(config, f'{config["output"]}/config.json', output_format=config_format)

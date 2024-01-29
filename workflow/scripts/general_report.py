@@ -40,7 +40,7 @@ def make_general_report(out, exps, sample, mg_preport, mt_preport, mp_preport, d
     if len(mg_names) > 0:
         mg_counts = pd.read_csv((f'{out}/Quantification/{sample}_mg_norm.tsv' if did_assembly else
                                  f'{out}/Quantification/{sample}_mg.readcounts'), sep='\t', names=[
-                                'qseqid'] + mg_names, skiprows=1)
+                                'Contig' if did_assembly else 'qseqid'] + mg_names, skiprows=1)
         if did_assembly:
             mg_counts['Contig'] = mg_counts['Contig'].apply(lambda x: x.split('_')[1])
         report = pd.merge(report, mg_counts, on=('Contig' if did_assembly else 'qseqid'), how='left')
