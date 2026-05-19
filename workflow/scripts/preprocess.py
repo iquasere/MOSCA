@@ -98,15 +98,24 @@ class Preprocesser:
                 return adapter  # It's solved, adapters have been removed
         return 'Failed'
 
+    def safe_rmtree(self, path, retries=5):
+        for i in range(retries):
+            try:
+                shutil.rmtree(path)
+                return
+            except OSError:
+                time.sleep(2)
+        print(f"[WARN] Could not fully delete {path}, leaving it (NFS lock).")
+
     # SortMeRNA - rRNA removal
     def rrna_removal(self, reads, out_dir, name, database, indexes_dir, tmp_dir, threads=12):
         if os.path.isdir(tmp_dir):
-            shutil.rmtree(tmp_dir)
+            self.safe_rmtree(tmp_dir)
         run_pipe_command(
             f"sortmerna -ref {database} --reads {' --reads '.join(reads)} --idx-dir {indexes_dir} "
             f"--workdir {tmp_dir} --aligned {out_dir}/rrna_{name} --other {out_dir}/norrna_{name} -out2 --fastx "
             f"--paired_in --threads {threads} 1>{out_dir}/{name}_sortmerna.log 2>{out_dir}/{name}_sortmerna.err")
-        shutil.rmtree(tmp_dir)
+        self.safe_rmtree(tmp_dir)
         not_compressed = glob(f'{out_dir}/*.fq')
         if len(not_compressed) > 0:
             for file in not_compressed:
@@ -228,7 +237,7 @@ class Preprocesser:
             rrna_database = f'{rrna_databases_dir}/smr_v4.3_{rrna_database}.fasta'
             self.rrna_removal(
                 reads, f'{snakemake.params.output}/SortMeRNA', name, rrna_database, rrna_databases_dir,
-                tmp_dir=f'{snakemake.params.output}/SortMeRNA/tmp', threads=snakemake.threads)
+                tmp_dir=f'{snakemake.params.output}/SortMeRNA/tmp_{name}', threads=snakemake.threads)
 
             reads = ([f'{snakemake.params.output}/SortMeRNA/norrna_{name}_{fr}.fq.gz' for fr in ['fwd', 'rev']] if
                      self.paired else [f'{snakemake.params.output}/SortMeRNA/norrna_{name}.fq.gz'])

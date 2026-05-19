@@ -12,7 +12,6 @@ import re
 __version__ = '2.4.0'
 
 parser = argparse.ArgumentParser(description="MOSCA's main script")
-parser.add_argument("-s", "--snakefile", default=f'{sys.path[0]}/Snakefile', help="Path to Snakefile")
 parser.add_argument(
     "-c", "--configfile", required=True,
     help="Configuration file for MOSCA (JSON or YAML). Obtain one at https://iquasere.github.io/MOSGUITO")
@@ -106,7 +105,7 @@ pathlib.Path(config["output"]).mkdir(parents=True, exist_ok=True)
 save_config(config, f'{config["output"]}/config.json', output_format=config_format)
 
 command = (
-    f"-s {args.snakefile} --printshellcmds --cores {config['threads']} --configfile {config['output']}/config.json "
+    f"-s {sys.path[0]}/Snakefile --printshellcmds --cores {config['threads']} --configfile {config['output']}/config.json "
     f"--software-deployment-method conda{' --software-deployment-method apptainer' if args.use_singularity else ''}{' --unlock' if args.unlock else ''}")
 
 print(f"MOSCA command: snakemake {command}")

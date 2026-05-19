@@ -51,7 +51,7 @@ jobs:
       - name: run preprocess
         run: |
           docker run mosca /bin/bash -c "rm -r MOSCARDO/output_rules/Preprocess;
-          snakemake --cores all -R --until preprocess -s MOSCA/workflow/Snakefile --configfile MOSCARDO/configs/rules_config.json --use-conda"
+          snakemake --cores all -R --until preprocess -s MOSCA/workflow/Snakefile --configfile MOSCARDO/configs/rules_config.json --software-deployment-method conda"
 
   assembly:
     runs-on: ubuntu-latest
@@ -71,7 +71,7 @@ jobs:
           docker run mosca /bin/bash -c "rm -r MOSCARDO/output_rules/Assembly; gunzip -r MOSCARDO/output_rules; 
           touch MOSCARDO/output_rules/Preprocess/Trimmomatic/quality_trimmed_mg_forward_paired.fq;
           touch MOSCARDO/output_rules/Preprocess/Trimmomatic/quality_trimmed_mg_reverse_paired.fq;
-          snakemake --cores all -R --until assembly -s MOSCA/workflow/Snakefile --configfile MOSCARDO/configs/rules_config.json --use-conda"
+          snakemake --cores all -R --until assembly -s MOSCA/workflow/Snakefile --configfile MOSCARDO/configs/rules_config.json --software-deployment-method conda"
 
   binning:
     runs-on: ubuntu-latest
@@ -94,7 +94,7 @@ jobs:
           touch MOSCARDO/output_rules/Preprocess/Trimmomatic/quality_trimmed_mg_reverse_paired.fq;
           touch MOSCARDO/output_rules/Preprocess/sample_forward.fastq MOSCARDO/output_rules/Preprocess/sample_reverse.fastq;
           touch MOSCARDO/output_rules/Assembly/sample/contigs.fasta MOSCARDO/output_rules/Assembly/sample/scaffolds.fasta;
-          snakemake --cores all -R --until binning -s MOSCA/workflow/Snakefile --configfile MOSCARDO/configs/rules_config.json --use-conda --ignore-incomplete"
+          snakemake --cores all -R --until binning -s MOSCA/workflow/Snakefile --configfile MOSCARDO/configs/rules_config.json --software-deployment-method conda --ignore-incomplete"
 
   mg-workflow:
     runs-on: ubuntu-latest
