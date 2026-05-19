@@ -1,10 +1,7 @@
 import pathlib
 import pandas as pd
 from time import gmtime, strftime
-from snakemake.remote import FTP
 from snakemake.utils import validate
-
-ftp = FTP.RemoteProvider()
 
 validate(config, schema="../schemas/config.schema.yaml")
 

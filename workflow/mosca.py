@@ -9,7 +9,7 @@ import yaml
 import pandas as pd
 import re
 
-__version__ = '2.3.1'
+__version__ = '2.4.0'
 
 parser = argparse.ArgumentParser(description="MOSCA's main script")
 parser.add_argument("-s", "--snakefile", default=f'{sys.path[0]}/Snakefile', help="Path to Snakefile")
@@ -107,7 +107,7 @@ save_config(config, f'{config["output"]}/config.json', output_format=config_form
 
 command = (
     f"-s {args.snakefile} --printshellcmds --cores {config['threads']} --configfile {config['output']}/config.json "
-    f"--use-conda{' --use-singularity' if args.use_singularity else ''}{' --unlock' if args.unlock else ''}")
+    f"--software-deployment-method conda{' --software-deployment-method apptainer' if args.use_singularity else ''}{' --unlock' if args.unlock else ''}")
 
 print(f"MOSCA command: snakemake {command}")
 snakemake.main(command)
