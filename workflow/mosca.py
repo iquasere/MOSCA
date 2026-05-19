@@ -70,7 +70,7 @@ def validate_config(config_data):
 
 
 user_config, config_format = read_config(args.configfile)
-config = read_config(f'{sys.path[0]}/default_config.json')[0]       # default configurations
+config = read_config(f'{sys.path[0]}/../resources/default_config.json')[0]       # default configurations
 for key in config.keys():
     if key in user_config.keys():
         config[key] = user_config[key]                              # set default values
