@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
+from snakemake.cli import main as snakemake_main
 import pathlib
-import snakemake
 import argparse
 import sys
 import json
@@ -109,4 +109,4 @@ command = (
     f"--software-deployment-method conda{' --software-deployment-method apptainer' if args.use_singularity else ''}{' --unlock' if args.unlock else ''}")
 
 print(f"MOSCA command: snakemake {command}")
-snakemake.main(command)
+snakemake_main(command.split())

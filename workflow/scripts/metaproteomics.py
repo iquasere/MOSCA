@@ -16,7 +16,6 @@ from tqdm import tqdm
 import requests
 from time import sleep
 from mosca_tools import run_command, run_pipe_command, multiprocess_fun
-import snakemake
 
 
 class MetaproteomicsAnalyser:

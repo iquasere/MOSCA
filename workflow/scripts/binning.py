@@ -12,7 +12,6 @@ from mosca_tools import run_command
 import pandas as pd
 import shutil
 import pathlib
-import snakemake
 import os
 
 
