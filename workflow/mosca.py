@@ -48,6 +48,7 @@ def save_config(config_data, filename, output_format):
 
 
 def validate_exps(exps_data):
+
     def set_name(files, data_type):
         filename = files.split('/')[-1]
         if data_type == 'protein':
@@ -55,6 +56,7 @@ def validate_exps(exps_data):
         if ',' in files:
             return filename.split(',')[0].split('_R')[0]
         return filename.split('.fa')[0]
+        
     exps = pd.DataFrame(exps_data)
     reserved_words = [
         'if', 'else', 'repeat', 'while', 'function', 'for', 'in', 'next', 'break', 'TRUE', 'FALSE', 'NULL', 'Inf',
@@ -75,7 +77,7 @@ def validate_exps(exps_data):
         # if not config['do_assembly']:
         #    EXPS.iloc[i]['Sample'] = EXPS.iloc[i]['Name']
     if exps['Name'].duplicated().any():
-        sys.exit(f'ERROR: Multiple rows with same "Name" value: {",".join(exps["Name"].duplicated().any())}.')
+        sys.exit(f'ERROR: Multiple rows with same "Name" value in "experiments" section: {",".join(exps[exps["Name"].duplicated()]["Name"])}.')
 
 
 def validate_config(config_data):
@@ -88,11 +90,11 @@ def validate_config(config_data):
         if type(config_data[parameter]) == str:
             if config_data[parameter] not in value:
                 sys.exit(f'ERROR: Invalid value for "{parameter}": {config_data[parameter]}.')
-        if type(config_data[parameter]) == list:
+        elif type(config_data[parameter]) == list:
             for item in config_data[parameter]:
                 if item not in value:
                     sys.exit(f'ERROR: Invalid value for "{parameter}": {item}.')
-    validate_exps(config["experiments"])
+    validate_exps(config_data["experiments"])
 
 
 user_config, config_format = read_config(args.configfile)
