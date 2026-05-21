@@ -111,7 +111,7 @@ jobs:
           docker image ls -a
       - name: Create named volume
         run: docker volume create named_volume
-      - name: MGMP workflow
+      - name: MG workflow
         run: docker run mosca /bin/bash -c "rm -r MOSCARDO/output_rules; mosca -c MOSCARDO/configs/mg_config.json"
 
   mgmt-workflow:

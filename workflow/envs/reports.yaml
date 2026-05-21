@@ -12,6 +12,7 @@ dependencies:
   - ca-certificates=2022.12.7=ha878542_0
   - colorama=0.4.6=pyhd8ed1ab_0
   - curl=7.87.0=hdc1c0ab_0
+  - dask
   - et_xmlfile=1.0.1=py_1001
   - keyutils=1.6.1=h166bdaf_0
   - krb5=1.20.1=h81ceb04_0
