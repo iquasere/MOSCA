@@ -5,4 +5,4 @@ channels:
   - anaconda
   - defaults
 dependencies:
-  - recognizer >=1.12.1
+  - recognizer >=1.12.2

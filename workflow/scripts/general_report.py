@@ -16,6 +16,25 @@ from concurrent.futures import ThreadPoolExecutor
 functional_columns = [
     'General functional category', 'Functional category', 'Protein description', 'COG ID', 'EC number (reCOGnizer)']
 
+def process_quantification(data_type, did_assembly, names, out, sample):
+    """
+    Read counts (reads or spectra) depending on the type of data (mg, mt, mp).
+    """
+    if data_type == 'mg':
+        filepath = f'{out}/Quantification/{sample}_mg_norm.tsv' if did_assembly else f'{out}/Quantification/{sample}_mg.readcounts'
+        counts = pd.read_csv(filepath, sep='\t')            # TODO - check if when no assembly the first column is named qseqid in the norm file
+        if did_assembly:
+            counts['Contig'] = counts['Contig'].str.split('_').str[1]
+        return counts.set_index('Contig' if did_assembly else 'qseqid')
+    if data_type == 'mt':
+        norm_filepath = f'{out}/Quantification/{sample}_mt_norm.tsv' if did_assembly else f'{out}/Quantification/{sample}_mt.readcounts'
+        counts = pd.read_csv(norm_filepath, sep='\t')
+        return counts.rename(columns={'Gene': 'qseqid'}).set_index('qseqid')
+    if data_type == 'mp':
+        counts = pd.read_csv(f'{out}/Metaproteomics/{sample}_mp.spectracounts', sep='\t')
+        return counts.rename(columns={'Main Accession': 'qseqid'}).set_index('qseqid')
+    return ValueError(f'Unknown data type: {data_type}')
+
 
 def make_general_report(out, exps, sample, mg_preport, mt_preport, mp_preport, de_input, did_assembly=True):
     timed_message(f'Joining data for sample: {sample}.')
@@ -23,17 +42,17 @@ def make_general_report(out, exps, sample, mg_preport, mt_preport, mp_preport, d
     with open(f'{out}/Annotation/{sample}/fgs.faa') as f:
         headers = [line.strip()[1:] for line in f if line.startswith(">")]
 
-    report = pd.DataFrame(headers, columns=["qseqid"])
+    report = pd.DataFrame(headers, columns=["qseqid"]).set_index('qseqid')
 
     print('Reading reCOGnizer results.')
     cog_report = dd.read_csv(f'{out}/Annotation/{sample}/COG_report.tsv', sep='\t', dtype=str)
     cog_report = cog_report[cog_report['DB ID'].str.startswith('COG') == True].rename(columns={'DB ID': 'COG ID'})
     cog_report = cog_report.groupby('qseqid').first().compute()
-    report = pd.merge(report, cog_report, left_on='qseqid', right_index=True, how='left')
+    report = pd.merge(report, cog_report, left_index=True, right_index=True, how='left')
 
     print('Reading UPIMAPI results.')
-    upimapi_results = dd.read_csv(f'{out}/Annotation/{sample}/UPIMAPI_results.tsv', sep='\t', dtype=str).compute()
-    report = pd.merge(upimapi_results, report, on='qseqid', how='outer')
+    upimapi_results = dd.read_csv(f'{out}/Annotation/{sample}/UPIMAPI_results.tsv', sep='\t', dtype=str).compute().set_index('qseqid')
+    report = pd.merge(upimapi_results, report, left_index=True, right_index=True, how='outer')
 
     print('Formatting names of columns.')
     rename_cols = blast_cols + ['EC number']
@@ -41,48 +60,39 @@ def make_general_report(out, exps, sample, mg_preport, mt_preport, mp_preport, d
                                     **{f'{col}_y': f'{col} (reCOGnizer)' for col in rename_cols}})
 
     if did_assembly:
-        report['Contig'] = report['qseqid'].apply(lambda x: x.split('_')[1])
+        report['Contig'] = report.index.to_series().str.split('_').str[1]
 
     mg_names = exps[(exps['Sample'] == sample) & (exps['Data type'] == 'dna')]['Name'].tolist()
     mt_names = exps[(exps['Sample'] == sample) & (exps['Data type'] == 'mrna')]['Name'].tolist()
     mp_names = exps[(exps['Sample'] == sample) & (exps['Data type'] == 'protein')]['Name'].tolist()
 
-    def process_quantification(type_name, did_assembly, names, out, sample):
-        """
-        Read counts depending on the type of data (mg, mt, mp).
-        """
-        counts = None
-        if type_name == 'mg':
-            filepath = f'{out}/Quantification/{sample}_mg_norm.tsv' if did_assembly else f'{out}/Quantification/{sample}_mg.readcounts'
-            counts = pd.read_csv(filepath, sep='\t', names=['Contig' if did_assembly else 'qseqid'] + names, skiprows=1)
-            if did_assembly:
-                counts['Contig'] = counts['Contig'].apply(lambda x: x.split('_')[1])
-        elif type_name == 'mt':
-            norm_filepath = f'{out}/Quantification/{sample}_mt_norm.tsv' if did_assembly else f'{out}/Quantification/{sample}_mt.readcounts'
-            counts = pd.read_csv(norm_filepath, sep='\t', names=['qseqid'] + names)
-        elif type_name == 'mp':
-            counts = pd.read_csv(f'{out}/Metaproteomics/{sample}_mp.spectracounts', sep='\t')
-            counts.rename(columns={'Main Accession': 'qseqid'}, inplace=True)
-        return counts
-
     with ThreadPoolExecutor() as executor:
-        futures = []
+        futures = {}
         if mg_names:
-            futures.append(executor.submit(process_quantification, 'mg', did_assembly, mg_names, out, sample))
+            futures['mg'] = executor.submit(process_quantification, 'mg', did_assembly, mg_names, out, sample)
         if mt_names:
-            futures.append(executor.submit(process_quantification, 'mt', did_assembly, mt_names, out, sample))
+            futures['mt'] = executor.submit(process_quantification, 'mt', did_assembly, mt_names, out, sample)
         if mp_names:
-            futures.append(executor.submit(process_quantification, 'mp', did_assembly, mp_names, out, sample))
-        results = [future.result() for future in futures]
+            futures['mp'] = executor.submit(process_quantification, 'mp', did_assembly, mp_names, out, sample)
+        results = {key: future.result() for key, future in futures.items()}
 
-    for result in results:
-        if result is not None:
-            if 'Contig' in result.columns:
-                report = pd.merge(report, result, on='Contig', how='left')
-            else:
-                report = pd.merge(report, result, on='qseqid', how='left')
+    for dtype, result in results.items():
+        if dtype == 'mg' and did_assembly:
+            report = pd.merge(report, result, left_on='Contig', right_index=True, how='left')
+        else:
+            report = pd.merge(report, result, left_index=True, right_index=True, how='left')
+    
+    # Add partial reports to the main reports for quantification matrices
+    for dtype, result in results.items():
+        result.index.name = 'Entry'         # Rename index to 'Entry' for consistency
+        if dtype == 'mg':
+            mg_preport = pd.merge(mg_preport, result, on='Entry', how='outer')
+        elif dtype == 'mt':
+            mt_preport = pd.merge(mt_preport, result, on='Entry', how='outer')
+        elif dtype == 'mp':
+            mp_preport = pd.merge(mp_preport, result, on='Entry', how='outer')
 
-    report[mg_names + mt_names + mp_names] = report[mg_names + mt_names + mp_names].fillna(0).astype(float).astype(int)     # astype(float).astype(int) avoids "ValueError: invalid literal for int() with base 10: '2.0'"
+    report[mg_names + mt_names + mp_names] = report[mg_names + mt_names + mp_names].fillna(0).astype(float)     # astype(float).astype(int) avoids "ValueError: invalid literal for int() with base 10: '2.0'"
     report.to_csv(f'{out}/MOSCA_{sample}_General_Report.tsv', sep='\t', index=False)
     return report, mg_preport, mt_preport, mp_preport, de_input
 
@@ -94,7 +104,7 @@ def make_general_reports(out, exps, max_lines=1000000, did_assembly=True):
     for sample in set(exps['Sample']):
         report, mg_report, mt_report, mp_report, de_input = make_general_report(
             out, exps, sample, mg_report, mt_report, mp_report, de_input, did_assembly=did_assembly)
-        timed_message(f'Writing General Report for sample: {sample}.')
+        timed_message(f'Writing General Report for sample: {sample}')
         if len(report) < max_lines:
             report.to_excel(writer, sheet_name=sample, index=False)
         else:
