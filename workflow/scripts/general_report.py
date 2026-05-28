@@ -82,15 +82,21 @@ def make_general_report(out, exps, sample, mg_preport, mt_preport, mp_preport, d
         else:
             report = pd.merge(report, result, left_index=True, right_index=True, how='left')
     
-    # Add partial reports to the main reports for quantification matrices
+    dfs=[]; 
     for dtype, result in results.items():
-        result.index.name = 'Entry'         # Rename index to 'Entry' for consistency
-        if dtype == 'mg':
-            mg_preport = pd.merge(mg_preport, result, on='Entry', how='outer')
-        elif dtype == 'mt':
-            mt_preport = pd.merge(mt_preport, result, on='Entry', how='outer')
-        elif dtype == 'mp':
-            mp_preport = pd.merge(mp_preport, result, on='Entry', how='outer')
+        result.index.name='Entry'
+        if dtype=='mg':
+            mg_preport=pd.merge(mg_preport,result,on='Entry',how='outer')
+        elif dtype=='mt':
+            mt_preport=pd.merge(mt_preport,result,on='Entry',how='outer')
+            for name in mt_names:
+                dfs.append(pd.read_csv(f'{out}/Quantification/{name}.readcounts', sep='\t', names=['Entry',name]).set_index('Entry'))
+        elif dtype=='mp':
+            mp_preport=pd.merge(mp_preport,result,on='Entry',how='outer')
+
+    if dfs:
+        de_input=pd.concat(dfs,axis=1,join='outer').reset_index()
+        de_input['Entry']=de_input['Entry'].map(upimapi_results['sseqid']).fillna(de_input['Entry'])
 
     report[mg_names + mt_names + mp_names] = report[mg_names + mt_names + mp_names].fillna(0).astype(float)     # astype(float).astype(int) avoids "ValueError: invalid literal for int() with base 10: '2.0'"
     report.to_csv(f'{out}/MOSCA_{sample}_General_Report.tsv', sep='\t', index=False)
@@ -98,7 +104,8 @@ def make_general_report(out, exps, sample, mg_preport, mt_preport, mp_preport, d
 
 
 def make_general_reports(out, exps, max_lines=1000000, did_assembly=True):
-    mg_report = mt_report = mp_report = de_input = pd.DataFrame(columns=['Entry'])
+    mg_report = mt_report = mp_report = pd.DataFrame(columns=['Entry'])
+    de_input = pd.DataFrame()
     writer = pd.ExcelWriter(f'{out}/MOSCA_General_Report.xlsx', engine='xlsxwriter')
 
     for sample in set(exps['Sample']):
@@ -112,22 +119,25 @@ def make_general_reports(out, exps, max_lines=1000000, did_assembly=True):
                 chunk.to_excel(writer, sheet_name=f'{sample} ({k + 1})', index=False)
     writer.close()
 
-    timed_message('Writing quantification matrices.')
-    if not mg_report.empty:
-        mg_report.iloc[:, 1:] = mg_report.iloc[:, 1:].astype(float)
-        mg_report = mg_report.groupby('Entry').sum().reset_index()
-        mg_report.to_csv(f'{out}/Quantification/mg_entry_quant.tsv', sep='\t', index=False)
-    if not mt_report.empty:
-        mt_report.iloc[:, 1:] = mt_report.iloc[:, 1:].astype(float)
-        mt_report = mt_report.groupby('Entry').sum().reset_index()
-        mt_report.to_csv(f'{out}/Quantification/mt_entry_quant.tsv', sep='\t', index=False)
+    if len(de_input) > 0:
+        de_input = de_input.groupby('Entry').sum().reset_index()
+        de_input[de_input.columns.tolist()[1:]] = de_input[de_input.columns.tolist()[1:]].fillna(0).astype(int)
         de_input.to_csv(f'{out}/Quantification/dea_input.tsv', sep='\t', index=False)
-    if not mp_report.empty:
+
+    timed_message('Writing quantification matrices.')
+    if 'dna' in exps['Data type'].values:
+        mg_report.iloc[:, 1:] = mg_report.iloc[:, 1:].astype(float)
+        mg_report = mg_report.groupby('Entry').sum()
+        mg_report.to_csv(f'{out}/Quantification/mg_entry_quant.tsv', sep='\t')
+    if 'mrna' in exps['Data type'].values:
+        mt_report.iloc[:, 1:] = mt_report.iloc[:, 1:].astype(float)
+        mt_report = mt_report.groupby('Entry').sum()
+        mt_report.to_csv(f'{out}/Quantification/mt_entry_quant.tsv', sep='\t')
+    if 'protein' in exps['Data type'].values:
         mp_report.iloc[:, 1:] = mp_report.iloc[:, 1:].astype(float)
-        mp_report = mp_report.groupby('Entry').sum().reset_index()
+        mp_report = mp_report.groupby('Entry').sum()
         mp_report = mp_report.drop_duplicates().dropna(subset=mp_report.columns[1:])
-        mp_report.to_csv(f'{out}/Metaproteomics/mp_entry_quant.tsv', sep='\t', index=False)
-        shutil.copyfile(f'{out}/Metaproteomics/mp_entry_quant.tsv', f'{out}/Quantification/dea_input.tsv')
+        mp_report.to_csv(f'{out}/Metaproteomics/mp_entry_quant.tsv', sep='\t')
 
 
 def run():
