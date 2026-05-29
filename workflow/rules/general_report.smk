@@ -10,7 +10,7 @@ rule general_report:
     output:
         expand("{output}/MOSCA_{sample}_General_Report.tsv", output=OUTPUT, sample=set(mg_exps['Sample'])),
         f"{OUTPUT}/MOSCA_General_Report.xlsx",
-        f"{OUTPUT}/Quantification/dea_input.tsv",
+        f"{OUTPUT}/Quantification/dea_input.tsv" if has_expression_data else [],
         f"{OUTPUT}/Quantification/mg_entry_quant.tsv" if len(mg_exps) > 0 else [],
         f"{OUTPUT}/Quantification/mt_entry_quant.tsv" if len(mt_exps) > 0 else [],
         f"{OUTPUT}/Metaproteomics/mp_entry_quant.tsv" if len(mp_exps) > 0 else []
