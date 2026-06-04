@@ -12,6 +12,7 @@ from mosca_tools import run_command
 import pandas as pd
 import shutil
 import pathlib
+import os
 
 
 class Binner:
@@ -74,7 +75,7 @@ class Binner:
             return True
         if lq_bins1 < lq_bins2:
             return False
-        return True
+        return False
 
     def iterative_binning(self, contigs, output, threads=8, reads=None, reads2=None, markerset='40'):
         best_bin = 10
@@ -95,8 +96,8 @@ class Binner:
                 else:
                     shutil.rmtree(f'{output}/{prob_threshold}')
                     print(f'Removed files for probability threshold: {prob_threshold} %')
-
-        shutil.copyfile(f'{output}/{best_bin}/checkm.tsv', f'{output}/checkm.tsv')
+        for file_name in os.listdir(f'{output}/{best_bin}'):
+            shutil.move(os.path.join(f'{output}/{best_bin}', file_name), output)
         print(f'Best probability threshold: {best_bin} %')
         with open(f'{output}/result.txt', 'w') as f:
             f.write(f'Best probability threshold: {best_bin}')

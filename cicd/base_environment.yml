@@ -7,4 +7,4 @@ channels:
 dependencies:
   - python >=3.9, <3.12
   - pandas
-  - snakemake <8
+  - snakemake >8

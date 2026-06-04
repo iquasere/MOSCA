@@ -116,8 +116,8 @@ def make_entry_report(out, exps):
         entry_report, all_info.groupby('Entry')[mg_names + mt_names + mp_names].sum().reset_index(), on='Entry',
         how='left')
     timed_message('Adding normalized matrices.')
-    entry_report = pd.merge(
-        entry_report, join_normalized_matrices(mg_names, mt_names, mp_names, out), on='Entry', how='left')
+    normalized_matrices = join_normalized_matrices(mg_names, mt_names, mp_names, out)
+    entry_report = pd.merge(entry_report, normalized_matrices, on='Entry', how='left')
     timed_message('Writing Entry Report.')
     entry_report.to_csv(f'{out}/MOSCA_Entry_Report.tsv', sep='\t', index=False)
     entry_report[entry_report[mt_names + mp_names].sum(axis=1) > 0].to_csv(
