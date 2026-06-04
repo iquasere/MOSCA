@@ -30,7 +30,7 @@ jobs:
       - name: Create named volume
         run: docker volume create named_volume
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: mosca
           path: /tmp/mosca.tar
