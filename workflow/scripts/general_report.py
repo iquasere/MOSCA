@@ -86,13 +86,13 @@ def make_general_report(out, exps, sample, mg_preport, mt_preport, mp_preport, d
     for dtype, result in results.items():
         result.index.name='Entry'
         if dtype=='mg':
-            mg_preport=pd.merge(mg_preport,result,on='Entry',how='outer')
+            mg_preport = pd.merge(mg_preport, result, on='Entry', how='outer')
         elif dtype=='mt':
-            mt_preport=pd.merge(mt_preport,result,on='Entry',how='outer')
+            mt_preport = pd.merge(mt_preport, result, on='Entry', how='outer')
             for name in mt_names:
                 dfs.append(pd.read_csv(f'{out}/Quantification/{name}.readcounts', sep='\t', names=['Entry',name]).set_index('Entry'))
         elif dtype=='mp':
-            mp_preport=pd.merge(mp_preport,result,on='Entry',how='outer')
+            mp_preport = pd.merge(mp_preport, result, on='Entry', how='outer')
 
     if dfs:
         de_input=pd.concat(dfs,axis=1,join='outer').reset_index()
@@ -127,6 +127,11 @@ def make_general_reports(out, exps, max_lines=1000000, did_assembly=True):
     timed_message('Writing quantification matrices.')
     if 'dna' in exps['Data type'].values:
         mg_report.iloc[:, 1:] = mg_report.iloc[:, 1:].astype(float)
+        if did_assembly:
+            relation = report.reset_index()[['Contig', 'qseqid']].set_index('Contig')
+            mg_report.set_index('Entry', inplace=True)
+            mg_report = pd.merge(mg_report, relation, left_index=True, right_index=True, how='left').set_index('qseqid')
+            mg_report.index.name = 'Entry'
         mg_report = mg_report.groupby('Entry').sum()
         mg_report.to_csv(f'{out}/Quantification/mg_entry_quant.tsv', sep='\t')
     if 'mrna' in exps['Data type'].values:
